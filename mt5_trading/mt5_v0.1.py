@@ -8,6 +8,8 @@ import pandas as pd
 pd.set_option('display.max_columns', 500) # number of columns to be displayed
 pd.set_option('display.width', 1500)      # max table width to display
 
+path = r"E:\Program Files\MetaTrader 5\terminal64.exe"
+
 account_live = 10557130
 password_live = credential_info.password
 server_live = "ForexTimeFXTM-Live01"
@@ -274,7 +276,7 @@ def double_tick_strategy():
     #     # open_request("sell", sl)
 
 def main():
-    initialize()
+    initialize(path)
     login()
 
     # historical_orders()
