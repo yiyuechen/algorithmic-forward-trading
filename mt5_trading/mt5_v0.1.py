@@ -1,3 +1,10 @@
+
+"""
+To-do
+1. calculate lot size
+2. calculate spread in SL and TP
+"""
+
 from http import server
 import time
 import MetaTrader5 as mt5
@@ -25,8 +32,8 @@ server = server_demo
 password = password_demo
 
 
-def initialize():
-    if not mt5.initialize():
+def initialize(path):
+    if not mt5.initialize(path):
         print("initialize() failed, error code =",mt5.last_error())
         quit()
 
