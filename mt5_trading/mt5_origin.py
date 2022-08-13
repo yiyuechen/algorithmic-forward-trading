@@ -190,7 +190,9 @@ def open_request(type="buy", sl="100", symbol="USDJPY", type_filling=mt5.ORDER_F
         "volume": lot,
         "type": type,
         "price": price,
-        "sl": price - sl * point, # "sl": price - 100 * point,  EURUSD 100 * 0.00001 => 0.001   1.02380-0.001 => 1.02280 => 10 pips
+        #"sl": price - sl * point, # "sl": price - 100 * point,  EURUSD 100 * 0.00001 => 0.001   1.02380-0.001 => 1.02280 => 10 pips
+        # try to directly use the price of the previous tick low
+        "sl": price - sl * point,
         "tp": price + sl * point,
         "deviation": deviation,
         "magic": 234000,
@@ -324,15 +326,34 @@ def double_tick_strategy():
             rates = get_last_three_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_M5)
             # print(rates)
             current_price = rates[2][4]
-            spread = rates[2]['spread']
+            
+            # get the higher price of the previous one and two ticks
+            tick_one_high = rates[0][2]
+            tick_two_high = rates[1][2]
 
-            if current_price > rates[0][2] and current_price > rates[1][2]:   
+            if tick_one_high > tick_two_high:
+                higher_price = tick_one_high
+            else:
+                higher_price = tick_two_high
+
+            # get the lower price of the previous one and two ticks
+            tick_one_low = rates[0][3]
+            tick_two_low = rates[1][3]
+
+            if tick_one_low < tick_two_low:
+                lower_price = tick_one_low
+            else:
+                lower_price = tick_two_low
+
+
+
+            if current_price > higher_price:   
                 print("buy")
                 # sl = current_price * 1000 - rates[1][3] * 1000  # USDJPY
                 sl = current_price * 100 - rates[1][3] * 100  # BTC
                 open_request(type="buy", sl=sl, symbol=symbol, type_filling=type_filling)
                 continue
-            if current_price < rates[0][3] and current_price < rates[1][3]:
+            if current_price < lower_price:
                 print("sell")
                 # second_tick_high-current_price
                 # sl = rates[1][2] * 1000 - current_price * 1000  # USDJPY
