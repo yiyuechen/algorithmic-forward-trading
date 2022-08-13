@@ -167,7 +167,7 @@ def calculate_lot_size(sl, symbol, risk_ratio=0.05, commision_per_lot=0): #sl is
     return lot_size
 
 
-def open_request(type="buy", sl="100", symbol="USDJPY", type_filling=mt5.ORDER_FILLING_FOK):
+def open_request(sl_price, type="buy", sl="100", symbol="USDJPY", type_filling=mt5.ORDER_FILLING_FOK):
     
     # lot = 0.1
     lot = calculate_lot_size(sl, symbol)
@@ -192,7 +192,7 @@ def open_request(type="buy", sl="100", symbol="USDJPY", type_filling=mt5.ORDER_F
         "price": price,
         #"sl": price - sl * point, # "sl": price - 100 * point,  EURUSD 100 * 0.00001 => 0.001   1.02380-0.001 => 1.02280 => 10 pips
         # try to directly use the price of the previous tick low
-        "sl": price - sl * point,
+        "sl": sl_price,
         "tp": price + sl * point,
         "deviation": deviation,
         "magic": 234000,
@@ -351,14 +351,14 @@ def double_tick_strategy():
                 print("buy")
                 # sl = current_price * 1000 - rates[1][3] * 1000  # USDJPY
                 sl = current_price * 100 - rates[1][3] * 100  # BTC
-                open_request(type="buy", sl=sl, symbol=symbol, type_filling=type_filling)
+                open_request(sl_price=lower_price, type="buy", sl=sl, symbol=symbol, type_filling=type_filling)
                 continue
             if current_price < lower_price:
                 print("sell")
                 # second_tick_high-current_price
                 # sl = rates[1][2] * 1000 - current_price * 1000  # USDJPY
                 sl = rates[1][2] * 100 - current_price * 100  # BTC
-                open_request(type="sell", sl=sl, symbol=symbol, type_filling=type_filling)
+                open_request(sl_price=higher_price, type="sell", sl=sl, symbol=symbol, type_filling=type_filling)
                 continue
         # time.sleep(0.1)
         time.sleep(0.5)
