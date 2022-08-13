@@ -100,8 +100,9 @@ def prepare_request_structure(symbol = "USDJPY"):
             quit()
 
 
-def get_last_three_ticks(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15):
-    rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, 3)
+# get the latest n ticks. n is 3 by default 
+def get_last_n_ticks(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15, tick_count=3):
+    rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, tick_count)
     # print(rates) # print as is
 
     # # create DataFrame out of the obtained data
@@ -294,6 +295,7 @@ def historical_deals():
         print("Deals not found in history")
 
 
+
 def double_tick_strategy():
     """
     USDJPY
@@ -323,7 +325,7 @@ def double_tick_strategy():
         open_positions = check_open_positions()
         if open_positions == 0:
             # rates <class 'numpy.ndarray'>
-            rates = get_last_three_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_M5)
+            rates = get_last_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_M5, tick_count=3)
             # print(rates)
             current_price = rates[2][4]
             
