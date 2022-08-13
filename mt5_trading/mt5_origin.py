@@ -294,7 +294,15 @@ def historical_deals():
     else:
         print("Deals not found in history")
 
-
+# return current sma price on the current tick
+# input sma length
+def calculate_current_sma(symbol="BTCUSD", sma_length=24):
+    rates = get_last_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_M5, tick_count=sma_length)
+    total = 0
+    for rate in rates:
+        total += rate['close']
+    sma = total / sma_length
+    return sma
 
 def double_tick_strategy():
     """
@@ -347,15 +355,15 @@ def double_tick_strategy():
             else:
                 lower_price = tick_two_low
 
+            sma = calculate_current_sma(symbol="BTCUSD", sma_length=24)
 
-
-            if current_price > higher_price:   
+            if current_price > higher_price and current_price > sma: # if current_price > higher_price and we are above the 24sma    
                 print("buy")
                 # sl = current_price * 1000 - rates[1][3] * 1000  # USDJPY
                 sl = current_price * 100 - rates[1][3] * 100  # BTC
                 open_request(sl_price=lower_price, type="buy", sl=sl, symbol=symbol, type_filling=type_filling)
                 continue
-            if current_price < lower_price:
+            if current_price < lower_price and current_price < sma: # if current_price < lower_price and we are below the 25sma
                 print("sell")
                 # second_tick_high-current_price
                 # sl = rates[1][2] * 1000 - current_price * 1000  # USDJPY
