@@ -3,8 +3,25 @@
 To-do
 1. calculate lot size
 lot_size = (risk_ratio * capital) / (stop_loss * pip_value + commision_per_lot + spread)
+!!!
+!!!
+This is wrong. Spread should not be in the (), should be spread/10*pip_value
+
+formula
+lot * stop_loss * pip_value + lot * commision_per_lot + lot * spread/10*pip_value = capital_in_risk
+lot * (stop_loss * pip_value + commision_per_lot + spread/10*pip_value) = capital_in_risk
+lot = capital_in_risk / (stop_loss * pip_value + commision_per_lot + spread/10*pip_value)
 
 2. calculate spread in SL and TP
+
+3. We can directly use the tick's lower price as our SL. No need to calc the SL and then convert and add to the current price.
+4. Check that the previous two ticks formed the Dow's lower price. Only we meet this requirement, we open orders. So we might need to:
+ 1) compare 5-6 ticks, make sure the previous two's low are the lowest
+ 2) 
+
+question:
+waht's the Change in MT5, say 0.3%
+
 """
 
 from http import server
@@ -109,7 +126,7 @@ def check_open_positions():
     return positions_total
 
 
-def calculate_lot_size(sl, symbol, risk_ratio=0.05, commision_per_lot=4): #sl is in points, need to convert
+def calculate_lot_size(sl, symbol, risk_ratio=0.05, commision_per_lot=0): #sl is in points, need to convert
     # pip_value = 1/10**(digits-1)*contract_size?
     # EURUSD 1/(10**(5-1)) * 100000 => 10 USD
     # USDJPY 1/(10**(3-1)) * 100000 => 1000 JPY
@@ -127,15 +144,25 @@ def calculate_lot_size(sl, symbol, risk_ratio=0.05, commision_per_lot=4): #sl is
     print(f"pip_value: {pip_value}")
 
     capital = mt5.account_info().balance
-    print(f"capital: {capital}, risk capital: {risk_ratio * capital}")
+    capital_in_risk = risk_ratio * capital
+
+    print(f"capital: {capital}, risk capital: {capital_in_risk}")
 
     # commission is of two operations, open and close. So it's 2 times of what mt5 specification shows (which is only for opening or closing, not opening and closing)
     # stop_loss is in pips, not points
-    lot_size = (risk_ratio * capital) / (stop_loss * pip_value + commision_per_lot + spread)
+    # lot_size = (risk_ratio * capital) / (stop_loss * pip_value + commision_per_lot + spread)
+    # lot_size = capital_in_risk / (stop_loss * pip_value + commision_per_lot)
+    lot_size = capital_in_risk / (stop_loss * pip_value + commision_per_lot + spread/10*pip_value)
     lot_size = round(lot_size, 2)
 
     if lot_size < 0.01:
         lot_size = 0.01
+    
+    # or maybe quit
+    # if lot_size < 0.01:
+    #     print("Insufficient funds. Cannot make 0.01 lots.")
+    #     mt5.shutdown()
+    #     quit()
 
     return lot_size
 
@@ -192,12 +219,13 @@ def open_request(type="buy", sl="100", symbol="USDJPY", type_filling=mt5.ORDER_F
                 traderequest_dict=result_dict[field]._asdict()
                 for tradereq_filed in traderequest_dict:
                     print("       traderequest: {}={}".format(tradereq_filed,traderequest_dict[tradereq_filed]))
-        print("shutdown() and quit")
-        mt5.shutdown()
-        quit()
-    
-    print("2. order_send done, ", result)
-    print("   opened position with POSITION_TICKET={}".format(result.order))
+        # print("shutdown() and quit")
+        # mt5.shutdown()
+        # quit()
+        print("\nError\n")
+    else:
+        print("2. order_send done, ", result)
+        print("   opened position with POSITION_TICKET={}".format(result.order))
 
 
 """
