@@ -344,6 +344,49 @@ def if_above_or_below_sma(sma_list, symbol="BTCUSD", sma_length=24, start_positi
 
     return "mixed"
 
+def check_retrace_when_long(symbol="BTCUSD", start_position=0, tick_count=5): 
+    # 0 1 2 3 4 compare low of 2 and 3 with low of 0 and 1
+    # 4 is the latest
+    retracement = False
+    rates = get_last_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_M5, start_position=start_position, tick_count=tick_count)
+    tick_0_low = rates[0]['low']
+    tick_1_low = rates[1]['low']
+    tick_2_low = rates[2]['low']
+    tick_3_low = rates[3]['low']
+    # tick_4_low = rates[4]['low']
+    lower_price_tick_0_and_1 = compare_two_and_get_lower(tick_0_low, tick_1_low)
+    lower_price_tick_2_and_3 = compare_two_and_get_lower(tick_2_low, tick_3_low)
+    # if the below is positive, then we have a retracement, the low price of the previous two got lower than the price of the previous previous two
+    if lower_price_tick_2_and_3 < lower_price_tick_0_and_1:
+        retracement = True        
+    return retracement
+
+def check_retrace_when_short(symbol="BTCUSD", start_position=0, tick_count=5): 
+    retracement = False
+    rates = get_last_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_M5, start_position=start_position, tick_count=tick_count)
+    tick_0_high = rates[0]['high']
+    tick_1_high = rates[1]['high']
+    tick_2_high = rates[2]['high']
+    tick_3_high = rates[3]['high']
+    higher_price_tick_0_and_1 = compare_two_and_get_higher(tick_0_high, tick_1_high)
+    higher_price_tick_2_and_3 = compare_two_and_get_higher(tick_2_high, tick_3_high)
+    if higher_price_tick_2_and_3 > higher_price_tick_0_and_1:
+        retracement = True
+    return retracement
+
+def compare_two_and_get_higher(tick_one_high, tick_two_high):
+    if tick_one_high > tick_two_high:
+        higher_price = tick_one_high
+    else:
+        higher_price = tick_two_high
+    return higher_price
+
+def compare_two_and_get_lower(tick_one_low, tick_two_low):
+    if tick_one_low < tick_two_low:
+        lower_price = tick_one_low
+    else:
+        lower_price = tick_two_low
+    return lower_price
 
 
 def double_tick_strategy():
@@ -382,20 +425,12 @@ def double_tick_strategy():
             # get the higher price of the previous one and two ticks
             tick_one_high = rates[0][2]
             tick_two_high = rates[1][2]
-
-            if tick_one_high > tick_two_high:
-                higher_price = tick_one_high
-            else:
-                higher_price = tick_two_high
+            higher_price = compare_two_and_get_higher(tick_one_high, tick_two_high)
 
             # get the lower price of the previous one and two ticks
             tick_one_low = rates[0][3]
             tick_two_low = rates[1][3]
-
-            if tick_one_low < tick_two_low:
-                lower_price = tick_one_low
-            else:
-                lower_price = tick_two_low
+            lower_price = compare_two_and_get_lower(tick_one_low, tick_two_low)
 
             #sma = calculate_current_sma(symbol="BTCUSD", sma_length=24)
 
@@ -409,14 +444,14 @@ def double_tick_strategy():
             above_or_below_sma = if_above_or_below_sma(sma_list, symbol="BTCUSD", sma_length=24, start_position=0)
             print(f"above or under sma: {above_or_below_sma}")
             
-
-            if current_price > higher_price and above_or_below_sma == "above_sma": # if current_price > higher_price and we are above the 24sma    
+            # if current_price > higher_price, and we are above the 24sma, and there's a retracement
+            if current_price > higher_price and above_or_below_sma == "above_sma" and check_retrace_when_long: 
                 print("buy")
                 # sl = current_price * 1000 - rates[1][3] * 1000  # USDJPY
                 sl = current_price * 100 - rates[1][3] * 100  # BTC
                 open_request(sl_price=lower_price, type="buy", sl=sl, symbol=symbol, type_filling=type_filling)
                 continue
-            if current_price < lower_price and above_or_below_sma == "below_sma": # if current_price < lower_price and we are below the 25sma
+            if current_price < lower_price and above_or_below_sma == "below_sma" and check_retrace_when_short: # if current_price < lower_price and we are below the 25sma
                 print("sell")
                 # second_tick_high-current_price
                 # sl = rates[1][2] * 1000 - current_price * 1000  # USDJPY
