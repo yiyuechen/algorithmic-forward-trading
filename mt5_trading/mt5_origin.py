@@ -22,6 +22,13 @@ lot = capital_in_risk / (stop_loss * pip_value + commision_per_lot + spread/10*p
 
 5. change the SL to the dow's lowest price, not the price of the previous tick
 6. avoid consolidation (special rule 5)
+ to do this, we need to  store at least four prices, should be a high, low, inner high, inner low 
+ let's call them 0 1 2 3
+ and we need to check 
+ 0 > 2
+ 1 < 3
+
+7. move SL to break even or slight loss when the price is near TP, for USPJPY it should be 30-40 spreads.
 
 question:
 waht's the Change in MT5, say 0.3%
@@ -29,7 +36,6 @@ waht's the Change in MT5, say 0.3%
 """
 
 from http import server
-from multiprocessing.resource_sharer import stop
 import time
 import MetaTrader5 as mt5
 import credential_info
@@ -178,6 +184,9 @@ def open_request(sl_price, type="buy", sl="100", symbol="USDJPY", type_filling=m
     lot = calculate_lot_size(sl, symbol)
 
     point = mt5.symbol_info(symbol).point    #EURUSD point: 1e-05   #BTCUSD point: 0.01 
+    #####################
+    # attention: the point here is not stop_loss_in_pips * 10. Instead, it's a decimal, telling us how many digits there are.
+    #####################
     price = mt5.symbol_info_tick(symbol).ask
     deviation = 20
 
@@ -300,8 +309,8 @@ def historical_deals():
 
 # return current sma price on the current tick
 # input sma length
-def calculate_current_sma(symbol="BTCUSD", sma_length=24, start_position=0):
-    rates = get_last_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_M5, start_position=start_position, tick_count=sma_length)
+def calculate_current_sma(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, sma_length=24, start_position=0):
+    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=sma_length)
     total = 0
     for rate in rates:
         total += rate['close']
@@ -309,10 +318,10 @@ def calculate_current_sma(symbol="BTCUSD", sma_length=24, start_position=0):
     return sma
 
 # sma_list length determines how many ticks we examine to see if we're above or below sma
-def if_above_or_below_sma(sma_list, symbol="BTCUSD", sma_length=24, start_position=0):
+def if_above_or_below_sma(sma_list, timeframe=mt5.TIMEFRAME_M5, symbol="BTCUSD", start_position=0):
     sma_list_length = len(sma_list)
     # only get several rates, e.g., 5, not 24
-    rates = get_last_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_M5, start_position=start_position, tick_count=sma_list_length)
+    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=sma_list_length)
 
     sma_list.reverse()
     print(f"reversed sma list: {sma_list}")
@@ -350,11 +359,11 @@ def if_above_or_below_sma(sma_list, symbol="BTCUSD", sma_length=24, start_positi
 
     return "mixed"
 
-def check_retrace_when_long(symbol="BTCUSD", start_position=0, tick_count=5): 
+def check_retrace_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=5): 
     # 0 1 2 3 4 compare low of 2 and 3 with low of 0 and 1
     # 4 is the latest
     retracement = False
-    rates = get_last_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_M5, start_position=start_position, tick_count=tick_count)
+    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
     tick_0_low = rates[0]['low']
     tick_1_low = rates[1]['low']
     tick_2_low = rates[2]['low']
@@ -370,9 +379,9 @@ def check_retrace_when_long(symbol="BTCUSD", start_position=0, tick_count=5):
     print(f"retracement: {retracement}")
     return retracement
 
-def check_retrace_when_short(symbol="BTCUSD", start_position=0, tick_count=5): 
+def check_retrace_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=5): 
     retracement = False
-    rates = get_last_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_M5, start_position=start_position, tick_count=tick_count)
+    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
     tick_0_high = rates[0]['high']
     tick_1_high = rates[1]['high']
     tick_2_high = rates[2]['high']
@@ -386,9 +395,9 @@ def check_retrace_when_short(symbol="BTCUSD", start_position=0, tick_count=5):
     print(f"retracement: {retracement}")
     return retracement
 
-def check_pause_when_long(symbol="BTCUSD", start_position=0, tick_count=5):
+def check_pause_when_long(symbol="BTCUSD", timeframe="TIMEFRAME_M5", start_position=0, tick_count=5):
     pause = False
-    rates = get_last_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_M5, start_position=start_position, tick_count=tick_count)
+    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
     tick_0_high = rates[0]['high']
     tick_1_high = rates[1]['high']
     tick_2_high = rates[2]['high']
@@ -404,9 +413,9 @@ def check_pause_when_long(symbol="BTCUSD", start_position=0, tick_count=5):
     print(f"pause: {pause}")
     return pause
 
-def check_pause_when_short(symbol="BTCUSD", start_position=0, tick_count=5):
+def check_pause_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=5):
     pause = False
-    rates = get_last_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_M5, start_position=start_position, tick_count=tick_count)
+    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
     tick_0_low = rates[0]['low']
     tick_1_low = rates[1]['low']
     tick_2_low = rates[2]['low']
@@ -423,17 +432,17 @@ def check_pause_when_short(symbol="BTCUSD", start_position=0, tick_count=5):
     print(f"pause: {pause}")
     return pause
 
-def check_retrace_or_pause_when_long(symbol="BTCUSD", start_position=0, tick_count=5):
-    retrace_when_long = check_retrace_when_long()
-    pause_when_long = check_pause_when_long()
+def check_retrace_or_pause_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=5):
+    retrace_when_long = check_retrace_when_long(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+    pause_when_long = check_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
     if retrace_when_long or pause_when_long:
         return True
     else:
         return False
 
-def check_retrace_or_pause_when_short(symbol="BTCUSD", start_position=0, tick_count=5):
-    retrace_when_short = check_retrace_when_short()
-    pause_when_short = check_pause_when_short()
+def check_retrace_or_pause_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=5):
+    retrace_when_short = check_retrace_when_short(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+    pause_when_short = check_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
     if retrace_when_short or pause_when_short:
         return True
     else:
@@ -477,13 +486,14 @@ def double_tick_strategy():
 
     symbol="BTCUSD"
     type_filling = mt5.ORDER_FILLING_IOC
+    timeframe = mt5.TIMEFRAME_M5
 
     while True:
         
         open_positions = check_open_positions()
         if open_positions == 0:
             # rates <class 'numpy.ndarray'>
-            rates = get_last_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_M5, tick_count=3)
+            rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=3)
             # print(rates)
             current_price = rates[2][4]
             
@@ -498,29 +508,30 @@ def double_tick_strategy():
             lower_price = compare_two_and_get_lower(tick_one_low, tick_two_low)
 
             #sma = calculate_current_sma(symbol="BTCUSD", sma_length=24)
-
+            
+            # calculate the 24sma value of the latest 5 ticks
             # last 5 sma prices start_pos =0, 1, 2, 3, 4
             sma_count = 5
             sma_list = []
             for start_position in range(0, sma_count): # sma from latest to earlier
-                this_sma = calculate_current_sma(symbol="BTCUSD", sma_length=24, start_position=start_position)
+                this_sma = calculate_current_sma(symbol=symbol, timeframe= timeframe, sma_length=24, start_position=start_position)
                 sma_list.append(this_sma)
             
-            above_or_below_sma = if_above_or_below_sma(sma_list, symbol="BTCUSD", sma_length=24, start_position=0)
+            above_or_below_sma = if_above_or_below_sma(sma_list, timeframe= timeframe, symbol=symbol, start_position=0)
             print(f"above or under sma: {above_or_below_sma}")
             
             # if current_price > higher_price, and we are above the 24sma, and there's a retracement
-            if current_price > higher_price and above_or_below_sma == "above_sma" and check_retrace_or_pause_when_long():
+            if current_price > higher_price and above_or_below_sma == "above_sma" and check_retrace_or_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5):
                 print("buy")
                 # sl = current_price * 1000 - rates[1][3] * 1000  # USDJPY
-                sl = current_price * 100 - rates[1][3] * 100  # BTC
+                sl = current_price * 100 - lower_price * 100  # BTC
                 open_request(sl_price=lower_price, type="buy", sl=sl, symbol=symbol, type_filling=type_filling)
                 # continue # if we opened an order, we go back to the beginning of the loop, we don't sleep
-            elif current_price < lower_price and above_or_below_sma == "below_sma" and check_retrace_or_pause_when_short(): # if current_price < lower_price and we are below the 25sma
+            elif current_price < lower_price and above_or_below_sma == "below_sma" and check_retrace_or_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5): # if current_price < lower_price and we are below the 25sma
                 print("sell")
                 # second_tick_high-current_price
                 # sl = rates[1][2] * 1000 - current_price * 1000  # USDJPY
-                sl = rates[1][2] * 100 - current_price * 100  # BTC
+                sl = higher_price * 100 - current_price * 100  # BTC
                 open_request(sl_price=higher_price, type="sell", sl=sl, symbol=symbol, type_filling=type_filling)
                 # continue
         # time.sleep(0.1)
