@@ -524,14 +524,23 @@ def double_tick_strategy():
             if current_price > higher_price and above_or_below_sma == "above_sma" and check_retrace_or_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5):
                 print("buy")
                 # sl = current_price * 1000 - rates[1][3] * 1000  # USDJPY
-                sl = current_price * 100 - lower_price * 100  # BTC
+                # BTC digits -> 2   USDJPY digits -> 3
+                digits = mt5.symbol_info_tick(symbol).digits # BTC digits -> 2
+                multiply_digits = 10 ** digits
+                # sl is in points, /10 if needed to convert to pips
+                sl = current_price * multiply_digits - lower_price * multiply_digits  # BTC
+                # sl = current_price * 100 - lower_price * 100  # BTC
+                mt5.symbol_info_tick(symbol).ask
                 open_request(sl_price=lower_price, type="buy", sl=sl, symbol=symbol, type_filling=type_filling)
                 # continue # if we opened an order, we go back to the beginning of the loop, we don't sleep
             elif current_price < lower_price and above_or_below_sma == "below_sma" and check_retrace_or_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5): # if current_price < lower_price and we are below the 25sma
                 print("sell")
                 # second_tick_high-current_price
                 # sl = rates[1][2] * 1000 - current_price * 1000  # USDJPY
-                sl = higher_price * 100 - current_price * 100  # BTC
+                digits = mt5.symbol_info_tick(symbol).digits
+                multiply_digits = 10 ** digits
+                sl = higher_price * multiply_digits - current_price * multiply_digits  # BTC
+                # sl = higher_price * 100 - current_price * 100  # BTC
                 open_request(sl_price=higher_price, type="sell", sl=sl, symbol=symbol, type_filling=type_filling)
                 # continue
         # time.sleep(0.1)
