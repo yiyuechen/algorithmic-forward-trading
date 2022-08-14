@@ -2,7 +2,7 @@
 """
 To-do
 1. calculate lot size
-lot_size = (risk_ratio * capital) / (stop_loss * pip_value + commision_per_lot + spread)
+lot_size = (risk_ratio * capital) / (stop_loss * pip_value + commision_per_lot + spread)    [X]
 !!!
 !!!
 This is wrong. Spread should not be in the (), should be spread/10*pip_value
@@ -10,7 +10,7 @@ This is wrong. Spread should not be in the (), should be spread/10*pip_value
 formula
 lot * stop_loss * pip_value + lot * commision_per_lot + lot * spread/10*pip_value = capital_in_risk
 lot * (stop_loss * pip_value + commision_per_lot + spread/10*pip_value) = capital_in_risk
-lot = capital_in_risk / (stop_loss * pip_value + commision_per_lot + spread/10*pip_value)
+lot = capital_in_risk / (stop_loss * pip_value + commision_per_lot + spread/10*pip_value)   [OK]
 
 2. calculate spread in SL and TP
 
@@ -18,6 +18,10 @@ lot = capital_in_risk / (stop_loss * pip_value + commision_per_lot + spread/10*p
 4. Check that the previous two ticks formed the Dow's lower price. Only we meet this requirement, we open orders. So we might need to:
  1) compare 5-6 ticks, make sure the previous two's low are the lowest
  2) 
+
+
+5. change the SL to the dow's lowest price, not the price of the previous tick
+6. avoid consolidation (special rule 5)
 
 question:
 waht's the Change in MT5, say 0.3%
@@ -328,7 +332,8 @@ def if_above_or_below_sma(sma_list, symbol="BTCUSD", sma_length=24, start_positi
              above_sma += 1
         i += 1
 
-    if above_sma == sma_list_length:
+    # if above_sma == sma_list_length:
+    if above_sma >= sma_list_length - 3: # 5-3 -> 2 # this should be good. If the close price goes above it or just on it, when the next tick emerges, immediately we will open an order. # This is the special rule 3
         above_sma = "above_sma"
         return above_sma
 
@@ -338,7 +343,8 @@ def if_above_or_below_sma(sma_list, symbol="BTCUSD", sma_length=24, start_positi
              below_sma += 1
         i += 1
 
-    if below_sma == sma_list_length:
+    # if below_sma == sma_list_length:
+    if below_sma >= sma_list_length - 3:
         below_sma = "below_sma"
         return below_sma
 
@@ -356,9 +362,12 @@ def check_retrace_when_long(symbol="BTCUSD", start_position=0, tick_count=5):
     # tick_4_low = rates[4]['low']
     lower_price_tick_0_and_1 = compare_two_and_get_lower(tick_0_low, tick_1_low)
     lower_price_tick_2_and_3 = compare_two_and_get_lower(tick_2_low, tick_3_low)
+    print(f"lower_price_tick_0_and_1: {lower_price_tick_0_and_1}")
+    print(f"lower_price_tick_2_and_3: {lower_price_tick_2_and_3}")
     # if the below is positive, then we have a retracement, the low price of the previous two got lower than the price of the previous previous two
     if lower_price_tick_2_and_3 < lower_price_tick_0_and_1:
         retracement = True        
+    print(f"retracement: {retracement}")
     return retracement
 
 def check_retrace_when_short(symbol="BTCUSD", start_position=0, tick_count=5): 
@@ -370,8 +379,11 @@ def check_retrace_when_short(symbol="BTCUSD", start_position=0, tick_count=5):
     tick_3_high = rates[3]['high']
     higher_price_tick_0_and_1 = compare_two_and_get_higher(tick_0_high, tick_1_high)
     higher_price_tick_2_and_3 = compare_two_and_get_higher(tick_2_high, tick_3_high)
+    print(f"higher_price_tick_0_and_1: {higher_price_tick_0_and_1}")
+    print(f"higher_price_tick_2_and_3: {higher_price_tick_2_and_3}")
     if higher_price_tick_2_and_3 > higher_price_tick_0_and_1:
         retracement = True
+    print(f"retracement: {retracement}")
     return retracement
 
 def compare_two_and_get_higher(tick_one_high, tick_two_high):
@@ -445,13 +457,13 @@ def double_tick_strategy():
             print(f"above or under sma: {above_or_below_sma}")
             
             # if current_price > higher_price, and we are above the 24sma, and there's a retracement
-            if current_price > higher_price and above_or_below_sma == "above_sma" and check_retrace_when_long: 
+            if current_price > higher_price and above_or_below_sma == "above_sma" and check_retrace_when_long(): 
                 print("buy")
                 # sl = current_price * 1000 - rates[1][3] * 1000  # USDJPY
                 sl = current_price * 100 - rates[1][3] * 100  # BTC
                 open_request(sl_price=lower_price, type="buy", sl=sl, symbol=symbol, type_filling=type_filling)
                 # continue # if we opened an order, we go back to the beginning of the loop, we don't sleep
-            elif current_price < lower_price and above_or_below_sma == "below_sma" and check_retrace_when_short: # if current_price < lower_price and we are below the 25sma
+            elif current_price < lower_price and above_or_below_sma == "below_sma" and check_retrace_when_short(): # if current_price < lower_price and we are below the 25sma
                 print("sell")
                 # second_tick_high-current_price
                 # sl = rates[1][2] * 1000 - current_price * 1000  # USDJPY
