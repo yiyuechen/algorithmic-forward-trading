@@ -101,8 +101,8 @@ def prepare_request_structure(symbol = "USDJPY"):
 
 
 # get the latest n ticks. n is 3 by default 
-def get_last_n_ticks(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15, tick_count=3):
-    rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, tick_count)
+def get_last_n_ticks(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15, start_position=0, tick_count=3):
+    rates = mt5.copy_rates_from_pos(symbol, timeframe, start_position, tick_count)
     # print(rates) # print as is
 
     # # create DataFrame out of the obtained data
@@ -296,13 +296,55 @@ def historical_deals():
 
 # return current sma price on the current tick
 # input sma length
-def calculate_current_sma(symbol="BTCUSD", sma_length=24):
-    rates = get_last_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_M5, tick_count=sma_length)
+def calculate_current_sma(symbol="BTCUSD", sma_length=24, start_position=0):
+    rates = get_last_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_M5, start_position=start_position, tick_count=sma_length)
     total = 0
     for rate in rates:
         total += rate['close']
     sma = total / sma_length
     return sma
+
+# sma_list length determines how many ticks we examine to see if we're above or below sma
+def if_above_or_below_sma(sma_list, symbol="BTCUSD", sma_length=24, start_position=0):
+    sma_list_length = len(sma_list)
+    # only get several rates, e.g., 5, not 24
+    rates = get_last_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_M5, start_position=start_position, tick_count=sma_list_length)
+
+    sma_list.reverse()
+    print(f"reversed sma list: {sma_list}")
+    
+    above_sma = 0
+    below_sma = 0
+    rate_close_list = []
+    for rate in rates:
+        rate_close_list.append(rate['close'])
+        
+    print(f"rate close list: {rate_close_list}")
+
+    i = 0
+    while i < sma_list_length:
+        print(rate_close_list[i])
+        if rate_close_list[i] > sma_list[i]:
+             above_sma += 1
+        i += 1
+
+    if above_sma == sma_list_length:
+        above_sma = "above_sma"
+        return above_sma
+
+    i = 0
+    while i < sma_list_length:
+        if rate_close_list[i] < sma_list[i]:
+             below_sma += 1
+        i += 1
+
+    if below_sma == sma_list_length:
+        below_sma = "below_sma"
+        return below_sma
+
+    return "mixed"
+
+
 
 def double_tick_strategy():
     """
@@ -355,15 +397,26 @@ def double_tick_strategy():
             else:
                 lower_price = tick_two_low
 
-            sma = calculate_current_sma(symbol="BTCUSD", sma_length=24)
+            #sma = calculate_current_sma(symbol="BTCUSD", sma_length=24)
 
-            if current_price > higher_price and current_price > sma: # if current_price > higher_price and we are above the 24sma    
+            # last 5 sma prices start_pos =0, 1, 2, 3, 4
+            sma_count = 5
+            sma_list = []
+            for start_position in range(0, sma_count): # sma from latest to earlier
+                this_sma = calculate_current_sma(symbol="BTCUSD", sma_length=24, start_position=start_position)
+                sma_list.append(this_sma)
+            
+            above_or_below_sma = if_above_or_below_sma(sma_list, symbol="BTCUSD", sma_length=24, start_position=0)
+            print(f"above or under sma: {above_or_below_sma}")
+            
+
+            if current_price > higher_price and above_or_below_sma == "above_sma": # if current_price > higher_price and we are above the 24sma    
                 print("buy")
                 # sl = current_price * 1000 - rates[1][3] * 1000  # USDJPY
                 sl = current_price * 100 - rates[1][3] * 100  # BTC
                 open_request(sl_price=lower_price, type="buy", sl=sl, symbol=symbol, type_filling=type_filling)
                 continue
-            if current_price < lower_price and current_price < sma: # if current_price < lower_price and we are below the 25sma
+            if current_price < lower_price and above_or_below_sma == "below_sma": # if current_price < lower_price and we are below the 25sma
                 print("sell")
                 # second_tick_high-current_price
                 # sl = rates[1][2] * 1000 - current_price * 1000  # USDJPY
