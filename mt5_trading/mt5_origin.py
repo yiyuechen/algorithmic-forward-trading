@@ -386,6 +386,59 @@ def check_retrace_when_short(symbol="BTCUSD", start_position=0, tick_count=5):
     print(f"retracement: {retracement}")
     return retracement
 
+def check_pause_when_long(symbol="BTCUSD", start_position=0, tick_count=5):
+    pause = False
+    rates = get_last_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_M5, start_position=start_position, tick_count=tick_count)
+    tick_0_high = rates[0]['high']
+    tick_1_high = rates[1]['high']
+    tick_2_high = rates[2]['high']
+    tick_3_high = rates[3]['high']
+    higher_of_tick_0_and_1_high = compare_two_and_get_higher(tick_0_high, tick_1_high)
+    higher_of_tick_2_and_3_high = compare_two_and_get_higher(tick_2_high, tick_3_high)
+    # if higher_of_tick_2_and_3_high <= higher_of_tick_0_and_1_high:
+    if higher_of_tick_2_and_3_high <= tick_1_high:
+        pause = True
+
+    print(f"higher_of_tick_0_and_1_high: {higher_of_tick_0_and_1_high}")
+    print(f"higher_of_tick_2_and_3_high: {higher_of_tick_2_and_3_high}")
+    print(f"pause: {pause}")
+    return pause
+
+def check_pause_when_short(symbol="BTCUSD", start_position=0, tick_count=5):
+    pause = False
+    rates = get_last_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_M5, start_position=start_position, tick_count=tick_count)
+    tick_0_low = rates[0]['low']
+    tick_1_low = rates[1]['low']
+    tick_2_low = rates[2]['low']
+    tick_3_low = rates[3]['low']
+    lower_of_tick_0_and_1_low = compare_two_and_get_lower(tick_0_low, tick_1_low)
+    # higher_of_tick_2_and_3_low = compare_two_and_get_higher(tick_2_low, tick_3_low) # wrong, must be the lower that is above lower_of_tick_0_and_1_low
+    lower_of_tick_2_and_3_low = compare_two_and_get_lower(tick_2_low, tick_3_low) 
+    # if lower_of_tick_2_and_3_low >= lower_of_tick_0_and_1_low:
+    if lower_of_tick_2_and_3_low >= tick_1_low: # seems tick_1_low will do the job
+        pause = True
+    
+    print(f"lower_of_tick_0_and_1_low: {lower_of_tick_0_and_1_low}")
+    print(f"lower_of_tick_2_and_3_low: {lower_of_tick_2_and_3_low}")
+    print(f"pause: {pause}")
+    return pause
+
+def check_retrace_or_pause_when_long(symbol="BTCUSD", start_position=0, tick_count=5):
+    retrace_when_long = check_retrace_when_long()
+    pause_when_long = check_pause_when_long()
+    if retrace_when_long or pause_when_long:
+        return True
+    else:
+        return False
+
+def check_retrace_or_pause_when_short(symbol="BTCUSD", start_position=0, tick_count=5):
+    retrace_when_short = check_retrace_when_short()
+    pause_when_short = check_pause_when_short()
+    if retrace_when_short or pause_when_short:
+        return True
+    else:
+        return False
+
 def compare_two_and_get_higher(tick_one_high, tick_two_high):
     if tick_one_high > tick_two_high:
         higher_price = tick_one_high
@@ -457,13 +510,13 @@ def double_tick_strategy():
             print(f"above or under sma: {above_or_below_sma}")
             
             # if current_price > higher_price, and we are above the 24sma, and there's a retracement
-            if current_price > higher_price and above_or_below_sma == "above_sma" and check_retrace_when_long(): 
+            if current_price > higher_price and above_or_below_sma == "above_sma" and check_retrace_or_pause_when_long():
                 print("buy")
                 # sl = current_price * 1000 - rates[1][3] * 1000  # USDJPY
                 sl = current_price * 100 - rates[1][3] * 100  # BTC
                 open_request(sl_price=lower_price, type="buy", sl=sl, symbol=symbol, type_filling=type_filling)
                 # continue # if we opened an order, we go back to the beginning of the loop, we don't sleep
-            elif current_price < lower_price and above_or_below_sma == "below_sma" and check_retrace_when_short(): # if current_price < lower_price and we are below the 25sma
+            elif current_price < lower_price and above_or_below_sma == "below_sma" and check_retrace_or_pause_when_short(): # if current_price < lower_price and we are below the 25sma
                 print("sell")
                 # second_tick_high-current_price
                 # sl = rates[1][2] * 1000 - current_price * 1000  # USDJPY
