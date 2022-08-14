@@ -450,7 +450,7 @@ def double_tick_strategy():
                 # sl = current_price * 1000 - rates[1][3] * 1000  # USDJPY
                 sl = current_price * 100 - rates[1][3] * 100  # BTC
                 open_request(sl_price=lower_price, type="buy", sl=sl, symbol=symbol, type_filling=type_filling)
-                continue
+                continue # if we opened an order, we go back to the beginning of the loop, we don't sleep
             if current_price < lower_price and above_or_below_sma == "below_sma" and check_retrace_when_short: # if current_price < lower_price and we are below the 25sma
                 print("sell")
                 # second_tick_high-current_price
