@@ -35,7 +35,6 @@ waht's the Change in MT5, say 0.3%
 
 """
 
-from http import server
 import time
 import MetaTrader5 as mt5
 import credential_info
@@ -47,19 +46,25 @@ pd.set_option('display.width', 1500)      # max table width to display
 
 path = r"E:\Program Files\MetaTrader 5\terminal64.exe"
 
+# fxtm live
 account_live = 10557130
 password_live = credential_info.password
 server_live = "ForexTimeFXTM-Live01"
 
-# account_demo = 160255142
-account_demo = 50919338
-password_demo = credential_info.password_ICDemo
-# server_demo = 'ForexTimeFXTM-Demo01'
-server_demo = 'ICMarketsSC-Demo'
+# IC demo
+# account_demo = 50919338
+# password_demo = credential_info.password_ICDemo
+# server_demo = 'ICMarketsSC-Demo'
+
+# fxtm demo
+account_demo = 160260280
+password_demo = credential_info.password2
+server_demo = 'ForexTimeFXTM-Demo01'
 
 account = account_demo
-server = server_demo
 password = password_demo
+server_to_connect = server_demo
+
 
 
 def initialize(path):
@@ -78,7 +83,7 @@ def initialize(path):
 
 
 def login():
-    authorized = mt5.login(account, password, server)
+    authorized = mt5.login(account, password, server_to_connect)
 
     if authorized:
         # display trading account data 'as is'
@@ -484,8 +489,10 @@ def double_tick_strategy():
     (1660399500, 24496.82, 24500.09, 24494.09, 24494.09,  10, 632, 0)]
     """
 
-    symbol="BTCUSD"
-    type_filling = mt5.ORDER_FILLING_IOC
+    # symbol="BTCUSD"
+    symbol="USDJPY"
+    # type_filling = mt5.ORDER_FILLING_IOC # IC
+    type_filling = mt5.ORDER_FILLING_FOK # FXTM
     timeframe = mt5.TIMEFRAME_M5
 
     while True:
@@ -525,19 +532,19 @@ def double_tick_strategy():
                 print("buy")
                 # sl = current_price * 1000 - rates[1][3] * 1000  # USDJPY
                 # BTC digits -> 2   USDJPY digits -> 3
-                digits = mt5.symbol_info_tick(symbol).digits # BTC digits -> 2
+                digits = mt5.symbol_info(symbol).digits # BTC digits -> 2         mt5.symbol_info(symbol).xxx, not mt5.symbol_info_tick(symbol).xxx
                 multiply_digits = 10 ** digits
                 # sl is in points, /10 if needed to convert to pips
                 sl = current_price * multiply_digits - lower_price * multiply_digits  # BTC
                 # sl = current_price * 100 - lower_price * 100  # BTC
-                mt5.symbol_info_tick(symbol).ask
+                
                 open_request(sl_price=lower_price, type="buy", sl=sl, symbol=symbol, type_filling=type_filling)
                 # continue # if we opened an order, we go back to the beginning of the loop, we don't sleep
             elif current_price < lower_price and above_or_below_sma == "below_sma" and check_retrace_or_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5): # if current_price < lower_price and we are below the 25sma
                 print("sell")
                 # second_tick_high-current_price
                 # sl = rates[1][2] * 1000 - current_price * 1000  # USDJPY
-                digits = mt5.symbol_info_tick(symbol).digits
+                digits = mt5.symbol_info(symbol).digits
                 multiply_digits = 10 ** digits
                 sl = higher_price * multiply_digits - current_price * multiply_digits  # BTC
                 # sl = higher_price * 100 - current_price * 100  # BTC
