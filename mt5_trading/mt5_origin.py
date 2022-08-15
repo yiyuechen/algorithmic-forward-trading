@@ -30,6 +30,29 @@ lot = capital_in_risk / (stop_loss * pip_value + commision_per_lot + spread/10*p
 
 7. move SL to break even or slight loss when the price is near TP, for USPJPY it should be 30-40 spreads.
 
+8. log errors in log files
+9. usdjpy lot size incorrect
+10. detect if autotrading enabled and auto enable it. Possbile?
+
+
+11. if successfully tp but still meet the requirements,
+another ticket will be opened. This is usually not what we want.
+(usually happens when the tick moves fast, when makes tp and open price on the same tick. So the requirements are still met.
+So we need to add another limitation for opening orders.
+Could try limit the distance between the current price and the ideal entry point. If the gap is larger than 20 points, 30 points,
+then we don't open orders.
+
+12. an additional new rule for opening an order. if cross sma (check open above, close below or equal), check if current price is higher than the previous two ticks and mean if pause or retrace.
+
+13. the SL should be below the lowest of the previous two ticks and the current tick. Sometimes the current tick could have a lower price. This needs to be modified
+
+14. need to check retrace func, not quite accurate
+
+15. before implementing 11, 12 ,13, 14, create branches or new files. 
+1) set buy and sell reverse. This could be profitable, especially in a consolidation, I guess. 
+2) stay put buy and sell. Cancel the sma
+
+
 question:
 waht's the Change in MT5, say 0.3%
 
@@ -157,6 +180,13 @@ def calculate_lot_size(sl, symbol, risk_ratio=0.05, commision_per_lot=0): #sl is
     trade_contract_size = mt5.symbol_info(symbol).trade_contract_size
     digits = mt5.symbol_info(symbol).digits
     pip_value = 1/10**(digits-1)*trade_contract_size
+    # pip_value = 1/10**(digits-1)*trade_contract_size * 
+    
+    # hard code not the best way
+    # tmp method
+    if symbol == "USDJPY":
+        pip_value = pip_value / mt5.symbol_info(symbol).ask
+    
     print(f"pip_value: {pip_value}")
 
     capital = mt5.account_info().balance
@@ -169,9 +199,11 @@ def calculate_lot_size(sl, symbol, risk_ratio=0.05, commision_per_lot=0): #sl is
     # lot_size = (risk_ratio * capital) / (stop_loss * pip_value + commision_per_lot + spread)
     # lot_size = capital_in_risk / (stop_loss * pip_value + commision_per_lot)
     lot_size = capital_in_risk / (stop_loss * pip_value + commision_per_lot + spread/10*pip_value)
+    print(f"lot size = {lot_size} before rounding")
     lot_size = round(lot_size, 2)
 
     if lot_size < 0.01:
+        print(f"lot size = {lot_size}. Change to 0.01")
         lot_size = 0.01
     
     # or maybe quit
@@ -244,6 +276,11 @@ def open_request(sl_price, type="buy", sl="100", symbol="USDJPY", type_filling=m
         # mt5.shutdown()
         # quit()
         print("\nError\n")
+        if result_dict["comment"] == "AutoTrading disabled by client":
+            print("AutoTrading disabled by client")
+            mt5.shutdown()
+            quit()
+        
     else:
         print("2. order_send done, ", result)
         print("   opened position with POSITION_TICKET={}".format(result.order))
@@ -341,7 +378,7 @@ def if_above_or_below_sma(sma_list, timeframe=mt5.TIMEFRAME_M5, symbol="BTCUSD",
 
     i = 0
     while i < sma_list_length:
-        print(rate_close_list[i])
+        # print(rate_close_list[i])
         if rate_close_list[i] > sma_list[i]:
              above_sma += 1
         i += 1
@@ -525,7 +562,7 @@ def double_tick_strategy():
                 sma_list.append(this_sma)
             
             above_or_below_sma = if_above_or_below_sma(sma_list, timeframe= timeframe, symbol=symbol, start_position=0)
-            print(f"above or under sma: {above_or_below_sma}")
+            print(f"above or below sma: {above_or_below_sma}")
             
             # if current_price > higher_price, and we are above the 24sma, and there's a retracement
             if current_price > higher_price and above_or_below_sma == "above_sma" and check_retrace_or_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5):
