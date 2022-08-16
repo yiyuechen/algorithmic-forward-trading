@@ -53,6 +53,11 @@ then we don't open orders.
 2) stay put buy and sell. Cancel the sma
 
 
+16. avoid consolidation. if sl and tp is too small, consider it's not a good chance? I don't know if this is a good way.
+e.g. sl < 50 points, then we don't trade
+
+
+
 question:
 waht's the Change in MT5, say 0.3%
 
@@ -359,14 +364,36 @@ def calculate_current_sma(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, sma_lengt
     sma = total / sma_length
     return sma
 
+
+"""
+# calculate the 24sma value of the latest 5 ticks
+# sma from latest to earlier
+
+# last 5 sma prices start_pos =0, 1, 2, 3, 4
+sma_count = 5
+
+return an sma_list that contains 5 (or n) sma prices 
+"""
+def calculate_sma_of_latest_n_ticks(symbol="USDJPY", timeframe= mt5.TIMEFRAME_M5, sma_length=24, sma_count=5):
+    sma_list = []
+    for start_position in range(0, sma_count): # 0 means latest tick, 1 means the tick previous to the latest tick
+        this_sma = calculate_current_sma(symbol=symbol, timeframe= timeframe, sma_length=sma_length, start_position=start_position)
+        sma_list.append(this_sma)
+
+    # the order is: latest sma at the front of the list, earlier sma at the later of the list
+
+    sma_list.reverse()
+    # sma list now is from earlier to later, which is the natural order
+    print(f"sma list: {sma_list}")
+
+    return sma_list
+    
+
 # sma_list length determines how many ticks we examine to see if we're above or below sma
 def if_above_or_below_sma(sma_list, timeframe=mt5.TIMEFRAME_M5, symbol="BTCUSD", start_position=0):
     sma_list_length = len(sma_list)
     # only get several rates, e.g., 5, not 24
     rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=sma_list_length)
-
-    sma_list.reverse()
-    print(f"reversed sma list: {sma_list}")
     
     above_sma = 0
     below_sma = 0
@@ -572,13 +599,7 @@ def double_tick_strategy():
 
             #sma = calculate_current_sma(symbol="BTCUSD", sma_length=24)
             
-            # calculate the 24sma value of the latest 5 ticks
-            # last 5 sma prices start_pos =0, 1, 2, 3, 4
-            sma_count = 5
-            sma_list = []
-            for start_position in range(0, sma_count): # sma from latest to earlier
-                this_sma = calculate_current_sma(symbol=symbol, timeframe= timeframe, sma_length=24, start_position=start_position)
-                sma_list.append(this_sma)
+            sma_list = calculate_sma_of_latest_n_ticks(symbol=symbol, timeframe=timeframe, sma_length=24, sma_count=5)
             
             above_or_below_sma = if_above_or_below_sma(sma_list, timeframe= timeframe, symbol=symbol, start_position=0)
             print(f"above or below sma: {above_or_below_sma}")
