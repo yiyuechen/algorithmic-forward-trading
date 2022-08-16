@@ -410,14 +410,25 @@ def check_retrace_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_p
     tick_1_low = rates[1]['low']
     tick_2_low = rates[2]['low']
     tick_3_low = rates[3]['low']
-    # tick_4_low = rates[4]['low']
+    tick_4_low = rates[4]['low'] # current tick
     lower_price_tick_0_and_1 = compare_two_and_get_lower(tick_0_low, tick_1_low)
     lower_price_tick_2_and_3 = compare_two_and_get_lower(tick_2_low, tick_3_low)
     print(f"lower_price_tick_0_and_1: {lower_price_tick_0_and_1}")
     print(f"lower_price_tick_2_and_3: {lower_price_tick_2_and_3}")
     # if the below is positive, then we have a retracement, the low price of the previous two got lower than the price of the previous previous two
+    # below is compare 'the two ticks before the current tick' and 'the two ticks before the aforementioned two ticks'
     if lower_price_tick_2_and_3 < lower_price_tick_0_and_1:
-        retracement = True        
+        retracement = True
+    
+    # but there's another situation
+    # the lower of the current tick and the tick before the current < the lower of the previous two ticks before them
+    lower_price_tick_3_and_4 = compare_two_and_get_lower(tick_3_low, tick_4_low)
+    lower_price_tick_1_and_2 = compare_two_and_get_lower(tick_1_low, tick_2_low)
+    print(f"lower_price_tick_1_and_2: {lower_price_tick_1_and_2}")
+    print(f"lower_price_tick_3_and_current: {lower_price_tick_3_and_4}")
+    if lower_price_tick_3_and_4 < lower_price_tick_1_and_2:
+        retracement = True
+
     print(f"retracement: {retracement}")
     return retracement
 
@@ -428,12 +439,20 @@ def check_retrace_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_
     tick_1_high = rates[1]['high']
     tick_2_high = rates[2]['high']
     tick_3_high = rates[3]['high']
+    tick_4_high = rates[3]['high']
     higher_price_tick_0_and_1 = compare_two_and_get_higher(tick_0_high, tick_1_high)
     higher_price_tick_2_and_3 = compare_two_and_get_higher(tick_2_high, tick_3_high)
     print(f"higher_price_tick_0_and_1: {higher_price_tick_0_and_1}")
     print(f"higher_price_tick_2_and_3: {higher_price_tick_2_and_3}")
+
     if higher_price_tick_2_and_3 > higher_price_tick_0_and_1:
         retracement = True
+
+    higher_price_tick_3_and_4 = compare_two_and_get_higher(tick_3_high, tick_4_high)
+    higher_price_tick_1_and_2 = compare_two_and_get_higher(tick_1_high, tick_2_high)
+    if higher_price_tick_3_and_4 > higher_price_tick_1_and_2:
+        retracement = True
+
     print(f"retracement: {retracement}")
     return retracement
 
