@@ -1,10 +1,12 @@
-capital = 1000
+capital = 200
 current_time = 0
-time_given = 1.5 * 12 # unit: months. 3 years, or 36 months
+# by month
+# time_given = 1.5 * 12 # unit: months. 3 years, or 36 months
+# by day
+time_given = 30 # 1 * 365 # 1 year
 
-#don't mix up these two
-
-month_return = 0.6 # 60%
+daily_return = 0.1 # 10%
+monthly_return = 0.6 # 60%
 risk_per_trade = 0.05 # 5%
 
 #1000 + 1000 * 0.1 
@@ -18,8 +20,8 @@ def calc_compound_by_time(capital, current_time):
     if current_time > time_given:
         return capital
     else:
-        print(f"capital: {capital}, month {current_time}")
-        return calc_compound_by_time(capital * (1 + month_return), current_time + 1)
+        print(f"day {current_time}  capital: {round(capital, 3)}")
+        return calc_compound_by_time(capital * (1 + daily_return), current_time + 1)
 
 
 def calc_compound_by_goal(capital, goal):
@@ -33,4 +35,4 @@ def calc_compound_by_goal(capital, goal):
 calc_compound_by_time(capital, current_time)
 
 # how to achieve 60% if we risk 5% per trade
-calc_compound_by_goal(1600, 2560)
+# calc_compound_by_goal(1600, 2560)
