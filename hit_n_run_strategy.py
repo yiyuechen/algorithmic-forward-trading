@@ -615,3 +615,5 @@ def main(initial= 150, target_capital=250, risk_per_trade_ratio=0.05, win_rate =
 
 if __name__ == "__main__":
     main()
+
+# end of file test
