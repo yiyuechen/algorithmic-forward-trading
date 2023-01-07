@@ -416,10 +416,12 @@ def do_the_trades(initial, risk_per_trade_ratio, rand, target_capital, is_limit_
 
 
         if current_result == 1:
-            initial = initial + actual_potential_profit - total_fee
+            profit_change = actual_potential_profit - total_fee
+            # initial = initial + actual_potential_profit - total_fee
+            initial = initial + profit_change
             win_trade_count += 1
             trade_count += 1
-        if current_result ==0:
+        elif current_result ==0:
 
             # 每一次输的时候都是见机行事cut loss而不是等着被止损
             # 
@@ -429,10 +431,12 @@ def do_the_trades(initial, risk_per_trade_ratio, rand, target_capital, is_limit_
             random_rate = random_rate/100
             actual_capital_in_risk = actual_capital_in_risk * random_rate
 
-            initial = initial - actual_capital_in_risk - total_fee
+            profit_change = - actual_capital_in_risk - total_fee
+            # initial = initial - actual_capital_in_risk - total_fee
+            initial = initial + profit_change
             loss_trade_count +=1
             trade_count += 1
-        if current_result == 2:
+        elif current_result == 2:
             # 小赚
             # random_rate：实际赚得的是70%的理论盈利的百分之多少
             min_rate = 20 # 注意这里是不带百分比的数字，下面要除以100
@@ -441,7 +445,9 @@ def do_the_trades(initial, risk_per_trade_ratio, rand, target_capital, is_limit_
             random_rate = random_rate/100
             actual_potential_profit = actual_potential_profit * random_rate
 
-            initial = initial + actual_potential_profit - total_fee
+            profit_change = actual_potential_profit - total_fee
+            # initial = initial + actual_potential_profit - total_fee
+            initial = initial + profit_change
             win_trade_count += 1
             trade_count += 1
 
@@ -457,6 +463,8 @@ def do_the_trades(initial, risk_per_trade_ratio, rand, target_capital, is_limit_
             "commission": commission,
             "spread_fee": spread_fee,
             "total_fee": total_fee,
+            # add actual profit change
+            "profit_change": profit_change,
         }
         
         trades.append(this_trade)
@@ -467,14 +475,26 @@ def do_the_trades(initial, risk_per_trade_ratio, rand, target_capital, is_limit_
         # print("inside function do the trade")
         # print(trade_count) #这里是正确数目，局部和全局变量问题
         
-        trades_info = {
-            "trades": trades,
-            "trade_count" : trade_count,
-            "win_trade_count": win_trade_count,
-            "loss_trade_count": loss_trade_count,
-            "initial": initial
-        }
-        
+        # should NOT be in the while loop, bacuse trades_info will be assgined again and again during each loop.
+        # However, what we expect is we calcuate trades_info when the loop ends.
+
+        # trades_info = {
+        #     "trades": trades,
+        #     "trade_count" : trade_count,
+        #     "win_trade_count": win_trade_count,
+        #     "loss_trade_count": loss_trade_count,
+        #     "initial": initial
+        # }
+        # print(trades_info)
+
+    trades_info = {
+        "trades": trades,
+        "trade_count" : trade_count,
+        "win_trade_count": win_trade_count,
+        "loss_trade_count": loss_trade_count,
+        "initial": initial
+    }
+    print(trades_info)
         
     return trades_info
 
