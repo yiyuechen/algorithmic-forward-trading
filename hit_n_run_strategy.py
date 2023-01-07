@@ -367,7 +367,8 @@ def limit_consecutive_wins_and_losses(current_result, recent_six_trades_rand_val
     return current_result    
  
 
-def do_the_trades(initial, risk_per_trade_ratio, rand, target_capital, is_limit_consecutive_wins, is_limit_consecutive_losses, cut_loss_min_rate, cut_loss_max_rate, cut_profit_min_rate, cut_profit_max_rate, enable_actual_mode, stop_loss_min, stop_loss_max, spread_max):
+def do_the_trades(initial, risk_per_trade_ratio, rand, target_capital, is_limit_consecutive_wins, is_limit_consecutive_losses, cut_loss_min_rate, cut_loss_max_rate, cut_profit_min_rate, cut_profit_max_rate, 
+enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_risk_rate, actual_potential_profit_rate):
     
     print(f"win limit: {is_limit_consecutive_wins}")   
     print(f"loss limit: {is_limit_consecutive_losses}")
@@ -388,14 +389,14 @@ def do_the_trades(initial, risk_per_trade_ratio, rand, target_capital, is_limit_
         if enable_actual_mode == False:
             actual_capital_in_risk = capital_in_risk
             actual_potential_profit = capital_in_risk
-        if enable_actual_mode == True:
-            actual_capital_in_risk = capital_in_risk*0.6 # 如果情况不妙就手动止损，8/12=0.66
-            actual_potential_profit = capital_in_risk*0.7 # 假设手动止盈，在tp为12$的时候，在10手动tp, 10/12=0.83
+        else:
+            actual_capital_in_risk = capital_in_risk * actual_capital_in_risk_rate # 如果情况不妙就手动止损，8/12=0.66
+            actual_potential_profit = capital_in_risk * actual_potential_profit_rate # 假设手动止盈，在tp为12$的时候，在10手动tp, 10/12=0.83
             # 9.2/12.8 = 0.71
         
         #########
         commision_per_lot = 4
-        pip_value=10
+        pip_value = 10
 
         # capital_in_risk = capital*risk_per_trade_ratio
         # lot_size = capital_in_risk/(stop_loss*10)
@@ -519,7 +520,7 @@ def do_the_trades(initial, risk_per_trade_ratio, rand, target_capital, is_limit_
 
 # 149376$   # 4257 for legion
 def main(initial= 150, target_capital=300, risk_per_trade_ratio=0.05, win_rate = 0.6, hit_and_run_rate=0.4, is_limit_consecutive_wins=False, is_limit_consecutive_losses=False, cut_loss_min_rate=20, cut_loss_max_rate=80, cut_profit_min_rate=20, cut_profit_max_rate=80, enable_actual_mode=True, 
-stop_loss_min=10, stop_loss_max=30, spread_max=10):
+stop_loss_min=10, stop_loss_max=30, spread_max=10, actual_capital_in_risk_rate=0.65, actual_potential_profit_rate=0.7):
     # initial = 650
 
     # target_capital = 1500
@@ -529,7 +530,8 @@ stop_loss_min=10, stop_loss_max=30, spread_max=10):
     #rand = generate_rand_trading_results(ideal_trade_count = 10000, win_rate = win_rate)
     rand = generate_rand_trading_results_with_hit_and_run_strategy(ideal_trade_count=10000, win_rate=win_rate, hit_and_run_rate=hit_and_run_rate)
 
-    trades_info = do_the_trades(initial, risk_per_trade_ratio, rand, target_capital, is_limit_consecutive_wins, is_limit_consecutive_losses, cut_loss_min_rate, cut_loss_max_rate, cut_profit_min_rate, cut_profit_max_rate, enable_actual_mode, stop_loss_min, stop_loss_max, spread_max)
+    trades_info = do_the_trades(initial, risk_per_trade_ratio, rand, target_capital, is_limit_consecutive_wins, is_limit_consecutive_losses, cut_loss_min_rate, cut_loss_max_rate, cut_profit_min_rate, cut_profit_max_rate, enable_actual_mode, 
+    stop_loss_min, stop_loss_max, spread_max, actual_capital_in_risk_rate, actual_potential_profit_rate)
 
     trades = trades_info["trades"]
     trade_count = trades_info["trade_count"]
