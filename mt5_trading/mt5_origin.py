@@ -127,6 +127,22 @@ add risk reward ratio, if doing 1 min, try risk:reward 2:1 or 3:1
 try when 2pips in profit, close the order
 ################
 
+
+try:
+when 3 pips from tp, counting down 10 seconds to close the order [Done]
+
+
+
+to do:
+when tp and then the current position still meets requirements for openting an order, we need to check if there's already an chance prior to this one, 
+if so, it means we've missed the best chance to get in.
+
+The idea would be to see the one prior to the current one, or the one prior to prior, or even further, so see if we have one tick that meets the best chance to get in
+
+we can achieve this in another way:
+everytime we count down 10s and close an order, after we close it, we count down for the time of two ticks, so we wait for two ticks before looking for another trade
+it's like we are taking a break from the market
+
 """
 
 
@@ -266,7 +282,9 @@ def calculate_lot_size(sl, symbol, risk_ratio=0.05, commision_per_lot=4): #sl is
     capital = mt5.account_info().balance
     capital_in_risk = risk_ratio * capital
 
-    print(f"capital: {capital}, risk capital: {capital_in_risk}, 65% risk capital: {capital_in_risk * 0.65}")
+    print(f"capital: {capital}")
+    print(f"capital in risk: {capital_in_risk}") 
+    print(f"65% risk capital: {capital_in_risk * 0.65}")
 
     # commission is of two operations, open and close. So it's 2 times of what mt5 specification shows (which is only for opening or closing, not opening and closing)
     # stop_loss is in pips, not points
@@ -367,35 +385,41 @@ def open_request(sl_price, type="buy", sl=100, symbol="USDJPY", type_filling=mt5
         print("   opened position with POSITION_TICKET={}".format(result.order))
 
 
-"""
-def close_request():
+
+def close_request(symbol, ticket, lot, type_filling, close_type):
     # create a close request
-    position_id=result.order
-    price=mt5.symbol_info_tick(symbol).bid
+    # position_id=result.order
+
+    if close_type == 0:
+        type = mt5.ORDER_TYPE_BUY
+        price=mt5.symbol_info_tick(symbol).ask
+    elif close_type == 1:
+        type = mt5.ORDER_TYPE_SELL
+        price=mt5.symbol_info_tick(symbol).bid
+
+    
     deviation=20
     request={
         "action": mt5.TRADE_ACTION_DEAL,
         "symbol": symbol,
         "volume": lot,
-        "type": mt5.ORDER_TYPE_SELL,
-        "position": position_id,
+        "type": type,
+        "position": ticket,
         "price": price,
         "deviation": deviation,
         "magic": 234000,
         "comment": "python script close",
         "type_time": mt5.ORDER_TIME_GTC,
         # "type_filling": mt5.ORDER_FILLING_RETURN,
-        "type_filling": mt5.ORDER_FILLING_FOK,
+        "type_filling": type_filling,
     }
     # send a trading request
     result=mt5.order_send(request)
     # check the execution result
-    print("3. close position #{}: sell {} {} lots at {} with deviation={} points".format(position_id,symbol,lot,price,deviation));
+    print("3. close position #{}: sell {} {} lots at {} with deviation={} points".format(ticket, symbol, lot, price, deviation));
     if result.retcode != mt5.TRADE_RETCODE_DONE:
         print("4. order_send failed, retcode={}".format(result.retcode))
-        print("   result",result)
-    else:
-        print("4. position #{} closed, {}".format(position_id,result))
+        # print("   result", result)
         # request the result as a dictionary and display it element by element
         result_dict=result._asdict()
         for field in result_dict.keys():
@@ -405,7 +429,122 @@ def close_request():
                 traderequest_dict=result_dict[field]._asdict()
                 for tradereq_filed in traderequest_dict:
                     print("       traderequest: {}={}".format(tradereq_filed,traderequest_dict[tradereq_filed]))
+        # print("shutdown() and quit")
+        # mt5.shutdown()
+        # quit()
+        print("\nError\n")
+        if result_dict["comment"] == "AutoTrading disabled by client":
+            print("AutoTrading disabled by client")
+            mt5.shutdown()
+            quit()
+    else:
+        print("4. position #{} closed, {}".format(ticket, result))
+        # request the result as a dictionary and display it element by element
+        result_dict=result._asdict()
+        for field in result_dict.keys():
+            print("   {}={}".format(field,result_dict[field]))
+            # if this is a trading request structure, display it element by element as well
+            if field=="request":
+                traderequest_dict=result_dict[field]._asdict()
+                for tradereq_filed in traderequest_dict:
+                    print("       traderequest: {}={}".format(tradereq_filed,traderequest_dict[tradereq_filed]))
+
+
 """
+IF no tp is set:
+
+points_from_tp = 20.000000000010232 points
+points_from_tp = 20.000000000010232 points
+points_from_tp = 20.000000000010232 points
+points_from_tp = 20.000000000010232 points
+points_from_tp = 20.000000000010232 points
+points_from_tp = 20.000000000010232 points
+points_from_tp = 19.000000000005457 points
+1. order_send(): modifying the sl to break even
+2. order_send done,  OrderSendResult(retcode=10009, deal=0, order=0, volume=0.0, price=0.0, bid=0.0, ask=0.0, comment='Request executed', request_id=151, retcode_external=0, request=TradeRequest(action=6, magic=234000, order=0, symbol='USDJPY', volume=0.0, price=0.0, stoplimit=0.0, sl=138.574, tp=0.0, deviation=20, type=0, type_filling=0, type_time=0, expiration=0, comment='python script open', position=2274618675, position_by=0))
+   modified stop loss with POSITION_TICKET=0
+points_from_tp = 138571.0 points
+points_from_tp = 138572.0 points
+points_from_tp = 138572.0 points
+points_from_tp = 138572.0 points
+points_from_tp = 138572.0 points
+points_from_tp = 138572.0 points
+"""
+
+def modify_sl_request(symbol, ticket, sl_price, tp_price, type_filling): # MUST set TP, OR TP will be empty, NO TP after modifying SL
+    # # lot = 0.1
+    # lot = calculate_lot_size(sl=sl, symbol=symbol, risk_ratio=risk_ratio, commision_per_lot=commision_per_lot) # sl, symbol, risk_ratio=0.05, commision_per_lot=4
+
+    # point = mt5.symbol_info(symbol).point    #EURUSD point: 1e-05   #BTCUSD point: 0.01 
+    #####################
+    # attention: the point here is not stop_loss_in_pips * 10. Instead, it's a decimal, telling us how many digits there are.
+    #####################
+    # price = mt5.symbol_info_tick(symbol).ask
+    deviation = 20
+
+    # if type == "buy":
+    #     type = mt5.ORDER_TYPE_BUY
+    # elif type == "sell":
+    #     type = mt5.ORDER_TYPE_SELL
+    #     # if sell, sl shoult be price -  100* (-point)
+    #     point = -point
+    
+    # # in points
+    # tp = sl / risk_reward_ratio
+
+    request = {
+        "action": mt5.TRADE_ACTION_SLTP,
+        "symbol": symbol,
+        # "volume": lot,
+        # "type": type,
+        "position": ticket,
+        # "price": price,
+        #"sl": price - sl * point, # "sl": price - 100 * point,  EURUSD 100 * 0.00001 => 0.001   1.02380-0.001 => 1.02280 => 10 pips
+        # try to directly use the price of the previous tick low
+        "sl": sl_price,
+        "tp": tp_price,
+        # "tp": price + sl * point,
+        # "tp": price + tp * point,
+        "deviation": deviation,
+        "magic": 234000,
+        "comment": "python script open",
+        "type_time": mt5.ORDER_TIME_GTC,
+        # "type_filling": mt5.ORDER_FILLING_RETURN,
+        # "type_filling": mt5.ORDER_FILLING_FOK, # works for fxtm
+        # "type_filling": mt5.ORDER_FILLING_IOC, # works for ic markect btc
+        "type_filling": type_filling,
+
+    }
+    
+    # send a trading request
+    result = mt5.order_send(request)
+    # check the execution result
+    print("1. order_send(): modifying the sl to break even")
+    if result.retcode != mt5.TRADE_RETCODE_DONE:
+        print("2. order_send failed, retcode={}".format(result.retcode))
+        print(mt5.ORDER_FILLING_RETURN)
+        # request the result as a dictionary and display it element by element
+        result_dict=result._asdict()
+        for field in result_dict.keys():
+            print("   {}={}".format(field,result_dict[field]))
+            # if this is a trading request structure, display it element by element as well
+            if field=="request":
+                traderequest_dict=result_dict[field]._asdict()
+                for tradereq_filed in traderequest_dict:
+                    print("       traderequest: {}={}".format(tradereq_filed,traderequest_dict[tradereq_filed]))
+        # print("shutdown() and quit")
+        # mt5.shutdown()
+        # quit()
+        print("\nError\n")
+        if result_dict["comment"] == "AutoTrading disabled by client":
+            print("AutoTrading disabled by client")
+            mt5.shutdown()
+            quit()
+        
+    else:
+        print("2. order_send done, ", result)
+        print("   modified stop loss with POSITION_TICKET={}".format(result.order))
+
 
 def historical_orders():
     from datetime import datetime
@@ -929,11 +1068,13 @@ def double_tick_strategy():
 
     # symbol="BTCUSD"
     # symbol="USDJPY"
-    symbol="XAUUSD"
+    symbol="AUDUSD"
     # type_filling = mt5.ORDER_FILLING_IOC # IC
     type_filling = mt5.ORDER_FILLING_FOK # FXTM
-    # timeframe = mt5.TIMEFRAME_M5
-    timeframe = mt5.TIMEFRAME_M1
+    # timeframe = mt5.TIMEFRAME_M1
+    timeframe = mt5.TIMEFRAME_M5
+    # timeframe = mt5.TIMEFRAME_M15
+    # timeframe = mt5.TIMEFRAME_M30
     sl_limit = 300 # points for USDJPY
 
     # distance between ideal opening price & current price  
@@ -949,17 +1090,49 @@ def double_tick_strategy():
 
     risk_ratio=0.05 # 2%
 
-    risk_reward_ratio = 0.33 #1:3 risk:reward 2:1
+    risk_reward_ratio = 1 #1:3 risk:reward 2:1
+    # risk_reward_ratio = 0.33 #1:3 risk:reward 2:1
 
     # used to print how many seconds it runs, 
     # also if the program freezes, the print output will not change, which draws us attention
     timer = 0
 
 
+    pattern_list = ["\\", "|", "/", "-"]
+    pattern_index = 0
+
+
     # flag for dragging the sl for only once, otherwise it will divide by two and divide again 
     # and eventually break even (when we want to just set the sl to half of the origin sl)
     # not wokring. what if order 1 is open, and modified, then the flag is set to 1, but then another order 2 is open, but flag is 1, so sl will be be modified
     # sl_modified = 0
+
+    while True:
+        print(f"symbol: {symbol}")
+        print(f"timeframe: {timeframe}")
+        confirm_info = input("[Y/n]")
+        if confirm_info == "":
+            break
+        elif confirm_info.upper() == "N":
+            input_symbol = input("change symbol to: ").upper()
+            if input_symbol == "":
+                pass
+            else:
+                symbol = input_symbol
+
+            input_timeframe = input("change timeframe to: ")
+            if input_timeframe == "":
+                pass
+            elif input_timeframe in ['h1', '1']:
+                timeframe = mt5.TIMEFRAME_H1
+            elif input_timeframe in ['m30', '30']:
+                timeframe = mt5.TIMEFRAME_M30
+            elif input_timeframe in ['m15', '15']:
+                timeframe = mt5.TIMEFRAME_M15
+            elif input_timeframe in ['m5', '5']:
+                timeframe = mt5.TIMEFRAME_M5
+    
+
 
     while True:
 
@@ -969,7 +1142,19 @@ def double_tick_strategy():
             rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=3)
             # print(f"rates: {rates}")
             current_price = rates[2][4]
+
+            # bid_price = mt5.symbol_info(symbol).bid
+            # ask_price = mt5.symbol_info_tick(symbol).ask
             
+            # print(f"current_price: {current_price}")
+            # print(f"bid_price: {bid_price}")
+            # print(f"ask_price: {ask_price}")
+            """
+            current_price: 0.65285
+            bid_price: 0.65285
+            ask_price: 0.653
+            """
+
             # get the higher price of the previous one and two ticks
             tick_one_high = rates[0][2]
             tick_two_high = rates[1][2]
@@ -992,7 +1177,17 @@ def double_tick_strategy():
 
             # v2
             above_or_below_sma = check_each_tick_close_price_above_or_below_sma(sma_list, timeframe=timeframe, symbol=symbol, start_position=0)
-            #print(f"above or below sma: {above_or_below_sma}")
+            # print(f"above or below sma: {above_or_below_sma}")
+
+            ###############print a spinning circle ##############
+            current_pattern = pattern_list[pattern_index]
+            pattern_index += 1
+            if pattern_index == len(pattern_list):
+                pattern_index = 0
+
+            print(f"  {current_pattern}", end="\r", flush=True)
+            ###############print a spinning circle ##############
+
             
             # if current_price > higher_price, and we are above the 24sma, and there's a retracement
             if current_price > higher_price and above_or_below_sma in {"above", "mixed_above"} and check_retrace_or_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5):
@@ -1029,6 +1224,14 @@ def double_tick_strategy():
                 if actual_offset > offset_limit:
                     print(f"actual_offset is {actual_offset}, exceeded offset_limit: {offset_limit} points. not opening tickets")
                     continue
+                
+                # check_adx_result = check_if_adx_meets_requirements(symbol=symbol, timeframe=timeframe)
+                # if check_adx_result == False:
+                #     continue
+
+                check_adx_ascending_res = check_adx_ascending(symbol=symbol, timeframe=timeframe, n=3)
+                if check_adx_ascending_res == False:
+                    continue
 
                 open_request(sl_price=dows_low, type="buy", sl=sl, symbol=symbol, type_filling=type_filling, commision_per_lot=commision_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio)
                 # continue # if we opened an order, we go back to the beginning of the loop, we don't sleep
@@ -1062,6 +1265,14 @@ def double_tick_strategy():
                     print(f"actual_offset is {actual_offset}, exceeded offset_limit: {offset_limit} points. not opening tickets")
                     continue
 
+                # check_adx_result = check_if_adx_meets_requirements(symbol=symbol, timeframe=timeframe)
+                # if check_adx_result == False:
+                #     continue
+
+                check_adx_ascending_res = check_adx_ascending(symbol=symbol, timeframe=timeframe, n=3)
+                if check_adx_ascending_res == False:
+                    continue
+
                 open_request(sl_price=dows_high, type="sell", sl=sl, symbol=symbol, type_filling=type_filling, commision_per_lot=commision_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio)
                 # continue
 
@@ -1070,69 +1281,95 @@ def double_tick_strategy():
             # actually it's best to include, maybe. bacause if the reverse point is too far away (in this case maybe no retrace nearby the sma), 
             # the price would touch the sma and then bounce back, continue its previous trend
 
-            # across_sma_from_below_to_above, 
-            elif current_price > tick_two_close and above_or_below_sma == "across_sma_from_below_to_above": # and check_retrace_or_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5):
-                print("buy")
-                # sl = current_price * 1000 - rates[1][3] * 1000  # USDJPY
-                # BTC digits -> 2   USDJPY digits -> 3
-                digits = mt5.symbol_info(symbol).digits # BTC digits -> 2         mt5.symbol_info(symbol).xxx, not mt5.symbol_info_tick(symbol).xxx
-                multiply_digits = 10 ** digits
-                # sl is in points, /10 if needed to convert to pips
-                #sl = current_price * multiply_digits - lower_price * multiply_digits  # BTC
-                dows_low = find_dows_low(symbol=symbol, timeframe=timeframe, tick_count=12)
-                if dows_low:
-                    sl = current_price * multiply_digits - dows_low * multiply_digits
-                else:
-                    print(f"didn't find dows_low in previous ticks, won't open order")
-                    continue
-                # sl = current_price * 100 - lower_price * 100  # BTC
+            # ############### This seems to be not working well on at least M5. So disable it temporarily ###################
 
-                # hard-coded for USD/JPY
-                if sl >= sl_limit and symbol == "USDJPY": # if sl > 300 points, or 30 pips
-                    print(f"sl is {sl} points. too large. aborted.")
-                    continue
+            # # across_sma_from_below_to_above, 
+            # elif current_price > tick_two_close and above_or_below_sma == "across_sma_from_below_to_above": # and check_retrace_or_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5):
+            #     print("buy")
+            #     # sl = current_price * 1000 - rates[1][3] * 1000  # USDJPY
+            #     # BTC digits -> 2   USDJPY digits -> 3
+            #     digits = mt5.symbol_info(symbol).digits # BTC digits -> 2         mt5.symbol_info(symbol).xxx, not mt5.symbol_info_tick(symbol).xxx
+            #     multiply_digits = 10 ** digits
+            #     # sl is in points, /10 if needed to convert to pips
+            #     #sl = current_price * multiply_digits - lower_price * multiply_digits  # BTC
+            #     dows_low = find_dows_low(symbol=symbol, timeframe=timeframe, tick_count=12)
+            #     if dows_low:
+            #         sl = current_price * multiply_digits - dows_low * multiply_digits
+            #     else:
+            #         print(f"didn't find dows_low in previous ticks, won't open order")
+            #         continue
+            #     # sl = current_price * 100 - lower_price * 100  # BTC
 
-                actual_offset = multiply_digits * abs(current_price - tick_two_close)
-                if actual_offset > offset_limit:
-                    print(f"actual_offset is {actual_offset}, exceeded offset_limit: {offset_limit} points. not opening tickets")
-                    continue
+            #     # hard-coded for USD/JPY
+            #     if sl >= sl_limit and symbol == "USDJPY": # if sl > 300 points, or 30 pips
+            #         print(f"sl is {sl} points. too large. aborted.")
+            #         continue
+
+            #     actual_offset = multiply_digits * abs(current_price - tick_two_close)
+            #     if actual_offset > offset_limit:
+            #         print(f"actual_offset is {actual_offset}, exceeded offset_limit: {offset_limit} points. not opening tickets")
+            #         continue
+
+            # #     check_adx_result = check_if_adx_meets_requirements(symbol=symbol, timeframe=timeframe)
+            # #     if check_adx_result == False:
+            # #         continue
+
+            #     check_adx_ascending_res = check_adx_ascending(symbol=symbol, timeframe=timeframe, n=3)
+            #     if check_adx_ascending_res == False:
+            #         continue
                 
-                open_request(sl_price=dows_low, type="buy", sl=sl, symbol=symbol, type_filling=type_filling, commision_per_lot=commision_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio)
-                # continue # if we opened an order, we go back to the beginning of the loop, we don't sleep
-            # across_sma_from_above_to_below
-            elif current_price < tick_two_close and above_or_below_sma == "across_sma_from_above_to_below": # and check_retrace_or_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5):
-                print("sell")
-                # second_tick_high-current_price
-                # sl = rates[1][2] * 1000 - current_price * 1000  # USDJPY
-                digits = mt5.symbol_info(symbol).digits
-                multiply_digits = 10 ** digits
-                #sl = higher_price * multiply_digits - current_price * multiply_digits  # BTC
-                dows_high = find_dows_high(symbol=symbol, timeframe=timeframe, tick_count=12)
-                if dows_high:
-                    sl = dows_high * multiply_digits - current_price * multiply_digits
-                else:
-                    print(f"didn't find dows_high in previous ticks, won't open order")
-                    continue
-                # hard-coded for USD/JPY
-                if sl >= sl_limit and symbol == "USDJPY": # if sl > 300 points, or 30 pips
-                    print(f"sl is {sl} points. too large. aborted.")
-                    continue
+            #     open_request(sl_price=dows_low, type="buy", sl=sl, symbol=symbol, type_filling=type_filling, commision_per_lot=commision_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio)
+            #     # continue # if we opened an order, we go back to the beginning of the loop, we don't sleep
+            # # across_sma_from_above_to_below
+            # elif current_price < tick_two_close and above_or_below_sma == "across_sma_from_above_to_below": # and check_retrace_or_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5):
+            #     print("sell")
+            #     # second_tick_high-current_price
+            #     # sl = rates[1][2] * 1000 - current_price * 1000  # USDJPY
+            #     digits = mt5.symbol_info(symbol).digits
+            #     multiply_digits = 10 ** digits
+            #     #sl = higher_price * multiply_digits - current_price * multiply_digits  # BTC
+            #     dows_high = find_dows_high(symbol=symbol, timeframe=timeframe, tick_count=12)
+            #     if dows_high:
+            #         sl = dows_high * multiply_digits - current_price * multiply_digits
+            #     else:
+            #         print(f"didn't find dows_high in previous ticks, won't open order")
+            #         continue
+            #     # hard-coded for USD/JPY
+            #     if sl >= sl_limit and symbol == "USDJPY": # if sl > 300 points, or 30 pips
+            #         print(f"sl is {sl} points. too large. aborted.")
+            #         continue
 
-                actual_offset = multiply_digits * abs(current_price - tick_two_close)
-                if actual_offset > offset_limit:
-                    print(f"actual_offset is {actual_offset}, exceeded offset_limit: {offset_limit} points. not opening tickets")
-                    continue
+            #     actual_offset = multiply_digits * abs(current_price - tick_two_close)
+            #     if actual_offset > offset_limit:
+            #         print(f"actual_offset is {actual_offset}, exceeded offset_limit: {offset_limit} points. not opening tickets")
+            #         continue
 
-                # sl = higher_price * 100 - current_price * 100  # BTC
-                open_request(sl_price=dows_high, type="sell", sl=sl, symbol=symbol, type_filling=type_filling, commision_per_lot=commision_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio)
-                # continue
+            # #     check_adx_result = check_if_adx_meets_requirements(symbol=symbol, timeframe=timeframe)
+            # #     if check_adx_result == False:
+            # #         continue
+
+            #     check_adx_ascending_res = check_adx_ascending(symbol=symbol, timeframe=timeframe, n=3)
+            #     if check_adx_ascending_res == False:
+            #         continue
+
+            #     # sl = higher_price * 100 - current_price * 100  # BTC
+            #     open_request(sl_price=dows_high, type="sell", sl=sl, symbol=symbol, type_filling=type_filling, commision_per_lot=commision_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio)
+            #     # continue
+
+            # ############### This seems to be not working well on at least M5. So disable it temporarily ###################
 
         # time.sleep(0.1)
         else:
-            
-            positions = get_positions_by_symbol(symbol=symbol)
-            # as we only open one position at a time, so there should be only one item in this list/set?
-            position =positions[0]
+            try:
+                positions = get_positions_by_symbol(symbol=symbol)
+                # as we only open one position at a time, so there should be only one item in this list/set?
+                position =positions[0]
+            except Exception as exception:
+                print(traceback.format_exc())
+                print(f"error info: {exception}")
+                continue
+
+                
             # how far away are we from tp
             digits = mt5.symbol_info(symbol).digits
             multiply_digits = 10 ** digits
@@ -1196,6 +1433,41 @@ def double_tick_strategy():
                 if position.sl != position.price_open:
                     modify_sl_request(symbol=symbol, ticket=position.ticket, sl_price=position.price_open, tp_price=position.tp, type_filling=type_filling)
 
+                # this means we are 3 pips away from TP
+                # so let's count down
+                count_down = 10
+                for _ in range(0, count_down+1): # count down + 1 until zero
+                    print(f"{count_down} s before closing the order...")
+                    count_down -= 1
+                    time.sleep(1)
+
+                order_type = position.type
+                if order_type == 0:
+                    close_type = 1
+                elif order_type == 1:
+                    close_type = 0
+
+                close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)
+
+
+                # after closing, count down for 2 ticks' time, say 5min chart, then it's 10minutes
+                if timeframe == mt5.TIMEFRAME_M1:
+                    pause_time = 2 * 1 * 60
+                elif timeframe == mt5.TIMEFRAME_M5:
+                    pause_time = 2 * 5 * 60
+                elif timeframe == mt5.TIMEFRAME_M15:
+                    pause_time = 2 * 15 * 60
+                elif timeframe == mt5.TIMEFRAME_M30:
+                    pause_time = 2 * 30 * 60
+                elif timeframe == mt5.TIMEFRAME_H1:
+                    pause_time = 2 * 60 * 60
+
+                for _ in range(0, pause_time+1): # count down + 1 until zero
+                    print(f"{pause_time} s before looking for another trade...")
+                    pause_time -= 1
+                    time.sleep(1)
+
+
 
             # open_positions > 0
             # sys.stdout.write(".")
@@ -1251,112 +1523,33 @@ def find_dows_high(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, tick_count=30):
                 return dows_high
     return None
 
-"""
-IF no tp is set:
 
-points_from_tp = 20.000000000010232 points
-points_from_tp = 20.000000000010232 points
-points_from_tp = 20.000000000010232 points
-points_from_tp = 20.000000000010232 points
-points_from_tp = 20.000000000010232 points
-points_from_tp = 20.000000000010232 points
-points_from_tp = 19.000000000005457 points
-1. order_send(): modifying the sl to break even
-2. order_send done,  OrderSendResult(retcode=10009, deal=0, order=0, volume=0.0, price=0.0, bid=0.0, ask=0.0, comment='Request executed', request_id=151, retcode_external=0, request=TradeRequest(action=6, magic=234000, order=0, symbol='USDJPY', volume=0.0, price=0.0, stoplimit=0.0, sl=138.574, tp=0.0, deviation=20, type=0, type_filling=0, type_time=0, expiration=0, comment='python script open', position=2274618675, position_by=0))
-   modified stop loss with POSITION_TICKET=0
-points_from_tp = 138571.0 points
-points_from_tp = 138572.0 points
-points_from_tp = 138572.0 points
-points_from_tp = 138572.0 points
-points_from_tp = 138572.0 points
-points_from_tp = 138572.0 points
-"""
 
-def modify_sl_request(symbol, ticket, sl_price, tp_price, type_filling): # MUST set TP, OR TP will be empty, NO TP after modifying SL
-    # # lot = 0.1
-    # lot = calculate_lot_size(sl=sl, symbol=symbol, risk_ratio=risk_ratio, commision_per_lot=commision_per_lot) # sl, symbol, risk_ratio=0.05, commision_per_lot=4
-
-    # point = mt5.symbol_info(symbol).point    #EURUSD point: 1e-05   #BTCUSD point: 0.01 
-    #####################
-    # attention: the point here is not stop_loss_in_pips * 10. Instead, it's a decimal, telling us how many digits there are.
-    #####################
-    # price = mt5.symbol_info_tick(symbol).ask
-    deviation = 20
-
-    # if type == "buy":
-    #     type = mt5.ORDER_TYPE_BUY
-    # elif type == "sell":
-    #     type = mt5.ORDER_TYPE_SELL
-    #     # if sell, sl shoult be price -  100* (-point)
-    #     point = -point
+def calc_dm_plus_dm_minus(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15, start_position=0, tick_count=150, period=14): 
+    # the result data_list only has 149 items, because the first tick has no previous tick for calculating 
+    # so set tick_count to 151 if we want 150 ticks' data
     
-    # # in points
-    # tp = sl / risk_reward_ratio
-
-    request = {
-        "action": mt5.TRADE_ACTION_SLTP,
-        "symbol": symbol,
-        # "volume": lot,
-        # "type": type,
-        "position": ticket,
-        # "price": price,
-        #"sl": price - sl * point, # "sl": price - 100 * point,  EURUSD 100 * 0.00001 => 0.001   1.02380-0.001 => 1.02280 => 10 pips
-        # try to directly use the price of the previous tick low
-        "sl": sl_price,
-        "tp": tp_price,
-        # "tp": price + sl * point,
-        # "tp": price + tp * point,
-        "deviation": deviation,
-        "magic": 234000,
-        "comment": "python script open",
-        "type_time": mt5.ORDER_TIME_GTC,
-        # "type_filling": mt5.ORDER_FILLING_RETURN,
-        # "type_filling": mt5.ORDER_FILLING_FOK, # works for fxtm
-        # "type_filling": mt5.ORDER_FILLING_IOC, # works for ic markect btc
-        "type_filling": type_filling,
-
-    }
-    
-    # send a trading request
-    result = mt5.order_send(request)
-    # check the execution result
-    print("1. order_send(): modifying the sl to break even")
-    if result.retcode != mt5.TRADE_RETCODE_DONE:
-        print("2. order_send failed, retcode={}".format(result.retcode))
-        print(mt5.ORDER_FILLING_RETURN)
-        # request the result as a dictionary and display it element by element
-        result_dict=result._asdict()
-        for field in result_dict.keys():
-            print("   {}={}".format(field,result_dict[field]))
-            # if this is a trading request structure, display it element by element as well
-            if field=="request":
-                traderequest_dict=result_dict[field]._asdict()
-                for tradereq_filed in traderequest_dict:
-                    print("       traderequest: {}={}".format(tradereq_filed,traderequest_dict[tradereq_filed]))
-        # print("shutdown() and quit")
-        # mt5.shutdown()
-        # quit()
-        print("\nError\n")
-        if result_dict["comment"] == "AutoTrading disabled by client":
-            print("AutoTrading disabled by client")
-            mt5.shutdown()
-            quit()
-        
-    else:
-        print("2. order_send done, ", result)
-        print("   modified stop loss with POSITION_TICKET={}".format(result.order))
-
-
-def calc_adx(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15, start_position=0, tick_count=150, period=14):
     # 15 ticks. from 0 to 14
+    
+    # the first tick is not calculated for dm+ dm-, and tr, 
+    # because we need a previous tick for calculating these, and the first tick doesn't have a previous tick
+
+    # so the actual data_list we get is from the second one to the latest one, 
+    # and we see the second one AS THE FIRST ONE
+
     rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
-    data_list = [] # store adx related data for reach tick
-    for i in range(0, tick_count-1): # until the one before the current tick
+    # we have 150 ticks index: [0-149]
+
+    data_list = [] # store adx related data for each tick
+    for i in range(0, tick_count-1): # until the one before the current tick        tick_count-1 is 149, so we will have index 148, so i+1 is 149, the current tick
         current_dict = {}
         
+        # but actually we are using i+1 so we have the latest/current tick's info
+        #+DM = current high - previous high.
+        #-DM = previous low - current low.
         current_dict['dm_plus'] = rates[i+1]['high'] - rates[i]['high']
         current_dict['dm_minus'] = rates[i]['low'] - rates[i+1]['low']
-
+        
         # Use +DM when current high - previous high > previous low - current low. Use -DM when previous low - current low > current high - previous high.
         if current_dict['dm_plus'] > current_dict['dm_minus']:
             if current_dict['dm_plus'] < 0:
@@ -1377,15 +1570,146 @@ def calc_adx(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15, start_position=0, tic
 
     return data_list
 
-def calc_tr14(data_list):
-    length_data_list = len(data_list)
-    res = 0
-    # for i in range( )
+"""
+First TR14 = Sum of first 14 periods of TR1 
+Second TR14 = First TR14 - (First TR14/14) + Current TR1 
+Subsequent Values = Prior TR14 - (Prior TR14/14) + Current TR1
+"""
+def calc_tr14_dm_plus14_dm_minus14(data_list):
+    # only need to calc the first tr14
+    # so from 13, we have 14 TRs, and can calc the first tr14
 
+    for i in range(0, 13):
+        # set the first 13 (0-12) tr as 'N/A'
+        data_list[i]['tr14'] = 'N/A'
+        data_list[i]['dm_plus14'] = 'N/A'
+        data_list[i]['dm_minus14'] = 'N/A'
+
+    tr14 = 0
+    dm_plus14 = 0
+    dm_minus14 = 0
+
+# at first I didn't add tr13 to the sum!!!!!! now it's OK with another loop from 0 to 14
+    for i in range(0, 14): # from 0 to 13
+        # calc the sum
+        tr14 += data_list[i]['tr']
+        dm_plus14 += data_list[i]['dm_plus']
+        dm_minus14 += data_list[i]['dm_minus']
+
+
+
+    data_list[13]['tr14'] = tr14
+    data_list[13]['dm_plus14'] = dm_plus14
+    data_list[13]['dm_minus14'] = dm_minus14
+
+    for i in range(14, len(data_list)):
+        previous_tr14 = data_list[i-1]['tr14']
+        subsequent_tr14 = previous_tr14 - (previous_tr14/14) + data_list[i]['tr']
+        data_list[i]['tr14'] = subsequent_tr14
+
+        previous_dm_plus14 = data_list[i-1]['dm_plus14']
+        subsequent_dm_plus14 = previous_dm_plus14 - (previous_dm_plus14/14) + data_list[i]['dm_plus']
+        data_list[i]['dm_plus14'] = subsequent_dm_plus14
+
+        previous_dm_minus14 = data_list[i-1]['dm_minus14']
+        subsequent_dm_minus14 = previous_dm_minus14 - (previous_dm_minus14/14) + data_list[i]['dm_minus']
+        data_list[i]['dm_minus14'] = subsequent_dm_minus14
+
+
+    return data_list
+
+def calc_di_plus_di_minus(data_list):
+    for i in range(0, len(data_list)): 
+        if data_list[i]['tr14'] == "N/A":
+            data_list[i]['di_plus'] = "N/A"
+            data_list[i]['di_minus'] = "N/A"
+        else:
+            # calc DI+
+            di_plus = data_list[i]['dm_plus14'] / data_list[i]['tr14'] * 100
+            di_minus = data_list[i]['dm_minus14'] / data_list[i]['tr14'] * 100
+            data_list[i]['di_plus'] = di_plus
+            data_list[i]['di_minus'] = di_minus
+        
+    return data_list
+
+def calc_dx(data_list):
+    for i in range(0, len(data_list)): 
+        if data_list[i]['tr14'] == "N/A":
+            data_list[i]['dx'] = "N/A"
+        else:
+            # calc dx
+            dx = abs(data_list[i]['di_plus'] - data_list[i]['di_minus']) / abs(data_list[i]['di_plus'] + data_list[i]['di_minus']) * 100
+            data_list[i]['dx'] = dx
+        
+    return data_list
+
+
+# First ADX = sum 14 periods of DX / 14.
+# After that, ADX = ((prior ADX * 13) + current DX) / 14.
+def calc_adx(data_list):
+    first_adx = 0
+    for i in range(13, 13+14): # from 13 to 26 [13,26] or [13, 27) 27 not included
+        first_adx += data_list[i]['dx']
+    first_adx /= 14
+    data_list[13+14-1]['adx'] = first_adx
+
+    for i in range(0, 13+14-1):
+        data_list[i]['adx'] = "N/A"
+
+    for i in range(13+14, len(data_list)):
+        previous_adx = data_list[i-1]['adx']
+        subsequent_adx = (previous_adx * 13 + data_list[i]['dx']) / 14
+        data_list[i]['adx'] = subsequent_adx
+
+    return data_list
+
+
+def get_current_adx(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15, start_position=0, tick_count=150):
+    data_list = calc_dm_plus_dm_minus(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+    data_list = calc_tr14_dm_plus14_dm_minus14(data_list)
+    data_list = calc_di_plus_di_minus(data_list)
+    data_list = calc_dx(data_list)
+    data_list = calc_adx(data_list)
+    current_adx = data_list[-1]['adx']
+    # current_adx = round(current_adx, 2)
+    return current_adx
+
+def get_last_n_adx(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15, start_position=0, tick_count=150, n=3):
+    data_list = calc_dm_plus_dm_minus(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+    data_list = calc_tr14_dm_plus14_dm_minus14(data_list)
+    data_list = calc_di_plus_di_minus(data_list)
+    data_list = calc_dx(data_list)
+    data_list = calc_adx(data_list)
+    last_n_data_list = data_list[-n:]
+    last_n_adx_list = [item['adx'] for item in last_n_data_list]
+    return last_n_adx_list
+
+def check_adx_ascending(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15, n=3):
+    is_valid = False
+    last_n_adx_list = get_last_n_adx(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=150, n=n)
+    if last_n_adx_list[0] < last_n_adx_list[1] < last_n_adx_list[2]:
+        print(f"ascending adx. OK to place order")
+        is_valid = True
+    else:
+        print(f"NO ascending adx. aborted")
+    print(f"{last_n_adx_list[0]}, {last_n_adx_list[1]}, {last_n_adx_list[2]}")
+    
+    return is_valid
+
+
+def check_if_adx_meets_requirements(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15):
+    current_adx = get_current_adx(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=150)
+    if current_adx >= 25:
+        print(f"current_adx: {current_adx}")
+        print("adx >= 25. OK to place order.")
+        return True
+    else:
+        print(f"current_adx: {current_adx}")
+        print("adx < 25. aborted.")
+        return False
 
 # positions is a set. if no positions, it's an empty set
 def get_positions_by_symbol(symbol="USDJPY"):
-    # get open positions on USDCHF
     positions=mt5.positions_get(symbol=symbol)
     if len(positions) == 0:
         print(f"No positions on {symbol}, positions = {positions}, error code={mt5.last_error()}")
