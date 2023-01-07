@@ -367,7 +367,7 @@ def limit_consecutive_wins_and_losses(current_result, recent_six_trades_rand_val
     return current_result    
  
 
-def do_the_trades(initial, risk_per_trade_ratio, rand, target_capital, is_limit_consecutive_wins, is_limit_consecutive_losses, cut_loss_min_rate, cut_loss_max_rate, cut_profit_min_rate, cut_profit_max_rate, enable_actual_mode):
+def do_the_trades(initial, risk_per_trade_ratio, rand, target_capital, is_limit_consecutive_wins, is_limit_consecutive_losses, cut_loss_min_rate, cut_loss_max_rate, cut_profit_min_rate, cut_profit_max_rate, enable_actual_mode, stop_loss_min, stop_loss_max, spread_max):
     
     print(f"win limit: {is_limit_consecutive_wins}")   
     print(f"loss limit: {is_limit_consecutive_losses}")
@@ -400,8 +400,8 @@ def do_the_trades(initial, risk_per_trade_ratio, rand, target_capital, is_limit_
         # capital_in_risk = capital*risk_per_trade_ratio
         # lot_size = capital_in_risk/(stop_loss*10)
         
-        stop_loss = random.randint(10,30)
-        spread = random.randint(0,10)
+        stop_loss = random.randint(stop_loss_min, stop_loss_max)
+        spread = random.randint(0, spread_max) # 10
         
         lot_size = (risk_per_trade_ratio * initial) / (stop_loss * pip_value + commision_per_lot + spread)
 
@@ -518,7 +518,8 @@ def do_the_trades(initial, risk_per_trade_ratio, rand, target_capital, is_limit_
 
 
 # 149376$   # 4257 for legion
-def main(initial= 150, target_capital=250, risk_per_trade_ratio=0.05, win_rate = 0.6, hit_and_run_rate=0.4, is_limit_consecutive_wins=False, is_limit_consecutive_losses=False, cut_loss_min_rate=20, cut_loss_max_rate=60, cut_profit_min_rate=20, cut_profit_max_rate=80, enable_actual_mode=True):
+def main(initial= 150, target_capital=300, risk_per_trade_ratio=0.05, win_rate = 0.6, hit_and_run_rate=0.4, is_limit_consecutive_wins=False, is_limit_consecutive_losses=False, cut_loss_min_rate=20, cut_loss_max_rate=80, cut_profit_min_rate=20, cut_profit_max_rate=80, enable_actual_mode=True, 
+stop_loss_min=10, stop_loss_max=30, spread_max=10):
     # initial = 650
 
     # target_capital = 1500
@@ -528,7 +529,7 @@ def main(initial= 150, target_capital=250, risk_per_trade_ratio=0.05, win_rate =
     #rand = generate_rand_trading_results(ideal_trade_count = 10000, win_rate = win_rate)
     rand = generate_rand_trading_results_with_hit_and_run_strategy(ideal_trade_count=10000, win_rate=win_rate, hit_and_run_rate=hit_and_run_rate)
 
-    trades_info = do_the_trades(initial, risk_per_trade_ratio, rand, target_capital, is_limit_consecutive_wins, is_limit_consecutive_losses, cut_loss_min_rate, cut_loss_max_rate, cut_profit_min_rate, cut_profit_max_rate, enable_actual_mode)
+    trades_info = do_the_trades(initial, risk_per_trade_ratio, rand, target_capital, is_limit_consecutive_wins, is_limit_consecutive_losses, cut_loss_min_rate, cut_loss_max_rate, cut_profit_min_rate, cut_profit_max_rate, enable_actual_mode, stop_loss_min, stop_loss_max, spread_max)
 
     trades = trades_info["trades"]
     trade_count = trades_info["trade_count"]
