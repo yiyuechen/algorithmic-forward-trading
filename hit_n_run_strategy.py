@@ -76,7 +76,7 @@ def calculate_current_item_width(item):
     return width
 
 # capital in risk is identical with theoretical_capital_in_risk
-def print_beautifully(trade_count, current_initial, initial, capital_in_risk, actual_capital_in_risk, actual_potential_profit, widths, lot_size, commission, spread_fee, total_fee):
+def print_beautifully(trade_count, current_initial, initial, capital_in_risk, actual_capital_in_risk, actual_potential_profit, widths, lot_size, commission, spread_fee, total_fee, profit_change):
     
     # how to print it beautifully
     
@@ -92,10 +92,15 @@ def print_beautifully(trade_count, current_initial, initial, capital_in_risk, ac
     
 
     trade_count_width = widths["trade_count_width"]
+    # trade_count_width = 5
     final_capital_width = widths["final_capital_width"]
+    # final_capital_width = 5
     theoretical_capital_in_risk_width = widths["theoretical_capital_in_risk_width"]
+    # theoretical_capital_in_risk_width = 5
     actual_capital_in_risk_width = widths["actual_capital_in_risk_width"]
+    # actual_capital_in_risk_width = 5
     actual_potential_profit_width = widths["actual_potential_profit_width"]
+    # actual_potential_profit_width = 5
     commission_width = widths["commission_width"]
     spread_fee_width = widths["spread_fee_width"]
     total_fee_width = widths["total_fee_width"]
@@ -104,7 +109,20 @@ def print_beautifully(trade_count, current_initial, initial, capital_in_risk, ac
     # print(f"NO.{trade_count:>{width}}, pre: {current_initial:>{width}}, post: {initial:>{width}}, risk: {capital_in_risk:>{width}}, actual risk: {actual_capital_in_risk:>{width}}, actual profit: {actual_potential_profit:>{width}}, lot size: {lot_size:.2f}, commission: {commission:.2f}, spread fee: {spread_fee:.2f}, total fee: {total_fee:.2f}")
     
     # cut "post" to make it neater 只打印pre_current_trade的capital是多少
-    print(f"{trade_count:>{trade_count_width}}, capital: {current_initial:>{final_capital_width}.2f}, risk: {capital_in_risk:>{theoretical_capital_in_risk_width}.2f}, actual risk: {actual_capital_in_risk:>{actual_capital_in_risk_width}.2f}, actual profit: {actual_potential_profit:>{actual_potential_profit_width}.2f}, lot: {lot_size:>4.2f}, commission: {commission:>3.2f}, spread fee: {spread_fee:>5.2f}, total fee: {total_fee:>5.2f}")
+    # print(f"{trade_count:<{trade_count_width}}, capital: {current_initial:>{final_capital_width}.2f}, risk: {capital_in_risk:>{theoretical_capital_in_risk_width}.2f}, \
+    # actual risk: {actual_capital_in_risk:>{actual_capital_in_risk_width}5.2f}, actual profit: {actual_potential_profit:>{actual_potential_profit_width}5.2f}, lot: {lot_size:>5.2f}, \
+    # commission: {commission:>5.2f}, spread fee: {spread_fee:>5.2f}, total fee: {total_fee:>5.2f}, profit_change: {profit_change:>5.2f}")
+
+    # print("{:<16} {:<16} {:<16} {:<16} {:<16} {:<16} {:<16} {:<16} ".format("Count", "Capital", "Actual Risk", "Actual Profit", "Lot", "Commission", "Spread", "Total Fee", "Profit Change"))
+
+    # print(f"{trade_count:>{trade_count_width}} {current_initial:>{final_capital_width}.2f} {capital_in_risk:>{theoretical_capital_in_risk_width}.2f} \
+    #  {actual_capital_in_risk:>{actual_capital_in_risk_width}.2f} {actual_potential_profit:>{actual_potential_profit_width}.2f} {lot_size:>4.2f} \
+    #  {commission:>{commission_width}.2f} {spread_fee:>{spread_fee_width}.2f} {total_fee:>{total_fee_width}.2f} {profit_change:>4.2f}")
+
+    print(f"{trade_count:<5} {current_initial:>5.2f} {capital_in_risk:>5.2f} \
+    {actual_capital_in_risk:>5.2f} {actual_potential_profit:>5.2f} {lot_size:>5.2f} \
+    {commission:>5.2f} {spread_fee:>5.2f} {total_fee:>5.2f} {profit_change:>5.2f}")
+
 
 
 def print_total_info(win_trade_count, loss_trade_count, trade_count, initial):
@@ -494,7 +512,7 @@ def do_the_trades(initial, risk_per_trade_ratio, rand, target_capital, is_limit_
         "loss_trade_count": loss_trade_count,
         "initial": initial
     }
-    print(trades_info)
+    # print(trades_info)
         
     return trades_info
 
@@ -542,6 +560,8 @@ def main(initial= 150, target_capital=250, risk_per_trade_ratio=0.05, win_rate =
 
     plot_list = []
 
+    print("{:>16} {:>16} {:>16} {:>16} {:>16} {:>16} {:>16} {:>16} {:>16}".format("Count", "Capital", "Actual Risk", "Actual Profit", "Lot", "Commission", "Spread", "Total Fee", "Profit Change"))
+
     for trade in trades:
         trade_count = trade["trade_count"]
         current_initial = trade["previous_capital"]
@@ -553,8 +573,9 @@ def main(initial= 150, target_capital=250, risk_per_trade_ratio=0.05, win_rate =
         commission = trade["commission"]
         spread_fee = trade["spread_fee"]
         total_fee = trade["total_fee"]
+        profit_change = trade['profit_change']
         
-        print_beautifully(trade_count, current_initial, initial, capital_in_risk, actual_capital_in_risk, actual_potential_profit, widths, lot_size, commission, spread_fee, total_fee)
+        print_beautifully(trade_count, current_initial, initial, capital_in_risk, actual_capital_in_risk, actual_potential_profit, widths, lot_size, commission, spread_fee, total_fee, profit_change)
 
         plot_list.append(current_initial)
 
