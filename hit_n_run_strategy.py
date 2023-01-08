@@ -532,56 +532,7 @@ enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_
     return trades_info
 
 
-# 149376$   # 4257 for legion
-def main(initial= 150, target_capital=1000, risk_per_trade_ratio=0.05, win_rate = 0.6, hit_and_run_rate=0.4, is_limit_consecutive_wins=False, is_limit_consecutive_losses=False, cut_loss_min_rate=20, cut_loss_max_rate=80, cut_profit_min_rate=20, cut_profit_max_rate=80, enable_actual_mode=True, 
-stop_loss_min=10, stop_loss_max=30, spread_max=20, actual_capital_in_risk_rate=0.65, actual_potential_profit_rate=0.7, max_lot_limit=100):
-    # initial = 650
-
-    # target_capital = 1500
-
-    # risk_per_trade_ratio = 0.05
-
-    #rand = generate_rand_trading_results(ideal_trade_count = 10000, win_rate = win_rate)
-    rand = generate_rand_trading_results_with_hit_and_run_strategy(ideal_trade_count=10000, win_rate=win_rate, hit_and_run_rate=hit_and_run_rate)
-
-    trades_info = do_the_trades(initial, risk_per_trade_ratio, rand, target_capital, is_limit_consecutive_wins, is_limit_consecutive_losses, cut_loss_min_rate, cut_loss_max_rate, cut_profit_min_rate, cut_profit_max_rate, enable_actual_mode, 
-    stop_loss_min, stop_loss_max, spread_max, actual_capital_in_risk_rate, actual_potential_profit_rate, max_lot_limit)
-
-    trades = trades_info["trades"]
-    trade_count = trades_info["trade_count"]
-    win_trade_count = trades_info["win_trade_count"]
-    loss_trade_count = trades_info["loss_trade_count"]
-    initial = trades_info["initial"]
-
-
-    # this seems to calc the width for table printing
-    # last_trade = trades[-1]
-
-    # theoretical_capital_in_risk = last_trade["theoretical_capital_in_risk"]
-    # actual_capital_in_risk = last_trade["actual_capital_in_risk"]
-    # actual_potential_profit = last_trade["actual_potential_profit"]
-    # commission = last_trade["commission"]
-    # spread_fee = last_trade["spread_fee"]
-    # total_fee = last_trade["total_fee"]
-
-    # trade_count_width, final_capital_width, theoretical_capital_in_risk_width, actual_capital_in_risk_width, actual_potential_profit_width, commission_width, spread_fee_width, total_fee_width  = calculate_width_for_tabling_in_print_beautifully(trade_count, initial, 
-    # theoretical_capital_in_risk, actual_capital_in_risk, actual_potential_profit, commission, spread_fee, total_fee)
-
-    # widths = {
-    #     "trade_count_width": trade_count_width,
-    #     "final_capital_width": final_capital_width,
-    #     "theoretical_capital_in_risk_width": theoretical_capital_in_risk_width,
-    #     "actual_capital_in_risk_width": actual_capital_in_risk_width,
-    #     "actual_potential_profit_width": actual_potential_profit_width,
-    #     "commission_width": commission_width,
-    #     "spread_fee_width": spread_fee_width,
-    #     "total_fee_width": total_fee_width,
-    # }
-
-    plot_list = []
-
-    # print("{:>16} {:>16} {:>16} {:>16} {:>16} {:>16} {:>16} {:>16} {:>16} {:>16}".format("Count", "Capital", "risk", "Actual Risk", "Actual Profit", "Lot", "Commission", "Spread", "Total Fee", "Profit Change"))
-
+def tabulate_print_trades_data_in_table(trades):
     trade_data_list_for_tabulate = []
     table_title_list = ["Count", "Capital", "Theo Risk", "Final Risk", "Final Profit", "Lot", "Commission", "Spread", "Total Fee", "Profit Change"]
     trade_data_list_for_tabulate.append(table_title_list)
@@ -589,7 +540,7 @@ stop_loss_min=10, stop_loss_max=30, spread_max=20, actual_capital_in_risk_rate=0
     for trade in trades:
         trade_count = trade["trade_count"]
         current_initial = trade["previous_capital"]
-        initial = trade["new_capital"]
+        # initial = trade["new_capital"]
         capital_in_risk = trade["theoretical_capital_in_risk"]
         actual_capital_in_risk = trade["actual_capital_in_risk"]
         actual_potential_profit = trade["actual_potential_profit"]
@@ -604,18 +555,25 @@ stop_loss_min=10, stop_loss_max=30, spread_max=20, actual_capital_in_risk_rate=0
         current_trade_data_list = [trade_count, current_initial, capital_in_risk, actual_capital_in_risk, actual_potential_profit, lot_size, commission, spread_fee, total_fee, profit_change]
         trade_data_list_for_tabulate.append(current_trade_data_list)
 
-        plot_list.append(current_initial)
-
     print(tabulate(trade_data_list_for_tabulate, headers='firstrow', tablefmt='github', numalign="right", floatfmt=".3f"))
 
 
-    # total_info = print_total_info(win_trade_count, loss_trade_count, trade_count, initial)
-    print_total_info(win_trade_count, loss_trade_count, trade_count, initial)
-
-    # print()
-    # print(f"width of the final capital: {widths}")
-
-
+def draw_plotly_chart(trades):
+    plot_list = []
+    for trade in trades:
+        trade_count = trade["trade_count"]
+        current_initial = trade["previous_capital"]
+        initial = trade["new_capital"]
+        # capital_in_risk = trade["theoretical_capital_in_risk"]
+        # actual_capital_in_risk = trade["actual_capital_in_risk"]
+        # actual_potential_profit = trade["actual_potential_profit"]
+        # lot_size = trade["lot_size"]
+        # commission = trade["commission"]
+        # spread_fee = trade["spread_fee"]
+        # total_fee = trade["total_fee"]
+        # profit_change = trade['profit_change']
+    
+        plot_list.append(current_initial)
 
     plot_list.append(initial)
     x = range(0, trade_count+1)
@@ -685,6 +643,164 @@ stop_loss_min=10, stop_loss_max=30, spread_max=20, actual_capital_in_risk_rate=0
                                             # yref="paper"))              
 
     fig.show()
+
+# 149376$   # 4257 for legion
+def main(initial= 150, target_capital=1000, risk_per_trade_ratio=0.05, win_rate = 0.6, hit_and_run_rate=0.4, is_limit_consecutive_wins=False, is_limit_consecutive_losses=False, cut_loss_min_rate=20, cut_loss_max_rate=80, cut_profit_min_rate=20, cut_profit_max_rate=80, enable_actual_mode=True, 
+stop_loss_min=10, stop_loss_max=30, spread_max=20, actual_capital_in_risk_rate=0.65, actual_potential_profit_rate=0.7, max_lot_limit=100):
+    # initial = 650
+
+    # target_capital = 1500
+
+    # risk_per_trade_ratio = 0.05
+
+    #rand = generate_rand_trading_results(ideal_trade_count = 10000, win_rate = win_rate)
+    rand = generate_rand_trading_results_with_hit_and_run_strategy(ideal_trade_count=10000, win_rate=win_rate, hit_and_run_rate=hit_and_run_rate)
+
+    trades_info = do_the_trades(initial, risk_per_trade_ratio, rand, target_capital, is_limit_consecutive_wins, is_limit_consecutive_losses, cut_loss_min_rate, cut_loss_max_rate, cut_profit_min_rate, cut_profit_max_rate, enable_actual_mode, 
+    stop_loss_min, stop_loss_max, spread_max, actual_capital_in_risk_rate, actual_potential_profit_rate, max_lot_limit)
+
+    trades = trades_info["trades"]
+    trade_count = trades_info["trade_count"]
+    win_trade_count = trades_info["win_trade_count"]
+    loss_trade_count = trades_info["loss_trade_count"]
+    initial = trades_info["initial"]
+
+
+    # this seems to calc the width for table printing
+    # last_trade = trades[-1]
+
+    # theoretical_capital_in_risk = last_trade["theoretical_capital_in_risk"]
+    # actual_capital_in_risk = last_trade["actual_capital_in_risk"]
+    # actual_potential_profit = last_trade["actual_potential_profit"]
+    # commission = last_trade["commission"]
+    # spread_fee = last_trade["spread_fee"]
+    # total_fee = last_trade["total_fee"]
+
+    # trade_count_width, final_capital_width, theoretical_capital_in_risk_width, actual_capital_in_risk_width, actual_potential_profit_width, commission_width, spread_fee_width, total_fee_width  = calculate_width_for_tabling_in_print_beautifully(trade_count, initial, 
+    # theoretical_capital_in_risk, actual_capital_in_risk, actual_potential_profit, commission, spread_fee, total_fee)
+
+    # widths = {
+    #     "trade_count_width": trade_count_width,
+    #     "final_capital_width": final_capital_width,
+    #     "theoretical_capital_in_risk_width": theoretical_capital_in_risk_width,
+    #     "actual_capital_in_risk_width": actual_capital_in_risk_width,
+    #     "actual_potential_profit_width": actual_potential_profit_width,
+    #     "commission_width": commission_width,
+    #     "spread_fee_width": spread_fee_width,
+    #     "total_fee_width": total_fee_width,
+    # }
+
+    # plot_list = []
+
+    # # print("{:>16} {:>16} {:>16} {:>16} {:>16} {:>16} {:>16} {:>16} {:>16} {:>16}".format("Count", "Capital", "risk", "Actual Risk", "Actual Profit", "Lot", "Commission", "Spread", "Total Fee", "Profit Change"))
+
+    # trade_data_list_for_tabulate = []
+    # table_title_list = ["Count", "Capital", "Theo Risk", "Final Risk", "Final Profit", "Lot", "Commission", "Spread", "Total Fee", "Profit Change"]
+    # trade_data_list_for_tabulate.append(table_title_list)
+
+    # for trade in trades:
+    #     trade_count = trade["trade_count"]
+    #     current_initial = trade["previous_capital"]
+    #     initial = trade["new_capital"]
+    #     capital_in_risk = trade["theoretical_capital_in_risk"]
+    #     actual_capital_in_risk = trade["actual_capital_in_risk"]
+    #     actual_potential_profit = trade["actual_potential_profit"]
+    #     lot_size = trade["lot_size"]
+    #     commission = trade["commission"]
+    #     spread_fee = trade["spread_fee"]
+    #     total_fee = trade["total_fee"]
+    #     profit_change = trade['profit_change']
+        
+    #     # print_beautifully(trade_count, current_initial, capital_in_risk, actual_capital_in_risk, actual_potential_profit, widths, lot_size, commission, spread_fee, total_fee, profit_change)
+
+    #     current_trade_data_list = [trade_count, current_initial, capital_in_risk, actual_capital_in_risk, actual_potential_profit, lot_size, commission, spread_fee, total_fee, profit_change]
+    #     trade_data_list_for_tabulate.append(current_trade_data_list)
+
+    #     plot_list.append(current_initial)
+
+    # print(tabulate(trade_data_list_for_tabulate, headers='firstrow', tablefmt='github', numalign="right", floatfmt=".3f"))
+    tabulate_print_trades_data_in_table(trades)
+
+    # total_info = print_total_info(win_trade_count, loss_trade_count, trade_count, initial)
+    print_total_info(win_trade_count, loss_trade_count, trade_count, initial)
+
+    
+    draw_plotly_chart(trades)
+
+    # print()
+    # print(f"width of the final capital: {widths}")
+
+
+
+    # plot_list.append(initial)
+    # x = range(0, trade_count+1)
+
+    # # print(x)
+    # # print(plot_list)
+
+    # fig = px.line( x = x ,
+    #             y = plot_list,
+    #             title = 'Trade-Capital')
+
+
+    # # below commmented is for printing win rate on the plotly page
+
+    # # actual_win_rate = total_info["actual_win_rate"]
+    # # # print(type(actual_win_rate)) # <class 'float'>
+    # # actual_win_rate = str(actual_win_rate).split(".")[0] + "." + str(actual_win_rate).split(".")[1][:4]
+    # # # print(type(actual_win_rate)) # <class 'str'>
+    # # actual_win_rate = actual_win_rate + " (" + actual_win_rate.split(".")[1][:2] + "." + actual_win_rate.split(".")[1][-2:] + "%)"
+
+    # # "days_to_complete": days_to_complete,
+    # # "weeks_to_complete": months_to_complete,
+    # # "months_to_complete": months_to_complete,
+
+    # # try fix not showing issue
+    # # fig_text = '<head><script src="https://cdn.plot.ly/plotly-latest.min.js"></script></head>'
+    # # fig_text = ""
+
+    # # fig_text += "actual_win_rate:" + actual_win_rate + "<br>"
+    # # fig_text += "days_to_complete: " + str(total_info["days_to_complete"]) + "<br>"
+    # # fig_text += "weeks_to_complete: " + str(total_info["weeks_to_complete"]) + "<br>"
+    # # fig_text += "months_to_complete: " + str(total_info["months_to_complete"]) + "<br>"
+
+
+    # # Step 1 - adjust margins to make room for the text
+    # # fig.update_layout(
+    # #     margin=dict(l=0, r=0, t=0, b=0),
+    # #     # paper_bgcolor="LightSteelBlue",
+    # # )
+
+    # # # Step 2 - add line
+    # # fig.add_shape(type='line',
+    # #                 # x0=LabelDateB,
+    # #                 y0=0,
+    # #                 # x1=LabelDateB,
+    # #                 y1=5,
+    # #                 line=dict(color='black', dash='dot'),
+    # #                 xref='x',
+    # #                 yref='paper'
+    # # )
+
+    # # add annotation
+    # # there's an issue.
+    # # it's not showing on firefox intactly
+    # # and the plotly page gets blank ocassionally
+    # # seems it has something to do with vscode. It's not happening with notepad++
+    # # can use devtool F12 in the broswer to see the error
+    # # something is not loaded properly
+    # # fig.add_annotation(dict(font=dict(color='black',size=12),
+    #                                         # x=0.2,
+    #                                         # y=1.2,
+    #                                         # showarrow=False,
+    #                                         # text=fig_text,
+    #                                         # textangle=0,
+    #                                         # xanchor='auto',
+    #                                         # xref="paper",
+    #                                         # yref="paper"))              
+
+    # fig.show()
+
 
 if __name__ == "__main__":
     main()
