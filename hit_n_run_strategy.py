@@ -3,6 +3,7 @@ import random
 #import matplotlib.pyplot as plt
 #from matplotlib.pyplot import MultipleLocator
 import plotly.express as px
+from tabulate import tabulate
 
 def generate_rand_trading_results(ideal_trade_count, win_rate):
     """
@@ -76,7 +77,7 @@ def calculate_current_item_width(item):
     return width
 
 # capital in risk is identical with theoretical_capital_in_risk
-def print_beautifully(trade_count, current_initial, initial, capital_in_risk, actual_capital_in_risk, actual_potential_profit, widths, lot_size, commission, spread_fee, total_fee, profit_change):
+def print_beautifully(trade_count, current_initial, capital_in_risk, actual_capital_in_risk, actual_potential_profit, widths, lot_size, commission, spread_fee, total_fee, profit_change):
     
     # how to print it beautifully
     
@@ -140,15 +141,15 @@ def print_total_info(win_trade_count, loss_trade_count, trade_count, initial):
     print(f"actual win rate: {actual_win_rate}")
     print(f"time spent: by day: {days_to_complete:.2f}, by week: {weeks_to_complete:.2f}, by month: {months_to_complete:.2f}")
 
-    total_info = {
-        "actual_win_rate": actual_win_rate,
-        # "average_trades_per_day": average_trades_per_day,
-        "days_to_complete": days_to_complete,
-        "weeks_to_complete": weeks_to_complete,
-        "months_to_complete": months_to_complete,
-    }
+    # total_info = {
+    #     "actual_win_rate": actual_win_rate,
+    #     # "average_trades_per_day": average_trades_per_day,
+    #     "days_to_complete": days_to_complete,
+    #     "weeks_to_complete": weeks_to_complete,
+    #     "months_to_complete": months_to_complete,
+    # }
 
-    return total_info
+    # return total_info
 
 def limit_consecutive_wins(current_result, recent_six_trades_rand_values, limit_to=10):
     # 保留最近6次的rand的值，也就是win/loss的值，以便更加实际一些，假如10连胜了，那么下一次rand是1，则改为0
@@ -532,8 +533,8 @@ enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_
 
 
 # 149376$   # 4257 for legion
-def main(initial= 150, target_capital=1000000, risk_per_trade_ratio=0.05, win_rate = 0.6, hit_and_run_rate=0.4, is_limit_consecutive_wins=False, is_limit_consecutive_losses=False, cut_loss_min_rate=20, cut_loss_max_rate=80, cut_profit_min_rate=20, cut_profit_max_rate=80, enable_actual_mode=True, 
-stop_loss_min=10, stop_loss_max=30, spread_max=20, actual_capital_in_risk_rate=0.65, actual_potential_profit_rate=0.7, max_lot_limit=50):
+def main(initial= 150, target_capital=1000, risk_per_trade_ratio=0.05, win_rate = 0.6, hit_and_run_rate=0.4, is_limit_consecutive_wins=False, is_limit_consecutive_losses=False, cut_loss_min_rate=20, cut_loss_max_rate=80, cut_profit_min_rate=20, cut_profit_max_rate=80, enable_actual_mode=True, 
+stop_loss_min=10, stop_loss_max=30, spread_max=20, actual_capital_in_risk_rate=0.65, actual_potential_profit_rate=0.7, max_lot_limit=100):
     # initial = 650
 
     # target_capital = 1500
@@ -552,31 +553,38 @@ stop_loss_min=10, stop_loss_max=30, spread_max=20, actual_capital_in_risk_rate=0
     loss_trade_count = trades_info["loss_trade_count"]
     initial = trades_info["initial"]
 
-    last_trade = trades[-1]
 
-    theoretical_capital_in_risk = last_trade["theoretical_capital_in_risk"]
-    actual_capital_in_risk = last_trade["actual_capital_in_risk"]
-    actual_potential_profit = last_trade["actual_potential_profit"]
-    commission = last_trade["commission"]
-    spread_fee = last_trade["spread_fee"]
-    total_fee = last_trade["total_fee"]
+    # this seems to calc the width for table printing
+    # last_trade = trades[-1]
 
-    trade_count_width, final_capital_width, theoretical_capital_in_risk_width, actual_capital_in_risk_width, actual_potential_profit_width, commission_width, spread_fee_width, total_fee_width  = calculate_width_for_tabling_in_print_beautifully(trade_count, initial, theoretical_capital_in_risk, actual_capital_in_risk, actual_potential_profit, commission, spread_fee, total_fee)
+    # theoretical_capital_in_risk = last_trade["theoretical_capital_in_risk"]
+    # actual_capital_in_risk = last_trade["actual_capital_in_risk"]
+    # actual_potential_profit = last_trade["actual_potential_profit"]
+    # commission = last_trade["commission"]
+    # spread_fee = last_trade["spread_fee"]
+    # total_fee = last_trade["total_fee"]
 
-    widths = {
-        "trade_count_width": trade_count_width,
-        "final_capital_width": final_capital_width,
-        "theoretical_capital_in_risk_width": theoretical_capital_in_risk_width,
-        "actual_capital_in_risk_width": actual_capital_in_risk_width,
-        "actual_potential_profit_width": actual_potential_profit_width,
-        "commission_width": commission_width,
-        "spread_fee_width": spread_fee_width,
-        "total_fee_width": total_fee_width,
-    }
+    # trade_count_width, final_capital_width, theoretical_capital_in_risk_width, actual_capital_in_risk_width, actual_potential_profit_width, commission_width, spread_fee_width, total_fee_width  = calculate_width_for_tabling_in_print_beautifully(trade_count, initial, 
+    # theoretical_capital_in_risk, actual_capital_in_risk, actual_potential_profit, commission, spread_fee, total_fee)
+
+    # widths = {
+    #     "trade_count_width": trade_count_width,
+    #     "final_capital_width": final_capital_width,
+    #     "theoretical_capital_in_risk_width": theoretical_capital_in_risk_width,
+    #     "actual_capital_in_risk_width": actual_capital_in_risk_width,
+    #     "actual_potential_profit_width": actual_potential_profit_width,
+    #     "commission_width": commission_width,
+    #     "spread_fee_width": spread_fee_width,
+    #     "total_fee_width": total_fee_width,
+    # }
 
     plot_list = []
 
-    print("{:>16} {:>16} {:>16} {:>16} {:>16} {:>16} {:>16} {:>16} {:>16} {:>16}".format("Count", "Capital", "risk", "Actual Risk", "Actual Profit", "Lot", "Commission", "Spread", "Total Fee", "Profit Change"))
+    # print("{:>16} {:>16} {:>16} {:>16} {:>16} {:>16} {:>16} {:>16} {:>16} {:>16}".format("Count", "Capital", "risk", "Actual Risk", "Actual Profit", "Lot", "Commission", "Spread", "Total Fee", "Profit Change"))
+
+    trade_data_list_for_tabulate = []
+    table_title_list = ["Count", "Capital", "Theo Risk", "Final Risk", "Final Profit", "Lot", "Commission", "Spread", "Total Fee", "Profit Change"]
+    trade_data_list_for_tabulate.append(table_title_list)
 
     for trade in trades:
         trade_count = trade["trade_count"]
@@ -591,11 +599,18 @@ stop_loss_min=10, stop_loss_max=30, spread_max=20, actual_capital_in_risk_rate=0
         total_fee = trade["total_fee"]
         profit_change = trade['profit_change']
         
-        print_beautifully(trade_count, current_initial, initial, capital_in_risk, actual_capital_in_risk, actual_potential_profit, widths, lot_size, commission, spread_fee, total_fee, profit_change)
+        # print_beautifully(trade_count, current_initial, capital_in_risk, actual_capital_in_risk, actual_potential_profit, widths, lot_size, commission, spread_fee, total_fee, profit_change)
+
+        current_trade_data_list = [trade_count, current_initial, capital_in_risk, actual_capital_in_risk, actual_potential_profit, lot_size, commission, spread_fee, total_fee, profit_change]
+        trade_data_list_for_tabulate.append(current_trade_data_list)
 
         plot_list.append(current_initial)
 
-    total_info = print_total_info(win_trade_count, loss_trade_count, trade_count, initial)
+    print(tabulate(trade_data_list_for_tabulate, headers='firstrow', tablefmt='github', numalign="right", floatfmt=".3f"))
+
+
+    # total_info = print_total_info(win_trade_count, loss_trade_count, trade_count, initial)
+    print_total_info(win_trade_count, loss_trade_count, trade_count, initial)
 
     # print()
     # print(f"width of the final capital: {widths}")
@@ -613,12 +628,13 @@ stop_loss_min=10, stop_loss_max=30, spread_max=20, actual_capital_in_risk_rate=0
                 title = 'Trade-Capital')
 
 
+    # below commmented is for printing win rate on the plotly page
 
-    actual_win_rate = total_info["actual_win_rate"]
-    # print(type(actual_win_rate)) # <class 'float'>
-    actual_win_rate = str(actual_win_rate).split(".")[0] + "." + str(actual_win_rate).split(".")[1][:4]
-    # print(type(actual_win_rate)) # <class 'str'>
-    actual_win_rate = actual_win_rate + " (" + actual_win_rate.split(".")[1][:2] + "." + actual_win_rate.split(".")[1][-2:] + "%)"
+    # actual_win_rate = total_info["actual_win_rate"]
+    # # print(type(actual_win_rate)) # <class 'float'>
+    # actual_win_rate = str(actual_win_rate).split(".")[0] + "." + str(actual_win_rate).split(".")[1][:4]
+    # # print(type(actual_win_rate)) # <class 'str'>
+    # actual_win_rate = actual_win_rate + " (" + actual_win_rate.split(".")[1][:2] + "." + actual_win_rate.split(".")[1][-2:] + "%)"
 
     # "days_to_complete": days_to_complete,
     # "weeks_to_complete": months_to_complete,
