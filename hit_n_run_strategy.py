@@ -126,20 +126,29 @@ def print_beautifully(trade_count, current_initial, capital_in_risk, actual_capi
 
 
 
-def print_total_info(win_trade_count, loss_trade_count, trade_count, initial):
+def print_total_info(win_trade_count, loss_trade_count, trade_count, initial, average_trades_per_day):
     actual_win_rate = win_trade_count/trade_count
-    average_trades_per_day = int((8+15+9+7+5)/5)     # 从这几天统计 (4/18-4/22)
+
+    # average_trades_per_day = int((8+15+9+7+5)/5)     # 从这几天统计 (4/18-4/22)
+    
     days_to_complete = trade_count/average_trades_per_day
-    weeks_to_complete = days_to_complete/7
+    # weeks_to_complete = days_to_complete/7
+    weeks_to_complete = days_to_complete/5 # only five trading days a week
     months_to_complete = days_to_complete/20
+    years_to_complete = months_to_complete/12
 
     print()
     print("total info:")
-    print(f"final capital: {initial}")
+    print(f"final capital: {initial:.3f}")
     print(f"win trades: {win_trade_count}")
     print(f"loss trades: {loss_trade_count}")
-    print(f"actual win rate: {actual_win_rate}")
-    print(f"time spent: by day: {days_to_complete:.2f}, by week: {weeks_to_complete:.2f}, by month: {months_to_complete:.2f}")
+    print(f"actual win rate: {actual_win_rate:.4f}")
+    print(f"time spent:\n \
+    by day: {days_to_complete:.2f}\n \
+    by week: {weeks_to_complete:.2f}\n \
+    by month: {months_to_complete:.2f}\n \
+    by year: {years_to_complete:.2f}\n \
+    ")
 
     # total_info = {
     #     "actual_win_rate": actual_win_rate,
@@ -645,8 +654,8 @@ def draw_plotly_chart(trades):
     fig.show()
 
 # 149376$   # 4257 for legion
-def main(initial= 150, target_capital=1000, risk_per_trade_ratio=0.05, win_rate = 0.6, hit_and_run_rate=0.4, is_limit_consecutive_wins=False, is_limit_consecutive_losses=False, cut_loss_min_rate=20, cut_loss_max_rate=80, cut_profit_min_rate=20, cut_profit_max_rate=80, enable_actual_mode=True, 
-stop_loss_min=10, stop_loss_max=30, spread_max=20, actual_capital_in_risk_rate=0.65, actual_potential_profit_rate=0.7, max_lot_limit=100):
+def main(initial= 150, target_capital=10000, risk_per_trade_ratio=0.05, win_rate = 0.57, hit_and_run_rate=0.4, is_limit_consecutive_wins=False, is_limit_consecutive_losses=False, cut_loss_min_rate=0, cut_loss_max_rate=80, cut_profit_min_rate=0, cut_profit_max_rate=80, enable_actual_mode=True, 
+stop_loss_min=10, stop_loss_max=30, spread_max=20, actual_capital_in_risk_rate=0.65, actual_potential_profit_rate=0.7, max_lot_limit=100, average_trades_per_day=10):
     # initial = 650
 
     # target_capital = 1500
@@ -722,7 +731,7 @@ stop_loss_min=10, stop_loss_max=30, spread_max=20, actual_capital_in_risk_rate=0
     tabulate_print_trades_data_in_table(trades)
 
     # total_info = print_total_info(win_trade_count, loss_trade_count, trade_count, initial)
-    print_total_info(win_trade_count, loss_trade_count, trade_count, initial)
+    print_total_info(win_trade_count, loss_trade_count, trade_count, initial, average_trades_per_day)
 
     
     draw_plotly_chart(trades)
