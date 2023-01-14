@@ -37,8 +37,7 @@ def generate_rand_trading_results_with_hit_and_run_strategy(ideal_trade_count, w
     hit_and_run_win_trade_count = int(win_trade_count*hit_and_run_rate)
     rand[:hit_and_run_win_trade_count] = 2 # 因为rand的dtype=int是int其实让dtype=float
 
-    return rand
-
+    # return rand
 
     # 随机摇匀
     numpy.random.shuffle(rand)
@@ -126,7 +125,7 @@ def print_beautifully(trade_count, current_initial, capital_in_risk, actual_capi
 
 
 
-def print_total_info(win_trade_count, loss_trade_count, trade_count, initial, average_trades_per_day):
+def print_total_info(win_trade_count, loss_trade_count, trade_count, initial, average_trades_per_day, is_limit_consecutive_wins, is_limit_consecutive_losses):
     actual_win_rate = win_trade_count/trade_count
 
     # average_trades_per_day = int((8+15+9+7+5)/5)     # 从这几天统计 (4/18-4/22)
@@ -136,6 +135,9 @@ def print_total_info(win_trade_count, loss_trade_count, trade_count, initial, av
     weeks_to_complete = days_to_complete/5 # only five trading days a week
     months_to_complete = days_to_complete/20
     years_to_complete = months_to_complete/12
+
+    print(f"win limit: {is_limit_consecutive_wins}")   
+    print(f"loss limit: {is_limit_consecutive_losses}")
 
     print()
     print("total info:")
@@ -205,14 +207,14 @@ def limit_consecutive_losses(current_result, recent_trades_rand_values_for_limit
     return current_result
 
 
-# def limit_consecutive_wins_and_losses(current_result, recent_six_trades_rand_values, recent_trades_rand_values_for_limit_losses, is_limit_consecutive_wins, is_limit_consecutive_losses, limit_win_to=10, limit_loss_to=4):
+# def limit_consecutive_wins_and_losses(current_result, recent_six_trades_rand_values, recent_trades_rand_values_for_limit_losses, is_limit_consecutive_wins, is_limit_consecutive_losses, limit_consecutive_win_to=10, limit_consecutive_loss_to=4):
     # if is_limit_consecutive_wins:
         # if current_result == 1:    
             # sum = 0
             # for value in recent_six_trades_rand_values:
                 # sum += value
-            # if sum == limit_win_to:
-                # print(f"*****************************************************{limit_win_to} consecutive wins**********************************************************")
+            # if sum == limit_consecutive_win_to:
+                # print(f"*****************************************************{limit_consecutive_win_to} consecutive wins**********************************************************")
                 # current_result = 0
 
                 # recent_six_trades_rand_values.append(current_result)
@@ -231,9 +233,9 @@ def limit_consecutive_losses(current_result, recent_trades_rand_values_for_limit
             # for value in recent_trades_rand_values_for_limit_losses:
                 # sum += value
 
-            # if len(recent_trades_rand_values_for_limit_losses) == limit_loss_to:
+            # if len(recent_trades_rand_values_for_limit_losses) == limit_consecutive_loss_to:
                 # if sum == 0:
-                    # print(f"*****************************************************{limit_loss_to} consecutive losses**********************************************************")
+                    # print(f"*****************************************************{limit_consecutive_loss_to} consecutive losses**********************************************************")
                     # current_result = 1
 
                 # recent_six_trades_rand_values.append(current_result)
@@ -243,11 +245,11 @@ def limit_consecutive_losses(current_result, recent_trades_rand_values_for_limit
             # recent_six_trades_rand_values.append(current_result)
             # recent_trades_rand_values_for_limit_losses.append(current_result)
     
-    # if len(recent_six_trades_rand_values) > limit_win_to:
+    # if len(recent_six_trades_rand_values) > limit_consecutive_win_to:
        # # print("**************&^&^&^%&$^%$%#$^%&%$#$%^%&*(")
         # recent_six_trades_rand_values.pop(0)
 
-    # if len(recent_trades_rand_values_for_limit_losses) > limit_loss_to:
+    # if len(recent_trades_rand_values_for_limit_losses) > limit_consecutive_loss_to:
        # # print("*************FGHJKHGFGHJKHGFHJHGHJHJ*(")
         # recent_trades_rand_values_for_limit_losses.pop(0)
 
@@ -258,7 +260,7 @@ def limit_consecutive_losses(current_result, recent_trades_rand_values_for_limit
 
     # return current_result
     
-def limit_consecutive_wins_and_losses(current_result, recent_six_trades_rand_values, recent_trades_rand_values_for_limit_losses, is_limit_consecutive_wins, is_limit_consecutive_losses, limit_win_to=6, limit_loss_to=6):
+def limit_consecutive_wins_and_losses(current_result, recent_six_trades_rand_values, recent_trades_rand_values_for_limit_losses, is_limit_consecutive_wins, is_limit_consecutive_losses, limit_consecutive_win_to, limit_consecutive_loss_to): #limit_consecutive_win_to, limit_consecutive_loss_to
     
     if is_limit_consecutive_wins == True and is_limit_consecutive_losses == True:
         # print("We are in #if is_limit_consecutive_wins == True and is_limit_consecutive_losses == True#")
@@ -267,14 +269,14 @@ def limit_consecutive_wins_and_losses(current_result, recent_six_trades_rand_val
             sum = 0
             for value in recent_six_trades_rand_values:
                 sum += value
-            if sum == limit_win_to: # 改成零之后添加
-                #print(f"*****************************************************{limit_win_to} consecutive wins**********************************************************")
+            if sum == limit_consecutive_win_to: # 改成零之后添加
+                #print(f"*****************************************************{limit_consecutive_win_to} consecutive wins**********************************************************")
                 current_result = 0
 
                 recent_six_trades_rand_values.append(current_result)
                 recent_trades_rand_values_for_limit_losses.append(current_result)
                 
-            else: # 直接添加，一定要添加，不然由于一开始不可能等于limit_win_to，所以里面会一直是空的
+            else: # 直接添加，一定要添加，不然由于一开始不可能等于limit_consecutive_win_to，所以里面会一直是空的
                 recent_six_trades_rand_values.append(current_result)
                 recent_trades_rand_values_for_limit_losses.append(current_result)
                 
@@ -284,8 +286,8 @@ def limit_consecutive_wins_and_losses(current_result, recent_six_trades_rand_val
             for value in recent_trades_rand_values_for_limit_losses:
                 sum += value
 
-            if sum == 0 and len(recent_trades_rand_values_for_limit_losses) == limit_loss_to: # 有三个数了，还是0的话
-                #print(f"*****************************************************{limit_loss_to} consecutive losses**********************************************************")
+            if sum == 0 and len(recent_trades_rand_values_for_limit_losses) == limit_consecutive_loss_to: # 有三个数了，还是0的话
+                #print(f"*****************************************************{limit_consecutive_loss_to} consecutive losses**********************************************************")
                 current_result = 1
 
                 recent_six_trades_rand_values.append(current_result)
@@ -305,8 +307,8 @@ def limit_consecutive_wins_and_losses(current_result, recent_six_trades_rand_val
             for value in recent_trades_rand_values_for_limit_losses:
                 sum += value
 
-            if sum == 0 and len(recent_trades_rand_values_for_limit_losses) == limit_loss_to: # 有三个数了，还是0的话
-                # print(f"*****************************************************{limit_loss_to} consecutive losses**********************************************************")
+            if sum == 0 and len(recent_trades_rand_values_for_limit_losses) == limit_consecutive_loss_to: # 有三个数了，还是0的话
+                # print(f"*****************************************************{limit_consecutive_loss_to} consecutive losses**********************************************************")
                 current_result = 1
 
                 recent_trades_rand_values_for_limit_losses.append(current_result)
@@ -321,12 +323,12 @@ def limit_consecutive_wins_and_losses(current_result, recent_six_trades_rand_val
             sum = 0
             for value in recent_six_trades_rand_values:
                 sum += value
-            if sum == limit_win_to: # 改成零之后添加
-                # print(f"*****************************************************{limit_win_to} consecutive wins**********************************************************")
+            if sum == limit_consecutive_win_to: # 改成零之后添加
+                # print(f"*****************************************************{limit_consecutive_win_to} consecutive wins**********************************************************")
                 current_result = 0
                 recent_six_trades_rand_values.append(current_result)
                 
-            else: # 如果不全是1，那么不改为0，直接添加1，一定要添加，不然由于一开始不可能等于limit_win_to，所以里面会一直是空的
+            else: # 如果不全是1，那么不改为0，直接添加1，一定要添加，不然由于一开始不可能等于limit_consecutive_win_to，所以里面会一直是空的
                 recent_six_trades_rand_values.append(current_result)
                 
                 
@@ -343,9 +345,9 @@ def limit_consecutive_wins_and_losses(current_result, recent_six_trades_rand_val
             # for value in recent_trades_rand_values_for_limit_losses:
                 # sum += value
 
-            # if len(recent_trades_rand_values_for_limit_losses) == limit_loss_to:
+            # if len(recent_trades_rand_values_for_limit_losses) == limit_consecutive_loss_to:
                 # if sum == 0:
-                    # print(f"*****************************************************{limit_loss_to} consecutive losses**********************************************************")
+                    # print(f"*****************************************************{limit_consecutive_loss_to} consecutive losses**********************************************************")
                     # current_result = 1
                     # current_result_modified = True
 
@@ -359,12 +361,12 @@ def limit_consecutive_wins_and_losses(current_result, recent_six_trades_rand_val
     #print(f"len of recent_six_trades_rand_values: {len(recent_six_trades_rand_values)}")
     #print(f"len of recent_trades_rand_values_for_limit_losses: {len(recent_trades_rand_values_for_limit_losses)}")
     
-    if len(recent_six_trades_rand_values) > limit_win_to:
+    if len(recent_six_trades_rand_values) > limit_consecutive_win_to:
         #print("**************pop 1st item from recent_six_trades_rand_values")
         recent_six_trades_rand_values.pop(0)
         #print(f"length of recent_six_trades_rand_values: {len(recent_six_trades_rand_values)}")
 
-    if len(recent_trades_rand_values_for_limit_losses) > limit_loss_to:
+    if len(recent_trades_rand_values_for_limit_losses) > limit_consecutive_loss_to:
         #print("*************pop 1st item from len(recent_trades_rand_values_for_limit_losses)")
         recent_trades_rand_values_for_limit_losses.pop(0)
         #print(f"length of recent_trades_rand_values_for_limit_losses: {len(recent_trades_rand_values_for_limit_losses)}")
@@ -378,10 +380,10 @@ def limit_consecutive_wins_and_losses(current_result, recent_six_trades_rand_val
  
 
 def do_the_trades(initial, risk_per_trade_ratio, rand, target_capital, is_limit_consecutive_wins, is_limit_consecutive_losses, cut_loss_min_rate, cut_loss_max_rate, cut_profit_min_rate, cut_profit_max_rate, 
-enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_risk_rate, actual_potential_profit_rate, max_lot_limit, enable_hit_n_run):
+enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_risk_rate, actual_potential_profit_rate, max_lot_limit, enable_hit_n_run, limit_consecutive_win_to, limit_consecutive_loss_to, bankruptcy_threshold):
     
-    print(f"win limit: {is_limit_consecutive_wins}")   
-    print(f"loss limit: {is_limit_consecutive_losses}")
+    # print(f"win limit: {is_limit_consecutive_wins}")   
+    # print(f"loss limit: {is_limit_consecutive_losses}")
         
     trade_count = 0
     win_trade_count = 0
@@ -456,7 +458,7 @@ enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_
         #if is_limit_consecutive_wins or is_limit_consecutive_losses:
 
         # !!!!!! this is a bug. if we enable hit and run mode, then current_result can be 2, but limit_consecutive_wins_and_losses() only presume current_result to be only 1 or 0
-        current_result = limit_consecutive_wins_and_losses(current_result, recent_six_trades_rand_values, recent_trades_rand_values_for_limit_losses, is_limit_consecutive_wins, is_limit_consecutive_losses)
+        current_result = limit_consecutive_wins_and_losses(current_result, recent_six_trades_rand_values, recent_trades_rand_values_for_limit_losses, is_limit_consecutive_wins, is_limit_consecutive_losses, limit_consecutive_win_to, limit_consecutive_loss_to)
         # !!!!!!!!!!!!!!!
 
         if enable_hit_n_run:
@@ -538,7 +540,7 @@ enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_
         
         trades.append(this_trade)
         
-        if initial < 30:
+        if initial < bankruptcy_threshold:
             break
         
         # print("inside function do the trade")
@@ -681,10 +683,13 @@ def draw_plotly_chart(trades):
     fig.show()
 
 # 149376$   # 4257 for legion
-def main(initial=127, target_capital=1000, risk_per_trade_ratio=0.05, win_rate=0.65, hit_and_run_rate=0.7, is_limit_consecutive_wins=False, is_limit_consecutive_losses=False, cut_loss_min_rate=0, cut_loss_max_rate=80, cut_profit_min_rate=0, cut_profit_max_rate=80, enable_actual_mode=False, 
-stop_loss_min=10, stop_loss_max=30, spread_max=20, actual_capital_in_risk_rate=0.65, actual_potential_profit_rate=0.7, max_lot_limit=100, average_trades_per_day=10, enable_hit_n_run=True, ideal_trade_count_for_generating_rand=10000): 
+def main(initial=141, target_capital=5000, risk_per_trade_ratio=0.05, win_rate=0.58, hit_and_run_rate=0.7, is_limit_consecutive_wins=True, is_limit_consecutive_losses=True, 
+cut_loss_min_rate=0, cut_loss_max_rate=80, cut_profit_min_rate=0, cut_profit_max_rate=80, enable_actual_mode=False, stop_loss_min=10, stop_loss_max=30, spread_max=20, 
+actual_capital_in_risk_rate=0.65, actual_potential_profit_rate=0.7, max_lot_limit=100, average_trades_per_day=18, enable_hit_n_run=0, 
+ideal_trade_count_for_generating_rand=10000, limit_consecutive_win_to=10, limit_consecutive_loss_to=5, bankruptcy_threshold=50): 
     """
     actual_mode -> sl is 60% of theo sl, tp is 75% of theo tp.  hit_n_run -> cut loss quick, take profit quick
+    average_trades_per_day, if timeframe is m5, then around (16+21+15+21+20+20)/6 = 18.83 trades per day
     """
     
     # initial = 650
@@ -701,7 +706,7 @@ stop_loss_min=10, stop_loss_max=30, spread_max=20, actual_capital_in_risk_rate=0
         rand = generate_rand_trading_results(ideal_trade_count=ideal_trade_count_for_generating_rand, win_rate=win_rate)
 
     trades_info = do_the_trades(initial, risk_per_trade_ratio, rand, target_capital, is_limit_consecutive_wins, is_limit_consecutive_losses, cut_loss_min_rate, cut_loss_max_rate, cut_profit_min_rate, cut_profit_max_rate, enable_actual_mode, 
-    stop_loss_min, stop_loss_max, spread_max, actual_capital_in_risk_rate, actual_potential_profit_rate, max_lot_limit, enable_hit_n_run)
+    stop_loss_min, stop_loss_max, spread_max, actual_capital_in_risk_rate, actual_potential_profit_rate, max_lot_limit, enable_hit_n_run, limit_consecutive_win_to, limit_consecutive_loss_to, bankruptcy_threshold)
 
     trades = trades_info["trades"]
     trade_count = trades_info["trade_count"]
@@ -766,7 +771,7 @@ stop_loss_min=10, stop_loss_max=30, spread_max=20, actual_capital_in_risk_rate=0
     tabulate_print_trades_data_in_table(trades)
 
     # total_info = print_total_info(win_trade_count, loss_trade_count, trade_count, initial)
-    print_total_info(win_trade_count, loss_trade_count, trade_count, initial, average_trades_per_day)
+    print_total_info(win_trade_count, loss_trade_count, trade_count, initial, average_trades_per_day, is_limit_consecutive_wins, is_limit_consecutive_losses)
 
     
     draw_plotly_chart(trades)
