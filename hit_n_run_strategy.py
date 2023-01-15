@@ -5,6 +5,19 @@ import random
 import plotly.express as px
 from tabulate import tabulate
 
+from decimal import Decimal
+
+def convert_to_decimal(value_to_convert):
+    # If a decimal number is defined using quotes ' ', it will be saved as a string rather than as a float.
+    # convert to str, so it's the same as adding quotations with a number.
+    # if the str is 0.58, then Decimal(value) is Decimal("0.58")
+    value_str = str(value_to_convert) 
+    
+    # now value is a decimal type
+    value_decimal = Decimal(value_str)
+
+    return value_decimal
+
 def generate_rand_trading_results(ideal_trade_count, win_rate, break_even_rate): # win_rate 0.58, break_even_rate 0.06
     """
     generates a rand list that contains win trades and loss trades with a designated win rate, say 55% (0.55)
@@ -14,11 +27,18 @@ def generate_rand_trading_results(ideal_trade_count, win_rate, break_even_rate):
     """
     
     rand = numpy.zeros(ideal_trade_count, dtype=int)
-    win_trade_count = int(ideal_trade_count*win_rate)
+
+    # win_rate = str(win_rate) 
+    # win_rate = Decimal(win_rate)
+
+    win_rate = convert_to_decimal(win_rate)
+    win_trade_count = int(ideal_trade_count * win_rate) # need to convert to int for list slicing
+    # print(win_trade_count)
     # 把前百分之多少的改为win
     rand[:win_trade_count] = 1
 
     # 把最后百分之多少的改为breakeven
+    break_even_rate = convert_to_decimal(break_even_rate)
     break_even_trade_count = int(ideal_trade_count*break_even_rate)
     rand[-break_even_trade_count:] = -1
 
@@ -40,10 +60,14 @@ def generate_rand_trading_results(ideal_trade_count, win_rate, break_even_rate):
 # We can expect a higher win rate by doing this strategy, say 70%, theoretically 80% is not impossible. 
 def generate_rand_trading_results_with_hit_and_run_strategy(ideal_trade_count, win_rate, hit_and_run_rate):
     rand = numpy.zeros(ideal_trade_count, dtype=int)
-    win_trade_count = int(ideal_trade_count*win_rate)
+    win_rate = convert_to_decimal(win_rate)
+    win_trade_count = int(ideal_trade_count * win_rate) # need to convert to int for list slicing
+    # print(win_trade_count)
     # 把前百分之多少的改为win
     rand[:win_trade_count] = 1
+
     # 把胜利的里面的百分之多少改为小赚就跑的
+    hit_and_run_rate = convert_to_decimal(hit_and_run_rate)
     hit_and_run_win_trade_count = int(win_trade_count*hit_and_run_rate)
     rand[:hit_and_run_win_trade_count] = 2 # 因为rand的dtype=int是int其实让dtype=float
 
