@@ -7,6 +7,9 @@ from tabulate import tabulate
 
 from decimal import Decimal
 
+import urllib3
+from bs4 import BeautifulSoup
+
 def convert_to_decimal(value_to_convert):
     # If a decimal number is defined using quotes ' ', it will be saved as a string rather than as a float.
     # convert to str, so it's the same as adding quotations with a number.
@@ -418,7 +421,7 @@ def limit_consecutive_wins_and_losses(current_result, recent_six_trades_rand_val
     return current_result    
  
 
-def do_the_trades(initial, risk_per_trade_ratio, rand, target_capital, is_limit_consecutive_wins, is_limit_consecutive_losses, cut_loss_min_rate, cut_loss_max_rate, cut_profit_min_rate, cut_profit_max_rate, 
+def do_the_trades(initial, symbol, commision_per_lot, risk_per_trade_ratio, rand, target_capital, is_limit_consecutive_wins, is_limit_consecutive_losses, cut_loss_min_rate, cut_loss_max_rate, cut_profit_min_rate, cut_profit_max_rate, 
 enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_risk_rate, actual_potential_profit_rate, max_lot_limit, enable_hit_n_run, limit_consecutive_win_to, limit_consecutive_loss_to, bankruptcy_threshold):
     
     # print(f"win limit: {is_limit_consecutive_wins}")   
@@ -432,6 +435,19 @@ enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_
     trades = []
     recent_six_trades_rand_values = []
     recent_trades_rand_values_for_limit_losses = []
+
+    # constant should be outside of the loop
+    # commision_per_lot = 4 
+
+    http = urllib3.PoolManager()
+    r = http.request('GET', 'https://www.mataf.net/en/forex/tools/pip-value')
+    soup = BeautifulSoup(r.data, features="html.parser")
+    pip_value = soup.find("th", text=symbol).find_next_sibling("td").text
+    # pip_value = Decimal(pip_value)
+    pip_value = float(pip_value)
+    print(f"{symbol} pip value {pip_value}")
+
+    # pip_value = 10
     
     while initial < target_capital:
 
@@ -446,18 +462,20 @@ enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_
             actual_potential_profit = capital_in_risk * actual_potential_profit_rate # 假设手动止盈，在tp为12$的时候，在10手动tp, 10/12=0.83
             # 9.2/12.8 = 0.71
         
-        #########
-        commision_per_lot = 4
-        pip_value = 10
+                
 
         # capital_in_risk = capital*risk_per_trade_ratio
         # lot_size = capital_in_risk/(stop_loss*10)
         
+        # every trade, the stop_loss and spread are different
         stop_loss = random.randint(stop_loss_min, stop_loss_max)
         spread = random.randint(0, spread_max) # 10
         
         # lot_size = (risk_per_trade_ratio * initial) / (stop_loss * pip_value + commision_per_lot + spread)
-        lot_size = capital_in_risk / (stop_loss * pip_value + commision_per_lot + spread)
+        # lot_size = capital_in_risk / (stop_loss * pip_value + commision_per_lot + spread) # this only applies to EURUSD when pip value is 10, so 10/10 doesn't make a change
+        
+        # this is the right way to do it
+        lot_size = capital_in_risk / (stop_loss * pip_value + commision_per_lot + spread / 10 * pip_value)
 
         #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         if lot_size > max_lot_limit:
@@ -731,13 +749,14 @@ def draw_plotly_chart(trades):
     fig.show()
 
 # 149376$   # 4257 for legion
-def main(initial=100, target_capital=10000000, risk_per_trade_ratio=0.05, win_rate=0.6, break_even_rate=0.06, hit_and_run_rate=0.7, is_limit_consecutive_wins=True, 
+def main(initial=100, target_capital=10000000, risk_per_trade_ratio=0.05, win_rate=0.6, break_even_rate=0.06, hit_and_run_rate=0.7, symbol="USDJPY", is_limit_consecutive_wins=True, 
 is_limit_consecutive_losses=True, cut_loss_min_rate=0, cut_loss_max_rate=80, cut_profit_min_rate=0, cut_profit_max_rate=80, enable_actual_mode=False, stop_loss_min=10, 
 stop_loss_max=30, spread_max=20, actual_capital_in_risk_rate=0.65, actual_potential_profit_rate=0.7, max_lot_limit=100, average_trades_per_day=18, enable_hit_n_run=0, 
-ideal_trade_count_for_generating_rand=100000, limit_consecutive_win_to=10, limit_consecutive_loss_to=4, bankruptcy_threshold=50): 
+ideal_trade_count_for_generating_rand=100000, limit_consecutive_win_to=10, limit_consecutive_loss_to=4, bankruptcy_threshold=50, commision_per_lot=4): 
     """
     actual_mode -> sl is 60% of theo sl, tp is 75% of theo tp.  hit_n_run -> cut loss quick, take profit quick
     average_trades_per_day, if timeframe is m5, then around (16+21+15+21+20+20)/6 = 18.83 trades per day
+    commision_per_lot is the total fee for opening and closing trade with one lot. so actually the commission is 2 for one single buy or sell action.
     """
     
     # initial = 650
@@ -753,7 +772,9 @@ ideal_trade_count_for_generating_rand=100000, limit_consecutive_win_to=10, limit
         # only generate rand with 0 and 1
         rand = generate_rand_trading_results(ideal_trade_count=ideal_trade_count_for_generating_rand, win_rate=win_rate, break_even_rate=break_even_rate)
 
-    trades_info = do_the_trades(initial, risk_per_trade_ratio, rand, target_capital, is_limit_consecutive_wins, is_limit_consecutive_losses, cut_loss_min_rate, cut_loss_max_rate, cut_profit_min_rate, cut_profit_max_rate, enable_actual_mode, 
+
+
+    trades_info = do_the_trades(initial, symbol, commision_per_lot, risk_per_trade_ratio, rand, target_capital, is_limit_consecutive_wins, is_limit_consecutive_losses, cut_loss_min_rate, cut_loss_max_rate, cut_profit_min_rate, cut_profit_max_rate, enable_actual_mode, 
     stop_loss_min, stop_loss_max, spread_max, actual_capital_in_risk_rate, actual_potential_profit_rate, max_lot_limit, enable_hit_n_run, limit_consecutive_win_to, limit_consecutive_loss_to, bankruptcy_threshold)
 
     trades = trades_info["trades"]
