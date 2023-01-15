@@ -5,7 +5,7 @@ import random
 import plotly.express as px
 from tabulate import tabulate
 
-def generate_rand_trading_results(ideal_trade_count, win_rate):
+def generate_rand_trading_results(ideal_trade_count, win_rate, break_even_rate): # win_rate 0.58, break_even_rate 0.06
     """
     generates a rand list that contains win trades and loss trades with a designated win rate, say 55% (0.55)
     Parameters:
@@ -17,12 +17,22 @@ def generate_rand_trading_results(ideal_trade_count, win_rate):
     win_trade_count = int(ideal_trade_count*win_rate)
     # 把前百分之多少的改为win
     rand[:win_trade_count] = 1
+
+    # 把最后百分之多少的改为breakeven
+    break_even_trade_count = int(ideal_trade_count*break_even_rate)
+    rand[-break_even_trade_count:] = -1
+
     # 随机摇匀
     numpy.random.shuffle(rand)
     # 由于下面是随机在里面取，而且每次都是独立取，可以重复，其实不摇均匀也没关系
     # 好像不摇动均匀有关系，因为抽签通常都会摇匀
 
     # print(rand)
+    # i = 0
+    # for item in rand:
+    #     if item == -1:
+    #         i+=1
+    # print(i/len(rand)) # it's 0.06
     
     return rand
 
@@ -125,8 +135,10 @@ def print_beautifully(trade_count, current_initial, capital_in_risk, actual_capi
 
 
 
-def print_total_info(win_trade_count, loss_trade_count, trade_count, initial, average_trades_per_day, is_limit_consecutive_wins, is_limit_consecutive_losses):
-    actual_win_rate = win_trade_count/trade_count
+def print_total_info(win_trade_count, loss_trade_count, break_even_trade_count, trade_count, initial, average_trades_per_day, is_limit_consecutive_wins, is_limit_consecutive_losses):
+    actual_win_rate = win_trade_count / trade_count
+    actual_loss_rate = loss_trade_count / trade_count
+    actual_break_even_rate = break_even_trade_count / trade_count
 
     # average_trades_per_day = int((8+15+9+7+5)/5)     # 从这几天统计 (4/18-4/22)
     
@@ -144,7 +156,10 @@ def print_total_info(win_trade_count, loss_trade_count, trade_count, initial, av
     print(f"final capital: {initial:.3f}")
     print(f"win trades: {win_trade_count}")
     print(f"loss trades: {loss_trade_count}")
-    print(f"actual win rate: {actual_win_rate:.4f}")
+    print(f"break even trades: {break_even_trade_count}")
+    print(f"actual win rate: {actual_win_rate*100:.4f}%")
+    print(f"actual loss rate: {actual_loss_rate*100:.4f}%")
+    print(f"actual break even rate: {actual_break_even_rate*100:.4f}%")
     print(f"time spent:\n \
     by day: {days_to_complete:.2f}\n \
     by week: {weeks_to_complete:.2f}\n \
@@ -388,6 +403,7 @@ enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_
     trade_count = 0
     win_trade_count = 0
     loss_trade_count = 0
+    break_even_trade_count = 0
     
     trades = []
     recent_six_trades_rand_values = []
@@ -522,6 +538,13 @@ enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_
                 loss_trade_count += 1
                 trade_count += 1
 
+            elif current_result == -1:
+                # break even
+                profit_change = - total_fee
+                initial = initial + profit_change
+                break_even_trade_count += 1
+                trade_count += 1
+
         
         this_trade = {
             "trade_count": trade_count,
@@ -563,6 +586,7 @@ enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_
         "trade_count" : trade_count,
         "win_trade_count": win_trade_count,
         "loss_trade_count": loss_trade_count,
+        "break_even_trade_count": break_even_trade_count,
         "initial": initial
     }
     # print(trades_info)
@@ -683,10 +707,10 @@ def draw_plotly_chart(trades):
     fig.show()
 
 # 149376$   # 4257 for legion
-def main(initial=141, target_capital=5000, risk_per_trade_ratio=0.05, win_rate=0.58, hit_and_run_rate=0.7, is_limit_consecutive_wins=True, is_limit_consecutive_losses=True, 
-cut_loss_min_rate=0, cut_loss_max_rate=80, cut_profit_min_rate=0, cut_profit_max_rate=80, enable_actual_mode=False, stop_loss_min=10, stop_loss_max=30, spread_max=20, 
-actual_capital_in_risk_rate=0.65, actual_potential_profit_rate=0.7, max_lot_limit=100, average_trades_per_day=18, enable_hit_n_run=0, 
-ideal_trade_count_for_generating_rand=10000, limit_consecutive_win_to=10, limit_consecutive_loss_to=5, bankruptcy_threshold=50): 
+def main(initial=100, target_capital=10000000, risk_per_trade_ratio=0.05, win_rate=0.6, break_even_rate=0.06, hit_and_run_rate=0.7, is_limit_consecutive_wins=True, 
+is_limit_consecutive_losses=True, cut_loss_min_rate=0, cut_loss_max_rate=80, cut_profit_min_rate=0, cut_profit_max_rate=80, enable_actual_mode=False, stop_loss_min=10, 
+stop_loss_max=30, spread_max=20, actual_capital_in_risk_rate=0.65, actual_potential_profit_rate=0.7, max_lot_limit=100, average_trades_per_day=18, enable_hit_n_run=0, 
+ideal_trade_count_for_generating_rand=100000, limit_consecutive_win_to=10, limit_consecutive_loss_to=4, bankruptcy_threshold=50): 
     """
     actual_mode -> sl is 60% of theo sl, tp is 75% of theo tp.  hit_n_run -> cut loss quick, take profit quick
     average_trades_per_day, if timeframe is m5, then around (16+21+15+21+20+20)/6 = 18.83 trades per day
@@ -703,7 +727,7 @@ ideal_trade_count_for_generating_rand=10000, limit_consecutive_win_to=10, limit_
         rand = generate_rand_trading_results_with_hit_and_run_strategy(ideal_trade_count=ideal_trade_count_for_generating_rand, win_rate=win_rate, hit_and_run_rate=hit_and_run_rate)
     else:
         # only generate rand with 0 and 1
-        rand = generate_rand_trading_results(ideal_trade_count=ideal_trade_count_for_generating_rand, win_rate=win_rate)
+        rand = generate_rand_trading_results(ideal_trade_count=ideal_trade_count_for_generating_rand, win_rate=win_rate, break_even_rate=break_even_rate)
 
     trades_info = do_the_trades(initial, risk_per_trade_ratio, rand, target_capital, is_limit_consecutive_wins, is_limit_consecutive_losses, cut_loss_min_rate, cut_loss_max_rate, cut_profit_min_rate, cut_profit_max_rate, enable_actual_mode, 
     stop_loss_min, stop_loss_max, spread_max, actual_capital_in_risk_rate, actual_potential_profit_rate, max_lot_limit, enable_hit_n_run, limit_consecutive_win_to, limit_consecutive_loss_to, bankruptcy_threshold)
@@ -712,6 +736,7 @@ ideal_trade_count_for_generating_rand=10000, limit_consecutive_win_to=10, limit_
     trade_count = trades_info["trade_count"]
     win_trade_count = trades_info["win_trade_count"]
     loss_trade_count = trades_info["loss_trade_count"]
+    break_even_trade_count = trades_info["break_even_trade_count"]
     initial = trades_info["initial"]
 
 
@@ -771,7 +796,7 @@ ideal_trade_count_for_generating_rand=10000, limit_consecutive_win_to=10, limit_
     tabulate_print_trades_data_in_table(trades)
 
     # total_info = print_total_info(win_trade_count, loss_trade_count, trade_count, initial)
-    print_total_info(win_trade_count, loss_trade_count, trade_count, initial, average_trades_per_day, is_limit_consecutive_wins, is_limit_consecutive_losses)
+    print_total_info(win_trade_count, loss_trade_count, break_even_trade_count, trade_count, initial, average_trades_per_day, is_limit_consecutive_wins, is_limit_consecutive_losses)
 
     
     draw_plotly_chart(trades)
