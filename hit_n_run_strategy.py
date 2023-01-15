@@ -422,7 +422,7 @@ def limit_consecutive_wins_and_losses(current_result, recent_six_trades_rand_val
  
 
 def do_the_trades(initial, symbol, commision_per_lot, risk_per_trade_ratio, rand, target_capital, is_limit_consecutive_wins, is_limit_consecutive_losses, cut_loss_min_rate, cut_loss_max_rate, cut_profit_min_rate, cut_profit_max_rate, 
-enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_risk_rate, actual_potential_profit_rate, max_lot_limit, enable_hit_n_run, limit_consecutive_win_to, limit_consecutive_loss_to, bankruptcy_threshold):
+enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_risk_rate, actual_potential_profit_rate, max_lot_limit, min_lot_limit, enable_hit_n_run, limit_consecutive_win_to, limit_consecutive_loss_to, bankruptcy_threshold):
     
     # print(f"win limit: {is_limit_consecutive_wins}")   
     # print(f"loss limit: {is_limit_consecutive_losses}")
@@ -454,13 +454,14 @@ enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_
         current_initial = initial
         capital_in_risk = initial * risk_per_trade_ratio
 
-        if enable_actual_mode == False:
-            actual_capital_in_risk = capital_in_risk
-            actual_potential_profit = capital_in_risk
-        else:
-            actual_capital_in_risk = capital_in_risk * actual_capital_in_risk_rate # 如果情况不妙就手动止损，8/12=0.66
-            actual_potential_profit = capital_in_risk * actual_potential_profit_rate # 假设手动止盈，在tp为12$的时候，在10手动tp, 10/12=0.83
-            # 9.2/12.8 = 0.71
+        # # it's too early to calculate it here. we need to calculate risk and profit with the actual lot size
+        # if enable_actual_mode == False:
+        #     actual_capital_in_risk = capital_in_risk
+        #     actual_potential_profit = capital_in_risk
+        # else:
+        #     actual_capital_in_risk = capital_in_risk * actual_capital_in_risk_rate # 如果情况不妙就手动止损，8/12=0.66
+        #     actual_potential_profit = capital_in_risk * actual_potential_profit_rate # 假设手动止盈，在tp为12$的时候，在10手动tp, 10/12=0.83
+        #     # 9.2/12.8 = 0.71
         
                 
 
@@ -474,23 +475,59 @@ enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_
         # lot_size = (risk_per_trade_ratio * initial) / (stop_loss * pip_value + commision_per_lot + spread)
         # lot_size = capital_in_risk / (stop_loss * pip_value + commision_per_lot + spread) # this only applies to EURUSD when pip value is 10, so 10/10 doesn't make a change
         
-        # this is the right way to do it
-        lot_size = capital_in_risk / (stop_loss * pip_value + commision_per_lot + spread / 10 * pip_value)
-
-        #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        # theo lot size is float
+        theo_lot_size = capital_in_risk / ((stop_loss + 1) * pip_value + commision_per_lot + spread / 10 * pip_value) 
+        # stop + 1 because we enter when 1 pip passing 2 ticks
+        # and the tp is actually sl -1
+        
+        # get the consevative lot size
+        lot_size = float(str(theo_lot_size).split(".")[0] + "." + str(theo_lot_size).split(".")[1][:2])
+        # debugging
+        # print(f"theo_lot_size: {theo_lot_size}")
+        # print(f"actual_lot_size: {lot_size}")
+        
+        
+        # if lot size is greater than max lot limit, then make it equal to max lot limit
         if lot_size > max_lot_limit:
             lot_size = max_lot_limit
+        elif lot_size < min_lot_limit:
+            print(f"calculated lot_size {lot_size} is less than min_lot_limit {min_lot_limit}")
+            break
+        
+
+        # if theo lot size is 0.1, then it is equal to the actual lot size.
+        # but as we always get a result like theo_lot_size: 0.1157582240227035
+        # and the actual lot size will be 0.11, so they will NEVER be equal
+        # so there is no need to do the below if condition to compare the two
+        # if theo_lot_size != lot_size:
+        
+        # recalculate capital in risk and potential profit
+        capital_in_risk = lot_size * ((stop_loss + 1) * pip_value + commision_per_lot + spread) # stop + 1 because we enter when 1 pip passing 2 ticks
+        
+        if enable_actual_mode == False:
+            actual_capital_in_risk = capital_in_risk
+            # this is the profit without fee
+            actual_potential_profit = lot_size * ((stop_loss - 1) * pip_value)
+        else:
+            actual_capital_in_risk = capital_in_risk * actual_capital_in_risk_rate # 如果情况不妙就手动止损，8/12=0.66
+            actual_potential_profit = lot_size * ((stop_loss - 1) * pip_value) * actual_potential_profit_rate # 假设手动止盈，在tp为12$的时候，在10手动tp, 10/12=0.83
             
-            # we need to !!!ACTUALLY RECALCULATE!!! the capital_in_risk
-            capital_in_risk = lot_size * (stop_loss * pip_value + commision_per_lot + spread)
-            if enable_actual_mode == False:
-                actual_capital_in_risk = capital_in_risk
-                actual_potential_profit = capital_in_risk
-            else:
-                actual_capital_in_risk = capital_in_risk * actual_capital_in_risk_rate # 如果情况不妙就手动止损，8/12=0.66
-                actual_potential_profit = capital_in_risk * actual_potential_profit_rate # 假设手动止盈，在tp为12$的时候，在10手动tp, 10/12=0.83
-                # 9.2/12.8 = 0.71
-        #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+        # # recalculate capital in risk and 
+        # # #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        # if lot_size > max_lot_limit:
+        #     lot_size = max_lot_limit
+            
+        #     # we need to !!!ACTUALLY RECALCULATE!!! the capital_in_risk
+        #     capital_in_risk = lot_size * (stop_loss * pip_value + commision_per_lot + spread)
+        #     if enable_actual_mode == False:
+        #         actual_capital_in_risk = capital_in_risk
+        #         actual_potential_profit = lot_size * ((stop_loss - 1) * pip_value)
+        #     else:
+        #         actual_capital_in_risk = capital_in_risk * actual_capital_in_risk_rate # 如果情况不妙就手动止损，8/12=0.66
+        #         actual_potential_profit = lot_size * ((stop_loss - 1) * pip_value) * actual_potential_profit_rate # 假设手动止盈，在tp为12$的时候，在10手动tp, 10/12=0.83
+        #         # 9.2/12.8 = 0.71
+        # #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         #commission
         commission = lot_size * commision_per_lot
@@ -749,9 +786,9 @@ def draw_plotly_chart(trades):
     fig.show()
 
 # 149376$   # 4257 for legion
-def main(initial=100, target_capital=10000000, risk_per_trade_ratio=0.05, win_rate=0.6, break_even_rate=0.06, hit_and_run_rate=0.7, symbol="USDJPY", is_limit_consecutive_wins=True, 
+def main(initial=100, target_capital=1000, risk_per_trade_ratio=0.05, win_rate=0.62, break_even_rate=0.06, hit_and_run_rate=0.7, symbol="USDJPY", is_limit_consecutive_wins=True, 
 is_limit_consecutive_losses=True, cut_loss_min_rate=0, cut_loss_max_rate=80, cut_profit_min_rate=0, cut_profit_max_rate=80, enable_actual_mode=False, stop_loss_min=10, 
-stop_loss_max=30, spread_max=20, actual_capital_in_risk_rate=0.65, actual_potential_profit_rate=0.7, max_lot_limit=100, average_trades_per_day=18, enable_hit_n_run=0, 
+stop_loss_max=30, spread_max=20, actual_capital_in_risk_rate=0.65, actual_potential_profit_rate=0.7, max_lot_limit=100, min_lot_limit=0.01, average_trades_per_day=18, enable_hit_n_run=0, 
 ideal_trade_count_for_generating_rand=100000, limit_consecutive_win_to=10, limit_consecutive_loss_to=4, bankruptcy_threshold=50, commision_per_lot=4): 
     """
     actual_mode -> sl is 60% of theo sl, tp is 75% of theo tp.  hit_n_run -> cut loss quick, take profit quick
@@ -775,7 +812,7 @@ ideal_trade_count_for_generating_rand=100000, limit_consecutive_win_to=10, limit
 
 
     trades_info = do_the_trades(initial, symbol, commision_per_lot, risk_per_trade_ratio, rand, target_capital, is_limit_consecutive_wins, is_limit_consecutive_losses, cut_loss_min_rate, cut_loss_max_rate, cut_profit_min_rate, cut_profit_max_rate, enable_actual_mode, 
-    stop_loss_min, stop_loss_max, spread_max, actual_capital_in_risk_rate, actual_potential_profit_rate, max_lot_limit, enable_hit_n_run, limit_consecutive_win_to, limit_consecutive_loss_to, bankruptcy_threshold)
+    stop_loss_min, stop_loss_max, spread_max, actual_capital_in_risk_rate, actual_potential_profit_rate, max_lot_limit, min_lot_limit, enable_hit_n_run, limit_consecutive_win_to, limit_consecutive_loss_to, bankruptcy_threshold)
 
     trades = trades_info["trades"]
     trade_count = trades_info["trade_count"]
