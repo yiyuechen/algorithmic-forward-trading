@@ -447,6 +447,9 @@ enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_
     pip_value = float(pip_value)
     print(f"{symbol} pip value {pip_value}")
 
+    # note:
+    # pip_value is how much a pip is (usually in USD, could also be pound or eur) with one lot (or 100,000 volume)
+
     # pip_value = 10
     
     while initial < target_capital:
@@ -502,15 +505,18 @@ enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_
         # if theo_lot_size != lot_size:
         
         # recalculate capital in risk and potential profit
-        capital_in_risk = lot_size * ((stop_loss + 1) * pip_value + commision_per_lot + spread) # stop + 1 because we enter when 1 pip passing 2 ticks
+        # capital_in_risk = lot_size * ((stop_loss + 1) * pip_value + commision_per_lot + spread / 10 * pip_value) # stop + 1 because we enter when 1 pip passing 2 ticks
         
+        # actual potential risk WITHOUT commission fee and spread fee
+        capital_in_risk  = lot_size * (stop_loss + 1) * pip_value
+
         if enable_actual_mode == False:
             actual_capital_in_risk = capital_in_risk
             # this is the profit without fee
-            actual_potential_profit = lot_size * ((stop_loss - 1) * pip_value)
+            actual_potential_profit = lot_size * stop_loss * pip_value
         else:
             actual_capital_in_risk = capital_in_risk * actual_capital_in_risk_rate # 如果情况不妙就手动止损，8/12=0.66
-            actual_potential_profit = lot_size * ((stop_loss - 1) * pip_value) * actual_potential_profit_rate # 假设手动止盈，在tp为12$的时候，在10手动tp, 10/12=0.83
+            actual_potential_profit = lot_size * stop_loss * pip_value * actual_potential_profit_rate # 假设手动止盈，在tp为12$的时候，在10手动tp, 10/12=0.83
             
 
         # # recalculate capital in risk and 
@@ -533,7 +539,7 @@ enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_
         commission = lot_size * commision_per_lot
 
         # spread fee
-        spread_fee = spread * lot_size #　spread / 10 * pip_value * lot_size #　因为eurusd的pip_value正好是10，所以相当于*10/10
+        spread_fee = spread / 10 * pip_value * lot_size #　spread / 10 * pip_value * lot_size #　因为eurusd的pip_value正好是10，所以相当于*10/10
         
         #total fee
         total_fee = commission + spread_fee
@@ -786,7 +792,7 @@ def draw_plotly_chart(trades):
     fig.show()
 
 # 149376$   # 4257 for legion
-def main(initial=100, target_capital=1000, risk_per_trade_ratio=0.05, win_rate=0.62, break_even_rate=0.06, hit_and_run_rate=0.7, symbol="USDJPY", is_limit_consecutive_wins=True, 
+def main(initial=141, target_capital=1000, risk_per_trade_ratio=0.05, win_rate=0.6, break_even_rate=0.06, hit_and_run_rate=0.7, symbol="USDJPY", is_limit_consecutive_wins=True, 
 is_limit_consecutive_losses=True, cut_loss_min_rate=0, cut_loss_max_rate=80, cut_profit_min_rate=0, cut_profit_max_rate=80, enable_actual_mode=False, stop_loss_min=10, 
 stop_loss_max=30, spread_max=20, actual_capital_in_risk_rate=0.65, actual_potential_profit_rate=0.7, max_lot_limit=100, min_lot_limit=0.01, average_trades_per_day=18, enable_hit_n_run=0, 
 ideal_trade_count_for_generating_rand=100000, limit_consecutive_win_to=10, limit_consecutive_loss_to=4, bankruptcy_threshold=50, commision_per_lot=4): 
