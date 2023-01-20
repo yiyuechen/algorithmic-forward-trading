@@ -1984,8 +1984,10 @@ def check_if_its_trading_time():
     #     mt5.shutdown()
     #     quit()
     if current_hour < 8 or current_hour == 23:
+        if current_hour == 23: # if 23, the remaining hours will be minus. 23 is equivelant to -1
+            current_hour = -1
         # time_remaining_in_minutes = 8*60 - current_hour * 60 - current_minute
-        total_remaining_seconds = 8*60*60 - current_hour * 60 * 60 - current_minute * 60 - current_second
+        total_remaining_seconds = 8 * 60 * 60 - current_hour * 60 * 60 - current_minute * 60 - current_second
         # 5:43 8:00
         # 8*60-5*60-43
         # 7:00 8:00
