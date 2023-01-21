@@ -1252,10 +1252,11 @@ def double_tick_strategy():
             # rates <class 'numpy.ndarray'>
             rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=3)
             # print(f"rates: {rates}")
-            current_price = rates[2][4]
+            current_price = rates[2][4] 
+            # this should be the bid price. need to verify
 
             # bid_price = mt5.symbol_info(symbol).bid
-            # ask_price = mt5.symbol_info_tick(symbol).ask
+            ask_price = mt5.symbol_info_tick(symbol).ask
             
             # print(f"current_price: {current_price}")
             # print(f"bid_price: {bid_price}")
@@ -1353,7 +1354,7 @@ def double_tick_strategy():
 
                 open_request(sl_price=dows_low, type="buy", sl=sl, symbol=symbol, type_filling=type_filling, commision_per_lot=commision_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio)
                 # continue # if we opened an order, we go back to the beginning of the loop, we don't sleep
-            elif current_price < lower_price and above_or_below_sma in {"below", "mixed_below"} and check_retrace_or_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5): # if current_price < lower_price and we are below the 25sma
+            elif ask_price < lower_price and above_or_below_sma in {"below", "mixed_below"} and check_retrace_or_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5): # if current_price < lower_price and we are below the 25sma
                 print("sell")
                 # second_tick_high-current_price
                 # sl = rates[1][2] * 1000 - current_price * 1000  # USDJPY
@@ -1362,13 +1363,13 @@ def double_tick_strategy():
                 #sl = higher_price * multiply_digits - current_price * multiply_digits  # BTC
                 dows_high = find_dows_high(symbol=symbol, timeframe=timeframe, tick_count=12)
                 if dows_high:
-                    sl = dows_high * multiply_digits - current_price * multiply_digits
+                    sl = dows_high * multiply_digits - ask_price * multiply_digits
                 else:
                     print(f"didn't find dows_high in previous ticks, won't open order")
                     continue
                 # sl = higher_price * 100 - current_price * 100  # BTC
 
-                actual_offset = multiply_digits * abs(current_price - lower_price)
+                actual_offset = multiply_digits * abs(ask_price - lower_price)
                 if actual_offset > offset_limit:
                     print(f"actual_offset is {actual_offset}, exceeded offset_limit: {offset_limit} points. not opening tickets")
                     continue
@@ -1457,7 +1458,7 @@ def double_tick_strategy():
                 open_request(sl_price=dows_low, type="buy", sl=sl, symbol=symbol, type_filling=type_filling, commision_per_lot=commision_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio)
                 # continue # if we opened an order, we go back to the beginning of the loop, we don't sleep
             # across_sma_from_above_to_below
-            elif current_price < tick_two_close and above_or_below_sma == "across_sma_from_above_to_below" and tick_two_close < tick_two_open: # and check_retrace_or_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5):
+            elif ask_price < tick_two_close and above_or_below_sma == "across_sma_from_above_to_below" and tick_two_close < tick_two_open: # and check_retrace_or_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5):
                 # tick_two_close < tick_two_open to ensure this key candle crossing sma is closed a bearish candle.
                 print("sell, across_sma_from_above_to_below")
                 # second_tick_high-current_price
@@ -1467,7 +1468,7 @@ def double_tick_strategy():
                 #sl = higher_price * multiply_digits - current_price * multiply_digits  # BTC
                 dows_high = find_dows_high(symbol=symbol, timeframe=timeframe, tick_count=12)
                 if dows_high:
-                    sl = dows_high * multiply_digits - current_price * multiply_digits
+                    sl = dows_high * multiply_digits - ask_price * multiply_digits
                 else:
                     print(f"didn't find dows_high in previous ticks, won't open order")
                     continue
@@ -1476,7 +1477,7 @@ def double_tick_strategy():
                     print(f"sl is {sl} points. too large. aborted.")
                     continue
 
-                actual_offset = multiply_digits * abs(current_price - tick_two_close)
+                actual_offset = multiply_digits * abs(ask_price - tick_two_close)
                 if actual_offset > offset_limit:
                     print(f"actual_offset is {actual_offset}, exceeded offset_limit: {offset_limit} points. not opening tickets")
                     continue
@@ -2004,9 +2005,9 @@ def check_if_its_trading_time():
 
 def main():
     # # main mt5 path
-    path = r"C:\Program Files\MetaTrader 5\terminal64.exe"
+    # path = r"C:\Program Files\MetaTrader 5\terminal64.exe"
     # # practicing mt5 path
-    # path = r"E:\Program Files\MetaTrader 5\terminal64.exe"
+    path = r"E:\Program Files\MetaTrader 5\terminal64.exe"
 
     # fxtm live
     account_live = 10557130 # must be int, not string
