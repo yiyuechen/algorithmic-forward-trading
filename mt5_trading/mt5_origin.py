@@ -841,6 +841,8 @@ def check_retrace_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_p
     if lower_price_tick_3_and_4 < lower_price_tick_1_and_2:
         retracement = True
 
+    # if tick_4_low < lower_price_tick_2_and_3:
+    #     retracement = True
 
     # ERROR!!! need to pass *TWO* ticks
     # but there's a third situation
@@ -892,6 +894,9 @@ def check_retrace_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_
     higher_price_tick_1_and_2 = compare_two_and_get_higher(tick_1_high, tick_2_high)
     if higher_price_tick_3_and_4 > higher_price_tick_1_and_2:
         retracement = True
+
+    # if tick_4_high > higher_price_tick_2_and_3:
+    #     retracement = True
 
     # # ERROR!!! need to pass *TWO* ticks
     # # but there's a third situation
@@ -1245,10 +1250,23 @@ def double_tick_strategy():
 
 
     while True:
-        check_if_its_trading_time()
+        is_trading_time = check_if_its_trading_time()
+        # if is_trading_time == False:
+        #     continue
+
+        """
+        1. open_positions == 0 and is_trading_time == True:
+        no open orders. trading time. look for orders
+        2. open_positions == 0 and is_trading_time == False
+        no open orders. not trading time. peace. do nothing
+        3. open_positions != 0 and and is_trading_time == True
+        there's an open order. trading time. monitor the tp of the open order
+        3. open_positions != 0 and and is_trading_time == False
+        there's an open order. not trading time. monitor the tp of the open order
+        """
 
         open_positions = check_open_positions()
-        if open_positions == 0:
+        if open_positions == 0 and is_trading_time == True:
             # rates <class 'numpy.ndarray'>
             rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=3)
             # print(f"rates: {rates}")
@@ -1262,6 +1280,11 @@ def double_tick_strategy():
             # print(f"bid_price: {bid_price}")
             # print(f"ask_price: {ask_price}")
             """
+            tested output:
+            current_price: 129.586
+            bid_price: 129.586
+            ask_price: 129.599
+
             current_price: 0.65285
             bid_price: 0.65285
             ask_price: 0.653
@@ -1507,7 +1530,7 @@ def double_tick_strategy():
             ############### This seems to be not working well on at least M5. So disable it temporarily ###################
 
         # time.sleep(0.1)
-        else:
+        elif open_positions != 0:
             try:
                 positions = get_positions_by_symbol(symbol=symbol)
                 # as we only open one position at a time, so there should be only one item in this list/set?
@@ -1522,7 +1545,8 @@ def double_tick_strategy():
             # digits = mt5.symbol_info(symbol).digits
             # multiply_digits = 10 ** digits
             points_from_tp = abs(position.price_current - position.tp) * multiply_digits
-            print(f"points_from_tp = {round(points_from_tp, 2)} points")
+            # print(f"points_from_tp = {round(points_from_tp, 2)} points   ", end="\r", flush=True)
+            print(f"points_from_tp = {points_from_tp:.2f} points   ", end="\r", flush=True)
             # output:
             # points_from_tp = 138669.0 points
             # points_from_tp = 138667.0 points
@@ -1997,17 +2021,30 @@ def check_if_its_trading_time():
         remaining_hours = total_remaining_seconds // 60 // 60
         remaining_minutes = (total_remaining_seconds - remaining_hours * 60 * 60) // 60
         remaining_seconds = total_remaining_seconds - remaining_hours * 60 * 60 - remaining_minutes * 60
+
+        remaining_hours = check_n_add_zero_b4_1_digit_natural_nums(remaining_hours)
+        remaining_minutes = check_n_add_zero_b4_1_digit_natural_nums(remaining_minutes)
+        remaining_seconds = check_n_add_zero_b4_1_digit_natural_nums(remaining_seconds)
+
         print(f"                                                            It's {current_time_str}. \
             Time remaining: {remaining_hours}: {remaining_minutes}: {remaining_seconds}          ", end="\r", flush=True)
-        time.sleep(1)
-
+        # time.sleep(0.5)
+        return False
+    else:
+        return True
            
+def check_n_add_zero_b4_1_digit_natural_nums(num):
+    if 0 <= num <= 9:
+        num = '0' + str(num)
+        return num # str
+    else: # IMPORTANT!!! if it's not 1 digit num, we need to return it as is
+        return num # int
 
 def main():
     # # main mt5 path
-    # path = r"C:\Program Files\MetaTrader 5\terminal64.exe"
+    path = r"C:\Program Files\MetaTrader 5\terminal64.exe"
     # # practicing mt5 path
-    path = r"E:\Program Files\MetaTrader 5\terminal64.exe"
+    # path = r"E:\Program Files\MetaTrader 5\terminal64.exe"
 
     # fxtm live
     account_live = 10557130 # must be int, not string
