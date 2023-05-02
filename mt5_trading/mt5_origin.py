@@ -369,10 +369,15 @@ def calculate_lot_size(sl, symbol, risk_ratio=0.05, commision_per_lot=4): #sl is
 
     # check if lot size is valid
     if lot_size < 0.01:
-        print(f"lot_size_truncated is {lot_size}, less than 0.01, cannot open trade.")
-        print(f"Insufficient funds. Cannot open {lot_size} lot.")
-        mt5.shutdown()
-        quit()
+        # # 1. stop the program
+        # print(f"lot_size_truncated is {lot_size}, less than 0.01, cannot open trade.")
+        # print(f"Insufficient funds. Cannot open {lot_size} lot.")
+        # mt5.shutdown()
+        # quit()
+
+        # 2. set lot_size to min_lot_limit
+        print(f"lot_size_truncated {lot_size} is less than min_lot_limit 0.01. \nsetting it to 0.01.")
+        lot_size = 0.01
         
     elif lot_size > 100:
         print(f"lot_size_truncated is {lot_size}, greater than 50, but the maximum lot size is 50. openning trade with lot 50.")
@@ -811,7 +816,70 @@ def check_each_tick_close_price_above_or_below_sma(sma_list, timeframe=mt5.TIMEF
         position = "mixed"
 
     return position
+
+
+
+# revised version of checking sma, 1/27/2023
+def check_price_sma_position(sma_list, timeframe=mt5.TIMEFRAME_M5, symbol="BTCUSD", start_position=0):
+    sma_list_length = len(sma_list)
+    # only get several rates, e.g., 5, not 24
+    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=sma_list_length)
+
+    # position = 0
     
+    # rate_close_list = []
+    # for rate in rates:
+    #     rate_close_list.append(rate['close'])
+        
+    # #print(f"rate close list: {rate_close_list}")
+
+    rate_data_list = []
+    for count, rate in enumerate(rates):
+        low = rate['low']
+        high = rate['high']
+        open = rate['open']
+        close = rate['close']
+        current_rate_data_dic = {
+            "open": open,
+            "high": high,
+            "low": low,
+            "close": close,
+            "sma": sma_list[count]
+        }
+
+        rate_data_list.append(current_rate_data_dic)
+    
+    # # debug
+    # for dic in rate_data_list:
+    #     for key, item in dic.items():
+    #         print(f"{key}: {item}")
+    #     print()
+
+
+    current_bid_price = rate_data_list[sma_list_length-1]['close']
+    current_ask_price = mt5.symbol_info_tick(symbol).ask
+    current_sma = rate_data_list[sma_list_length-1]['sma']
+    # if current_bid_price > current_sma and # this is not needed, and may even cause issues. we don't care what the current price is at as long as the crossing tick closes >= its sma.
+    # [added on 2/8/2023] the above line is WRONG! We need to compare the current price and the sma. If across_sma_from_below_to_above, we need the current price to be at least above sma.
+    # or else, if it goes down below sma, and then further breaks the two candles' lows, it still detects as "across_sma_from_below_to_above", but at that moment, "across_sma_from_below_to_above"
+    # is broken, and instead it's a below sma sell.
+    if rate_data_list[sma_list_length-2]['close'] >= rate_data_list[sma_list_length-2]['sma'] and current_bid_price >= current_sma and \
+        compare_two_and_get_higher(rate_data_list[sma_list_length-3]['high'], rate_data_list[sma_list_length-4]['high']) < rate_data_list[sma_list_length-2]['sma']:
+        #4 is current, #3 is crossing from below to above, and close >= its sma. #3 passes #2 and #1's high, but at that moment, #3's price (namely the higher of #1 and #2 is not >= #3's sma
+        # but, we see #3's close is >= #3's sma. so this is valid for a buy based on special rule crossing sma from below to above) 
+        position = "across_sma_from_below_to_above"
+    elif rate_data_list[sma_list_length-2]['close'] <= rate_data_list[sma_list_length-2]['sma'] and current_ask_price <= current_sma and \
+        compare_two_and_get_lower(rate_data_list[sma_list_length-3]['low'], rate_data_list[sma_list_length-4]['low']) > rate_data_list[sma_list_length-2]['sma']:
+        position = "across_sma_from_above_to_below"
+    elif current_bid_price >= current_sma:
+        position = "above"
+    elif current_ask_price <= current_sma:
+        position = "below"
+    else:
+        position = "mixed" # when spread is large. bid < sma, ask > sma.
+
+    return position
+
 
 def check_retrace_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=5): 
     # 0 1 2 3 4 compare low of 2 and 3 with low of 0 and 1
@@ -841,8 +909,9 @@ def check_retrace_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_p
     if lower_price_tick_3_and_4 < lower_price_tick_1_and_2:
         retracement = True
 
-    # if tick_4_low < lower_price_tick_2_and_3:
-    #     retracement = True
+    # if the current price broke previous two ticks' low and then went back up, breaking previous two ticks' high
+    if tick_4_low < lower_price_tick_2_and_3:
+        retracement = True
 
     # ERROR!!! need to pass *TWO* ticks
     # but there's a third situation
@@ -895,8 +964,9 @@ def check_retrace_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_
     if higher_price_tick_3_and_4 > higher_price_tick_1_and_2:
         retracement = True
 
-    # if tick_4_high > higher_price_tick_2_and_3:
-    #     retracement = True
+    # if the current price broke previous two ticks' high and then went back down, breaking previous two ticks' low
+    if tick_4_high > higher_price_tick_2_and_3:
+        retracement = True
 
     # # ERROR!!! need to pass *TWO* ticks
     # # but there's a third situation
@@ -1209,8 +1279,7 @@ def double_tick_strategy():
     # # also if the program freezes, the print output will not change, which draws us attention
     # timer = 0
 
-    digits = mt5.symbol_info(symbol).digits
-    multiply_digits = 10 ** digits
+    
 
 
     pattern_list = ["\\", "|", "/", "-"]
@@ -1238,7 +1307,7 @@ def double_tick_strategy():
             input_timeframe = input("change timeframe to: ")
             if input_timeframe == "":
                 pass
-            elif input_timeframe in ['h1', '1']:
+            elif input_timeframe in ['h1', '60']:
                 timeframe = mt5.TIMEFRAME_H1
             elif input_timeframe in ['m30', '30']:
                 timeframe = mt5.TIMEFRAME_M30
@@ -1246,11 +1315,19 @@ def double_tick_strategy():
                 timeframe = mt5.TIMEFRAME_M15
             elif input_timeframe in ['m5', '5']:
                 timeframe = mt5.TIMEFRAME_M5
+            elif input_timeframe in ['m1', '1']:
+                timeframe = mt5.TIMEFRAME_M1
     
-
+    # need to be after confirmation of symbol and timeframe
+    # so that the digits and muliply_digits are recalculated with the final settings
+    digits = mt5.symbol_info(symbol).digits
+    multiply_digits = 10 ** digits
 
     while True:
+        #is_trading_time = True 
         is_trading_time = check_if_its_trading_time()
+
+        # the below if statement is not needed. see comment in below """ """ which lists 4 possibilities
         # if is_trading_time == False:
         #     continue
 
@@ -1311,9 +1388,13 @@ def double_tick_strategy():
             # above_or_below_sma = if_above_or_below_sma(sma_list, timeframe=timeframe, symbol=symbol, start_position=0)
             # print(f"above or below sma: {above_or_below_sma}")
 
-            # v2
-            above_or_below_sma = check_each_tick_close_price_above_or_below_sma(sma_list, timeframe=timeframe, symbol=symbol, start_position=0)
-            # print(f"above or below sma: {above_or_below_sma}")
+            # # v2
+            # above_or_below_sma = check_each_tick_close_price_above_or_below_sma(sma_list, timeframe=timeframe, symbol=symbol, start_position=0)
+            # # print(f"above or below sma: {above_or_below_sma}")
+
+            # v3
+            above_or_below_sma = check_price_sma_position(sma_list, timeframe=timeframe, symbol=symbol, start_position=0)
+            # print(f"    {above_or_below_sma}", end="\r", flush=True)
 
             ###############print a spinning circle ##############
             current_pattern = pattern_list[pattern_index]
@@ -1321,9 +1402,14 @@ def double_tick_strategy():
             if pattern_index == len(pattern_list):
                 pattern_index = 0
 
-            print(f"  {current_pattern}", end="\r", flush=True)
+            # print(f"  {current_pattern}", end="\r", flush=True)
+            # print(f"  {current_pattern}", end="  ", flush=True)
             ###############print a spinning circle ##############
 
+            # print(f"{above_or_below_sma}", end="\r", flush=True)
+
+            # print sma and spinning bar in a single line, this helps resolve the flickering spnning bar.
+            print(f"  {current_pattern}  {above_or_below_sma}  ", end="\r")#, flush=True)
             
             # if current_price > higher_price, and we are above the 24sma, and there's a retracement
             if current_price > higher_price and above_or_below_sma in {"above", "mixed_above"} and check_retrace_or_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5):
@@ -1338,12 +1424,17 @@ def double_tick_strategy():
                 ###################################
                 # sl = current_price * 100 - lower_price * 100  # BTC
 
-                dows_low = find_dows_low(symbol=symbol, timeframe=timeframe, tick_count=12)
+                # dows_low = find_dows_low(symbol=symbol, timeframe=timeframe, tick_count=12)
+                dows_low = find_dows_low(symbol=symbol, timeframe=timeframe, tick_count=4)
                 if dows_low:
                     sl = current_price * multiply_digits - dows_low * multiply_digits
                 else:
-                    print(f"didn't find dows_low in previous ticks, won't open order")
-                    continue
+                    print(f"didn't find dows_low in previous 4 ticks, will get last 3 ticks and use the first tick's low as dow's low")
+                    dows_low = tick_one_low
+                    sl = current_price * multiply_digits - dows_low * multiply_digits
+                # else:
+                #     print(f"didn't find dows_low in previous ticks, won't open order")
+                #     continue
 
                 # if the price passes two ticks, but far from ideal opening position. (This typically happens when the price moves very fast and hits TP, and the entry and the exit is on the same tick)
                 actual_offset = multiply_digits * abs(current_price - higher_price)
@@ -1384,12 +1475,15 @@ def double_tick_strategy():
                 # digits = mt5.symbol_info(symbol).digits
                 # multiply_digits = 10 ** digits
                 #sl = higher_price * multiply_digits - current_price * multiply_digits  # BTC
-                dows_high = find_dows_high(symbol=symbol, timeframe=timeframe, tick_count=12)
+                # dows_high = find_dows_high(symbol=symbol, timeframe=timeframe, tick_count=12)
+                dows_high = find_dows_high(symbol=symbol, timeframe=timeframe, tick_count=4)
                 if dows_high:
                     sl = dows_high * multiply_digits - ask_price * multiply_digits
                 else:
-                    print(f"didn't find dows_high in previous ticks, won't open order")
-                    continue
+                    print(f"didn't find dows_high in previous 4 ticks, will get last 3 ticks and use the first tick's high as dow's high")
+                    dows_high = tick_one_high
+                    sl = dows_high * multiply_digits - ask_price * multiply_digits
+                    
                 # sl = higher_price * 100 - current_price * 100  # BTC
 
                 actual_offset = multiply_digits * abs(ask_price - lower_price)
@@ -1440,12 +1534,21 @@ def double_tick_strategy():
                 # multiply_digits = 10 ** digits
                 # sl is in points, /10 if needed to convert to pips
                 #sl = current_price * multiply_digits - lower_price * multiply_digits  # BTC
-                dows_low = find_dows_low(symbol=symbol, timeframe=timeframe, tick_count=12)
+
+                # dows_low = find_dows_low(symbol=symbol, timeframe=timeframe, tick_count=12)
+                # if dows_low:
+                #     sl = current_price * multiply_digits - dows_low * multiply_digits
+                # else:
+                #     print(f"didn't find dows_low in previous ticks, won't open order")
+                #     continue
+
+                dows_low = find_dows_low(symbol=symbol, timeframe=timeframe, tick_count=5) # as crossing sma we are opening order on a new candle. so it's 5 ticks
                 if dows_low:
                     sl = current_price * multiply_digits - dows_low * multiply_digits
                 else:
-                    print(f"didn't find dows_low in previous ticks, won't open order")
-                    continue
+                    print(f"didn't find dows_low in previous 5 ticks, will get last 3 ticks and use the first tick's low as dow's low")
+                    dows_low = tick_one_low
+                    sl = current_price * multiply_digits - dows_low * multiply_digits
                 # sl = current_price * 100 - lower_price * 100  # BTC
 
                 # hard-coded for USD/JPY
@@ -1489,12 +1592,22 @@ def double_tick_strategy():
                 # digits = mt5.symbol_info(symbol).digits
                 # multiply_digits = 10 ** digits
                 #sl = higher_price * multiply_digits - current_price * multiply_digits  # BTC
-                dows_high = find_dows_high(symbol=symbol, timeframe=timeframe, tick_count=12)
+                
+                # dows_high = find_dows_high(symbol=symbol, timeframe=timeframe, tick_count=12)
+                # if dows_high:
+                #     sl = dows_high * multiply_digits - ask_price * multiply_digits
+                # else:
+                #     print(f"didn't find dows_high in previous ticks, won't open order")
+                #     continue
+                dows_high = find_dows_high(symbol=symbol, timeframe=timeframe, tick_count=5)
                 if dows_high:
                     sl = dows_high * multiply_digits - ask_price * multiply_digits
                 else:
-                    print(f"didn't find dows_high in previous ticks, won't open order")
-                    continue
+                    print(f"didn't find dows_high in previous 5 ticks, will get last 3 ticks and use the first tick's high as dow's high")
+                    dows_high = tick_one_high
+                    sl = dows_high * multiply_digits - ask_price * multiply_digits
+
+
                 # hard-coded for USD/JPY
                 if sl >= sl_limit and symbol == "USDJPY": # if sl > 300 points, or 30 pips
                     print(f"sl is {sl} points. too large. aborted.")
@@ -1957,6 +2070,24 @@ def algo_trading_prompt():
     elif confirmation.capitalize() != "Y":
         quit()
 
+def select_mt5_path(main_path, practice_path):
+    path = main_path
+    print(f"current path: {path}")
+    print(f"1. main_mt5 path: {main_path}")
+    print(f"2. practice_path: {practice_path}")
+    confirmation = input("Enter to continue or select a path: ")
+   
+    if confirmation == "":
+        pass
+    elif confirmation == "1":
+        path = main_path
+    elif confirmation == "2":
+        path = practice_path
+
+    print(f"confirmed, using {path}")
+    
+    return path
+
 def select_account(account_demo, password_demo, server_demo, account_live, password_live, server_live, account, password, server_to_connect):
     print(f"current account: {account}")
     print(f"1. live account {account_live}")
@@ -2008,11 +2139,12 @@ def check_if_its_trading_time():
     #     print(f"It's {current_hour}: {current_minute}: {current_second}. We need to follow our plan. Call it a day." )
     #     mt5.shutdown()
     #     quit()
-    if current_hour < 8 or current_hour == 23:
+    if current_hour < 7 or current_hour == 23:
         if current_hour == 23: # if 23, the remaining hours will be minus. 23 is equivelant to -1
             current_hour = -1
         # time_remaining_in_minutes = 8*60 - current_hour * 60 - current_minute
-        total_remaining_seconds = 8 * 60 * 60 - current_hour * 60 * 60 - current_minute * 60 - current_second
+        #total_remaining_seconds = 8 * 60 * 60 - current_hour * 60 * 60 - current_minute * 60 - current_second
+        total_remaining_seconds = 7 * 60 * 60 - current_hour * 60 * 60 - current_minute * 60 - current_second
         # 5:43 8:00
         # 8*60-5*60-43
         # 7:00 8:00
@@ -2042,9 +2174,9 @@ def check_n_add_zero_b4_1_digit_natural_nums(num):
 
 def main():
     # # main mt5 path
-    path = r"C:\Program Files\MetaTrader 5\terminal64.exe"
+    main_path = r"C:\Program Files\MetaTrader 5\terminal64.exe"
     # # practicing mt5 path
-    # path = r"E:\Program Files\MetaTrader 5\terminal64.exe"
+    practice_path = r"E:\Program Files\MetaTrader 5\terminal64.exe"
 
     # fxtm live
     account_live = 10557130 # must be int, not string
@@ -2072,6 +2204,7 @@ def main():
     server_to_connect = server_live
 
     algo_trading_prompt()
+    path = select_mt5_path(main_path, practice_path)
     initialize(path)
     account, password, server_to_connect = select_account(
         account_demo, password_demo, server_demo, 
