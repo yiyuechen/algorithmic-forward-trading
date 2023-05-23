@@ -820,7 +820,7 @@ def check_each_tick_close_price_above_or_below_sma(sma_list, timeframe=mt5.TIMEF
 
 
 # revised version of checking sma, 1/27/2023
-def check_price_sma_position(sma_list, timeframe=mt5.TIMEFRAME_M5, symbol="BTCUSD", start_position=0):
+def check_price_sma_position(sma_list, timeframe=mt5.TIMEFRAME_M5, symbol="BTCUSD", start_position=0, multiply_digits=1000):
     sma_list_length = len(sma_list)
     # only get several rates, e.g., 5, not 24
     rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=sma_list_length)
@@ -878,10 +878,141 @@ def check_price_sma_position(sma_list, timeframe=mt5.TIMEFRAME_M5, symbol="BTCUS
     else:
         position = "mixed" # when spread is large. bid < sma, ask > sma.
 
-    return position
+    # calc points between price and sma
+    if position in ["above", "across_sma_from_below_to_above"]:
+        distance_in_points = (current_bid_price - current_sma) * multiply_digits
+    elif position in ["below", "across_sma_from_above_to_below"]:
+        # negative value
+        distance_in_points = (current_ask_price - current_sma) * multiply_digits
+    elif position == "mixed":
+        distance_in_points = 0
 
+    return position, distance_in_points
 
 def check_retrace_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=5): 
+    retracement = False
+    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+
+    for i in range(2, tick_count):
+        # rates[i] #current_tick
+        if rates[i]['low'] < rates[i-1]['low'] and rates[i]['low'] < rates[i-2]['low']:
+            # rates[i] forms retracement
+            retracement = True
+            print(f"rates[{i}] forms retracement. rates[{i}]['low'] is {rates[i]['low']} func check_retrace_when_long()")
+    
+    # print(f"retracement: {retracement}", end="\r")
+    return retracement
+
+def check_pause_when_long(symbol="BTCUSD", timeframe="TIMEFRAME_M5", start_position=0, tick_count=5):
+    pause = False
+    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+
+    for i in range(2, tick_count):
+        if rates[i]['high'] < rates[i-2]['high'] and rates[i-1]['high'] < rates[i-2]['high']:
+            pause = True
+            print(f"rates[{i}] and rates[{i-1}] forms pause, both of their high are lower than that of rates[{i-2}]. func check_pause_when_long")
+            print(f"rates[{i}]['high']: {rates[i]['high']}, rates[{i-1}]['high]: {rates[i-1]['high']}, rates[{i-2}]['high]: {rates[i-2]['high']}")
+
+    # print(f"pause: {pause}", end="\r")
+    return pause
+
+def check_retrace_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=5):
+    retracement = False
+    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+
+    for i in range(2, tick_count):
+        if rates[i]['high'] > rates[i-1]['high'] and rates[i]['high'] > rates[i-2]['high']:
+            retracement = True
+            print(f"rates[{i}] forms retracement. rates[{i}]['high'] is {rates[i]['high']} func check_retrace_when_short()")
+
+    # print(f"retracement: {retracement}", end="\r")
+    return retracement
+
+def check_pause_when_short(symbol="BTCUSD", timeframe="TIMEFRAME_M5", start_position=0, tick_count=5):
+    pause = False
+    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+
+    for i in range(2, tick_count):
+        if rates[i]['low'] > rates[i-2]['low'] and rates[i-1]['low'] > rates[i-2]['low']:
+            pause = True
+            print(f"rates[{i}] and rates[{i-1}] forms pause, both of their lows are higher than that of rates[{i-2}]. func check_pause_when_short")
+            print(f"rates[{i}]['low']: {rates[i]['low']}, rates[{i-1}]['low']: {rates[i-1]['low']}, rates[{i-2}['low']: {rates[i-2]['low']}")
+
+    # print(f"pause: {pause}", end="\r")
+    return pause
+
+# if retracement true
+# !!! tick_count=7 instead of 5 !!!
+# maybe need to set tick_count to higher, such as 7, so that we know the recent ideal entry
+def find_which_tick_breaks_after_retracement_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=7):
+    # retracement = False
+    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+
+    # a list of rates that forms retracement. so that we know the first and last rates that form retracement
+    index_of_retracement_rates = []
+
+    for i in range(2, tick_count):
+        # rates[i] #current_tick
+        if rates[i]['low'] < rates[i-1]['low'] and rates[i]['low'] < rates[i-2]['low']:
+            # rates[i] forms retracement
+            # retracement = True
+            print(f"rates[{i}] forms retracement. rates[{i}]['low'] is {rates[i]['low']} func find_which_tick_breaks_after_retracement_when_long")
+            index_of_retracement_rates.append(i)
+    
+    if index_of_retracement_rates:
+        # if len(index_of_retracement_rates) == 1:
+        #     # rates[i] is the one that forms retracement
+        #     i = index_of_retracement_rates[0]
+
+        # else: # there are newer ticks form retracement
+        #     # assign i with the last element, which is the newest tick that forms retracement
+        #     i = index_of_retracement_rates[-1]
+        #     # rates[i] is the one that forms retracement
+
+        # no need to check length. just get the last element. if len is 1, it's the only one
+        i = index_of_retracement_rates[-1]   
+
+        while i < tick_count:
+            # check if the retracement rate "rates[i]"" breaks previous two high
+            if rates[i]['high'] > rates[i-1]['high'] and rates[i]['high'] > rates[i-2]['high']:
+                index_of_tick_that_breaks = i
+                ideal_entry_price = compare_two_and_get_higher(rates[i-1]['high'], rates[i-2]['high'])
+                break
+            i += 1
+
+        return index_of_tick_that_breaks, ideal_entry_price
+    else:
+        # no retracement
+        return None, None
+        
+def find_which_tick_breaks_after_retracement_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=7):
+    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+
+    # a list of rates that forms retracement. so that we know the first and last rates that form retracement
+    index_of_retracement_rates = []
+
+    for i in range(2, tick_count):
+        if rates[i]['high'] > rates[i-1]['high'] and rates[i]['high'] > rates[i-2]['high']:
+            print(f"rates[{i}] forms retracement. rates[{i}]['high'] is {rates[i]['high']} func find_which_tick_breaks_after_retracement_when_short")      
+            index_of_retracement_rates.append(i)
+
+    if index_of_retracement_rates:
+        i = index_of_retracement_rates[-1]
+
+        while i < tick_count:
+            if rates[i]['low'] < rates[i-1]['low'] and rates[i]['low'] < rates[i-2]['low']:
+                index_of_tick_that_breaks = i
+                ideal_entry_price = compare_two_and_get_lower(rates[i-1]['low'], rates[i-2]['low'])
+                break
+            i += 1
+
+        return index_of_tick_that_breaks, ideal_entry_price
+
+    else:
+        return None, None
+
+
+def check_retrace_when_long_old(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=5): 
     # 0 1 2 3 4 compare low of 2 and 3 with low of 0 and 1
     # 4 is the latest
     retracement = False
@@ -943,7 +1074,7 @@ def find_which_tick_completed_retracement(symbol, timeframe, start_position=0, t
     pass
     
 
-def check_retrace_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=5): 
+def check_retrace_when_short_old(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=5): 
     retracement = False
     rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
     tick_0_high = rates[0]['high']
@@ -978,7 +1109,10 @@ def check_retrace_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_
     print(f"retracement: {retracement}")
     return retracement
 
-def check_pause_when_long(symbol="BTCUSD", timeframe="TIMEFRAME_M5", start_position=0, tick_count=5):
+
+
+
+def check_pause_when_long_old(symbol="BTCUSD", timeframe="TIMEFRAME_M5", start_position=0, tick_count=5):
     pause = False
     rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
     tick_0_high = rates[0]['high']
@@ -1003,7 +1137,7 @@ def check_pause_when_long(symbol="BTCUSD", timeframe="TIMEFRAME_M5", start_posit
     print(f"pause: {pause}")
     return pause
 
-def check_pause_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=5):
+def check_pause_when_short_old(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=5):
     pause = False
     rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
     tick_0_low = rates[0]['low']
@@ -1220,7 +1354,132 @@ def check_steps_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, tick_cou
             please check\n")
         return False
 
+# not used
+def find_dows_low_n_its_nearby_ticks(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, tick_count=12):
+    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=tick_count)
+    rates = np.flipud(rates) # so now it's from recent to past
 
+    # so the current tick is the dow's low, this doesn't sound right for our "amending order" strategy
+    # if we need to amend order, it means the current tick isn't passing pre ticks. so this condition probably won't happen
+    if rates[0]['low'] < rates[1]['low'] and rates[0]['low'] < rates[2]['low']: # so this ensures it's a real retracement, no need to check retracement
+        dows_low = rates[0]['low']
+
+        dows_low_tick = {
+            'low': rates[0]['low'],
+            'high': rates[0]['high'],
+        }
+
+        tick_b4_it = {
+            'low': rates[1]['low'],
+            'high': rates[1]['high'],
+        }
+
+        tick_b4_b4_it = {
+            'low': rates[2]['low'],
+            'high': rates[2]['high'],
+        }
+
+        tick_location = 0
+
+        ticks = {
+            'dows_low_tick': dows_low_tick,
+            'tick_b4_it': tick_b4_it,
+            'tick_b4_b4_it': tick_b4_b4_it,
+        }
+
+        # return dows_low
+        return tick_location, ticks
+    
+    else:
+        for i in range(1, len(rates) - 2): # until the one before the last two, so that we have 2 ticks on its left
+            # below line ensures this is dows low, actually this comparision seems not needed
+            if rates[i]['low'] <= compare_two_and_get_lower(rates[i+1]['low'], rates[i-1]['low']) \
+                and rates[i]['low'] < rates[i+1]['low'] and rates[i]['low'] < rates[i+2]['low']: # this line ensures there's a retracement
+                dows_low = rates[i]['low']
+                
+                
+                dows_low_tick = {
+                    'low': rates[i]['low'],
+                    'high': rates[i]['high'],
+                }
+
+                tick_b4_it = {
+                    'low': rates[i+1]['low'],
+                    'high': rates[i+1]['high'],
+                }
+
+                tick_b4_b4_it = {
+                    'low': rates[i+2]['low'],
+                    'high': rates[i+2]['high'],
+                }
+
+                tick_after_it = {
+                    'low': rates[i-1]['low'],
+                    'high': rates[i-1]['high'],
+                }
+
+                tick_after_after_it = {
+                    'low': rates[i-2]['low'],
+                    'high': rates[i-2]['high'],
+                }
+
+                tick_location = i
+
+                ticks = {
+                    'dows_low_tick': dows_low_tick,
+                    'tick_b4_it': tick_b4_it,
+                    'tick_b4_b4_it': tick_b4_b4_it,
+                    "tick_after_it": tick_after_it,
+                    "tick_after_after_it": tick_after_after_it,
+                }
+
+                # return dows_low
+                return tick_location, ticks
+            
+    return None, None
+
+# not used
+def find_dows_high_n_its_nearby_ticks(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, tick_count=12):
+    pass
+
+# not used
+def find_recent_ideal_entry_price(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M30, tick_count=12):
+    """find the most recent ideal entry price at the current moment"""
+    
+    # first find if there's mos recent pause, if so, then this is the entry price
+    # a pause is when two ticks' lower low is higher than that of their previous tick
+    # but next tick right after the pause may not break. but pause again, so need to check further
+
+    # find most recent dow's low (high) first
+    # need to get info including high, low of dows tick and ticks around it
+    tick_location, ticks = find_dows_low_n_its_nearby_ticks(symbol=symbol, timeframe=timeframe, tick_count=tick_count)
+    if tick_location and ticks:
+        print(f"tick_location: {tick_location}")
+        if tick_location != 0:
+            # check if dows tick's high goes higher than previous 2 tick's high
+            pass
+
+    # check if the dow's low (high) forms a retracement (check if its low is lower than previous two ticks for buy; high higher than previous two ticks for sell)
+    
+    # if not, then check if there's a pause
+    
+    # if downtread, the ideal entry price should be:
+    # check if the low in the dow's high tick is passing below previous two ticks,
+    #  if so, it means the price forms dow's high and then goes back down to go below previous 2 ticks
+    #  and the entry price should be the lower of the previous two ticks' lows.
+
+    # if not, assume tick before dows high tick as 1, dows high tick as 2, tick after dows high as 3, then:
+    # if 3's low is lower than the lower one of 1 and 2's low, then the lower one of 1 and 2's low is the ideal entry price for sell
+
+
+    # if uptread, the ideal entry price should be:
+    # check if the high in the dow's low's tick is passing the previous two ticks, 
+    #   if so, it means the price forms dow's low at the current tick and then goes back up to break previous two ticks
+    #   and the entry price should be the higher of the previous two ticks' highs.
+
+    # if not, then check if the high of the tick after dow's low is higher than dow's low tick's high and the high of the tick before dows low tick
+    #  if so, then entry price should be the higher one of dows low tick's high and the high of the tick before dows low tick
+    pass
 
 def double_tick_strategy():
     """
@@ -1253,10 +1512,15 @@ def double_tick_strategy():
     # timeframe = mt5.TIMEFRAME_M15
     timeframe = mt5.TIMEFRAME_M30
     # timeframe = mt5.TIMEFRAME_H1
-    sl_limit = 600 #520 #320 #200 # points for USDJPY # 300
+    # sl_limit = 600 #520 #320 #200 # points for USDJPY # 300
+    sl_limit = 270
+    body_points_limit = 160
+
+    
+    points_gap_between_ideal_n_current_limit = 15
 
     # distance between ideal opening price & current price  
-    offset_limit = 10 # points for USDJPY
+    offset_limit = 20 # 10 # points for USDJPY
     # the offset limit only prevents opening an order immediately when tp is met on the candle where tp is taken
     # but it cannot prevent opening another order on the next candle passing its previous 2 candles
     # the workaround is we use a timer to count down after price is {points_from_tp_limit} points away from tp
@@ -1279,7 +1543,8 @@ def double_tick_strategy():
     # # also if the program freezes, the print output will not change, which draws us attention
     # timer = 0
 
-    
+    check_timeframe_consistency = False
+    count_down_after_modifying_sl = True
 
 
     pattern_list = ["\\", "|", "/", "-"]
@@ -1323,8 +1588,10 @@ def double_tick_strategy():
     digits = mt5.symbol_info(symbol).digits
     multiply_digits = 10 ** digits
 
+    symbol_point = mt5.symbol_info(symbol).point
+
     while True:
-        #is_trading_time = True 
+        # is_trading_time = True 
         is_trading_time = check_if_its_trading_time()
 
         # the below if statement is not needed. see comment in below """ """ which lists 4 possibilities
@@ -1382,19 +1649,57 @@ def double_tick_strategy():
 
             #sma = calculate_current_sma(symbol="BTCUSD", sma_length=24)
             
-            sma_list = calculate_sma_of_latest_n_ticks(symbol=symbol, timeframe=timeframe, sma_length=24, sma_count=5)
+            # sma_list = calculate_sma_of_latest_n_ticks(symbol=symbol, timeframe=timeframe, sma_length=24, sma_count=5)
             
-            # # v1 
-            # above_or_below_sma = if_above_or_below_sma(sma_list, timeframe=timeframe, symbol=symbol, start_position=0)
-            # print(f"above or below sma: {above_or_below_sma}")
-
-            # # v2
-            # above_or_below_sma = check_each_tick_close_price_above_or_below_sma(sma_list, timeframe=timeframe, symbol=symbol, start_position=0)
+            # # # v1 
+            # # above_or_below_sma = if_above_or_below_sma(sma_list, timeframe=timeframe, symbol=symbol, start_position=0)
             # # print(f"above or below sma: {above_or_below_sma}")
 
-            # v3
-            above_or_below_sma = check_price_sma_position(sma_list, timeframe=timeframe, symbol=symbol, start_position=0)
+            # # # v2
+            # # above_or_below_sma = check_each_tick_close_price_above_or_below_sma(sma_list, timeframe=timeframe, symbol=symbol, start_position=0)
+            # # # print(f"above or below sma: {above_or_below_sma}")
+
+            # # v3
+            # above_or_below_sma, dip_current_timeframe = check_price_sma_position(sma_list, timeframe=timeframe, symbol=symbol, start_position=0, multiply_digits=multiply_digits)
+
             # print(f"    {above_or_below_sma}", end="\r", flush=True)
+            # print()
+            # print(above_or_below_sma)
+            # print()
+
+            sma_list_m5 = calculate_sma_of_latest_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_M5, sma_length=24, sma_count=5)
+            above_or_below_sma_m5, dip_m5 = check_price_sma_position(sma_list_m5, timeframe=mt5.TIMEFRAME_M5, symbol=symbol, start_position=0, multiply_digits=multiply_digits) # dip is short for distance in points
+
+            sma_list_m15 = calculate_sma_of_latest_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_M15, sma_length=24, sma_count=5)
+            above_or_below_sma_m15, dip_m15 = check_price_sma_position(sma_list_m15, timeframe=mt5.TIMEFRAME_M15, symbol=symbol, start_position=0, multiply_digits=multiply_digits)
+
+            sma_list_m30 = calculate_sma_of_latest_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_M30, sma_length=24, sma_count=5)
+            above_or_below_sma_m30, dip_m30 = check_price_sma_position(sma_list_m30, timeframe=mt5.TIMEFRAME_M30, symbol=symbol, start_position=0, multiply_digits=multiply_digits)
+
+            sma_list_h1 = calculate_sma_of_latest_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_H1, sma_length=24, sma_count=5)
+            above_or_below_sma_h1, dip_h1 = check_price_sma_position(sma_list_h1, timeframe=mt5.TIMEFRAME_H1, symbol=symbol, start_position=0, multiply_digits=multiply_digits)
+
+            sma_list_h4 = calculate_sma_of_latest_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_H4, sma_length=24, sma_count=5)
+            above_or_below_sma_h4, dip_h4 = check_price_sma_position(sma_list_h4, timeframe=mt5.TIMEFRAME_H4, symbol=symbol, start_position=0, multiply_digits=multiply_digits)
+
+
+            # compare current timeframe and assign the current above_or_below_sma, so that it does not need to be recalculated
+            # check timeframe
+            if timeframe == mt5.TIMEFRAME_M5:
+                above_or_below_sma = above_or_below_sma_m5
+            elif timeframe == mt5.TIMEFRAME_M15:
+                above_or_below_sma = above_or_below_sma_m15
+                # print("above_or_below_sma = above_or_below_sma_m15")
+            elif timeframe == mt5.TIMEFRAME_M30:
+                above_or_below_sma = above_or_below_sma_m30
+                # print("above_or_below_sma = above_or_below_sma_m30")
+            elif timeframe == mt5.TIMEFRAME_H1:
+                above_or_below_sma = above_or_below_sma_h1
+
+            # print()
+            # print(timeframe)
+            # print(f"{above_or_below_sma}")
+            # print()
 
             ###############print a spinning circle ##############
             current_pattern = pattern_list[pattern_index]
@@ -1409,10 +1714,10 @@ def double_tick_strategy():
             # print(f"{above_or_below_sma}", end="\r", flush=True)
 
             # print sma and spinning bar in a single line, this helps resolve the flickering spnning bar.
-            print(f"  {current_pattern}  {above_or_below_sma}  ", end="\r")#, flush=True)
+            print(f"  {current_pattern}  M5: {above_or_below_sma_m5} {dip_m5:.0f}, M15: {above_or_below_sma_m15} {dip_m15:.0f}, M30: {above_or_below_sma_m30} {dip_m30:.0f}, H1: {above_or_below_sma_h1} {dip_h1:.0f}, H4: {above_or_below_sma_h4} {dip_h4:.0f}  {current_pattern}  ", end="\r")#, flush=True)
             
             # if current_price > higher_price, and we are above the 24sma, and there's a retracement
-            if current_price > higher_price and above_or_below_sma in {"above", "mixed_above"} and check_retrace_or_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5):
+            if current_price > higher_price and above_or_below_sma in {"above"} and check_retrace_or_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5):
                 print("buy")
                 # sl = current_price * 1000 - rates[1][3] * 1000  # USDJPY
                 # BTC digits -> 2   USDJPY digits -> 3
@@ -1423,6 +1728,37 @@ def double_tick_strategy():
                 #### sl = current_price * multiply_digits - lower_price * multiply_digits  # BTC ####
                 ###################################
                 # sl = current_price * 100 - lower_price * 100  # BTC
+
+
+                if check_timeframe_consistency:
+                    # check if timeframes {timeframe}, H1, and H4 are in the same trend.
+
+                    if timeframe == mt5.TIMEFRAME_M5:
+                        if above_or_below_sma_m15 == "above" and above_or_below_sma_m30 == "above" and above_or_below_sma_h1 == "above":# and above_or_below_sma_h4 == "above":
+                            print("trading on m5. m5 m15 m30 h1 all identical. ok")
+                            pass
+                        else:
+                            print(f"timeframes are not identical.")
+                            print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
+                            continue
+                    elif timeframe == mt5.TIMEFRAME_M15:
+                        if above_or_below_sma_m30 == "above" and above_or_below_sma_h1 == "above":# and above_or_below_sma_h4 == "above":
+                            print("trading on m15. m15 m30 h1 all identical. ok")
+                            pass
+                        else:
+                            print(f"timeframes are not identical.")
+                            print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
+                            continue
+                    elif timeframe == mt5.TIMEFRAME_M30:
+                        if above_or_below_sma_h1 == "above":# and above_or_below_sma_h4 == "above":
+                            print("trading on m30. m30 h1 all identical. ok")
+                            pass
+                        else:
+                            print(f"timeframes are not identical.")
+                            print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
+                            # print(f"{timeframe}: {above_or_below_sma}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
+                            continue
+
 
                 # dows_low = find_dows_low(symbol=symbol, timeframe=timeframe, tick_count=12)
                 dows_low = find_dows_low(symbol=symbol, timeframe=timeframe, tick_count=4)
@@ -1436,11 +1772,51 @@ def double_tick_strategy():
                 #     print(f"didn't find dows_low in previous ticks, won't open order")
                 #     continue
 
+                # hard-coded for USD/JPY
+                if sl >= sl_limit and symbol == "USDJPY": # if sl > 300 points, or 30 pips
+                    print(f"sl is {sl} points. too large. aborted.")
+                    continue
+
                 # if the price passes two ticks, but far from ideal opening position. (This typically happens when the price moves very fast and hits TP, and the entry and the exit is on the same tick)
                 actual_offset = multiply_digits * abs(current_price - higher_price)
                 if actual_offset > offset_limit:
                     print(f"actual_offset is {actual_offset}, exceeded offset_limit: {offset_limit} points. not opening tickets")
                     continue
+                
+                
+
+                # find the ideal entry price, which is the recent first breaking price, and compare it with the current price. if it's not the same, it indicates that we are not in the earliest ideal entry
+                index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_retracement_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
+                if index_of_tick_that_breaks:
+                    print(f"index of tick that breaks: {index_of_tick_that_breaks}")
+                    print(f"ideal entry price: {ideal_entry_price}")
+                    print(f"current bid price: {current_price}")
+                    points_gap_between_ideal_n_current = abs((current_price - ideal_entry_price) * multiply_digits)
+                    print(f"points gap between ideal entry price and current bid price: {points_gap_between_ideal_n_current}")
+                    if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
+                        print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
+                        continue
+                else: # no retracement # but it meets requirements. then it means there's pause
+
+                    # to do
+                    # check pause and find ideal entry price
+
+                    pass
+
+
+                # # check different sma resistance
+                # # sl is sl points. need to add it to entry price to get tp price
+                
+                # tp = sl / risk_reward_ratio
+                # tp_price = ask_price + tp * symbol_point
+                # if timeframe == mt5.TIMEFRAME_M30:
+                #     if tp_price <= sma_list_h1[-1]: # latest current sma value on h1
+                #         # it means on m30 we're longing, but on h1 we are still under sma. so if the tp_price is below h1 sma then it's OK
+                #         pass
+                #     else:
+                #         print(f"check different sma resistance failed. tp_price {tp_price} not <= sma_list_h1[-1] {sma_list_h1[-1]}")
+                #         continue
+
 
                 # # the calculation seems not right. 
                 # # calculation complex high cpu. put it after calculating actual_offset
@@ -1468,8 +1844,48 @@ def double_tick_strategy():
 
                 open_request(sl_price=dows_low, type="buy", sl=sl, symbol=symbol, type_filling=type_filling, commision_per_lot=commision_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio)
                 # continue # if we opened an order, we go back to the beginning of the loop, we don't sleep
-            elif ask_price < lower_price and above_or_below_sma in {"below", "mixed_below"} and check_retrace_or_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5): # if current_price < lower_price and we are below the 25sma
+            elif ask_price < lower_price and above_or_below_sma in {"below"} and check_retrace_or_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5): # if current_price < lower_price and we are below the 25sma
                 print("sell")
+
+                # # check if timeframes {timeframe}, H1, and H4 are in the same trend.
+                # if above_or_below_sma_h1 == "below":# and above_or_below_sma_h4 == "below":
+                #     pass
+                # else:
+                #     print(f"timeframes are not identical.")
+                #     print(f"{timeframe}: {above_or_below_sma}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
+                #     continue
+
+                if check_timeframe_consistency:
+                    # check timeframe, and make sure higher timeframes' trends are identical with that of the current timeframe
+                    if timeframe == mt5.TIMEFRAME_M5:
+                        if above_or_below_sma_m15 == "below" and above_or_below_sma_m30 == "below" and above_or_below_sma_h1 == "below":# and above_or_below_sma_h4 == "above":
+                            print("trading on m5. m5 m15 m30 h1 all identical. ok")
+                            pass
+                        else:
+                            print(f"timeframes are not identical.")
+                            print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
+                            continue
+                    elif timeframe == mt5.TIMEFRAME_M15:
+                        if above_or_below_sma_m30 == "below" and above_or_below_sma_h1 == "below":# and above_or_below_sma_h4 == "above":
+                            print("trading on m15. m15 m30 h1 all identical. ok")
+                            pass
+                        else:
+                            print(f"timeframes are not identical.")
+                            print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
+                            continue
+                    elif timeframe == mt5.TIMEFRAME_M30:
+                        if above_or_below_sma_h1 == "below":# and above_or_below_sma_h4 == "above":
+                            print("trading on m30. m30 h1 all identical. ok")
+                            pass
+                        else:
+                            print(f"timeframes are not identical.")
+                            print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
+                            # print(f"{timeframe}: {above_or_below_sma}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
+                            continue
+
+
+
+
                 # second_tick_high-current_price
                 # sl = rates[1][2] * 1000 - current_price * 1000  # USDJPY
                 # digits = mt5.symbol_info(symbol).digits
@@ -1486,10 +1902,37 @@ def double_tick_strategy():
                     
                 # sl = higher_price * 100 - current_price * 100  # BTC
 
+                # hard-coded for USD/JPY
+                if sl >= sl_limit and symbol == "USDJPY": # if sl > 300 points, or 30 pips
+                    print(f"sl is {sl} points. too large. aborted.")
+                    continue
+
                 actual_offset = multiply_digits * abs(ask_price - lower_price)
                 if actual_offset > offset_limit:
                     print(f"actual_offset is {actual_offset}, exceeded offset_limit: {offset_limit} points. not opening tickets")
                     continue
+                
+                index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_retracement_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
+                if index_of_tick_that_breaks:
+                    print(f"index of tick that breaks: {index_of_tick_that_breaks}")
+                    print(f"ideal entry price: {ideal_entry_price}")
+                    print(f"current ask price: {ask_price}")
+                    points_gap_between_ideal_n_current = abs((ask_price - ideal_entry_price) * multiply_digits)
+                    print(f"points gap between ideal entry price and current ask price: {points_gap_between_ideal_n_current}")
+                    if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
+                        print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
+                        continue
+                else: # no retracement # but it meets requirements. then it means there's pause
+
+                    # to do
+                    # check pause and find ideal entry price
+
+                    pass   
+                
+
+                # check different sma resistance
+
+
 
                 # low_1 = check_steps_when_short(symbol=symbol, timeframe=timeframe, tick_count=30)
                 # if low_1:
@@ -1522,12 +1965,51 @@ def double_tick_strategy():
             ############### This seems to be not working well on at least M5. So disable it temporarily ###################
 
             # across_sma_from_below_to_above, 
-            elif current_price > tick_two_close and above_or_below_sma == "across_sma_from_below_to_above" and tick_two_close > tick_two_open: # and check_retrace_or_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5):
+            #elif current_price > tick_two_close and above_or_below_sma == "across_sma_from_below_to_above" and tick_two_close > tick_two_open: # and check_retrace_or_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5):
+            elif current_price > tick_two_close and above_or_below_sma == "across_sma_from_below_to_above" and tick_two_close > tick_two_open and check_retrace_or_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5):
                 # tick_two_close > tick_two_open to ensure this key candle crossing sma is closed a bullish candle.
                 # sometimes there might be a jump (window) or maybe the sma is steep, and the candle will close as a bearish candle with a very small body and a long upper wick
                 # if this happens, we do not think this is a valid crossing. i guess this usually happens in lower timeframes. i observed this on m5
                 # in such case this is the so called 
                 print("buy, across_sma_from_below_to_above")
+
+                # # check if timeframes {timeframe}, H1, and H4 are in the same trend.
+                # if above_or_below_sma_h1 == "above":# and above_or_below_sma_h4 == "above":
+                #     pass
+                # else:
+                #     print(f"timeframes are not identical.")
+                #     print(f"{timeframe}: {above_or_below_sma}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
+                #     continue
+
+                if check_timeframe_consistency:
+                    # check timeframe, and make sure higher timeframes' trends are identical with that of the current timeframe
+                    if timeframe == mt5.TIMEFRAME_M5:
+                        if above_or_below_sma_m15 == "above" and above_or_below_sma_m30 == "above" and above_or_below_sma_h1 == "above":# and above_or_below_sma_h4 == "above":
+                            print("trading on m5. m5 m15 m30 h1 all identical. ok")
+                            pass
+                        else:
+                            print(f"timeframes are not identical.")
+                            print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
+                            continue
+                    elif timeframe == mt5.TIMEFRAME_M15:
+                        if above_or_below_sma_m30 == "above" and above_or_below_sma_h1 == "above":# and above_or_below_sma_h4 == "above":
+                            print("trading on m15. m15 m30 h1 all identical. ok")
+                            pass
+                        else:
+                            print(f"timeframes are not identical.")
+                            print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
+                            continue
+                    elif timeframe == mt5.TIMEFRAME_M30:
+                        if above_or_below_sma_h1 == "above":# and above_or_below_sma_h4 == "above":
+                            print("trading on m30. m30 h1 all identical. ok")
+                            pass
+                        else:
+                            print(f"timeframes are not identical.")
+                            print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
+                            # print(f"{timeframe}: {above_or_below_sma}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
+                            continue
+
+
                 # sl = current_price * 1000 - rates[1][3] * 1000  # USDJPY
                 # BTC digits -> 2   USDJPY digits -> 3
                 # digits = mt5.symbol_info(symbol).digits # BTC digits -> 2         mt5.symbol_info(symbol).xxx, not mt5.symbol_info_tick(symbol).xxx
@@ -1550,6 +2032,12 @@ def double_tick_strategy():
                     dows_low = tick_one_low
                     sl = current_price * multiply_digits - dows_low * multiply_digits
                 # sl = current_price * 100 - lower_price * 100  # BTC
+
+                # check if it's a large tick that is crossing sma
+                body_points = abs(tick_two_open * multiply_digits - tick_two_close * multiply_digits)
+                if body_points >= body_points_limit and symbol == "USDJPY":
+                    print(f"the body of the tick crossing sma is {body_points}, exceeding {body_points_limit}, too large. aborted.")
+                    continue
 
                 # hard-coded for USD/JPY
                 if sl >= sl_limit and symbol == "USDJPY": # if sl > 300 points, or 30 pips
@@ -1584,9 +2072,48 @@ def double_tick_strategy():
                 open_request(sl_price=dows_low, type="buy", sl=sl, symbol=symbol, type_filling=type_filling, commision_per_lot=commision_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio)
                 # continue # if we opened an order, we go back to the beginning of the loop, we don't sleep
             # across_sma_from_above_to_below
-            elif ask_price < tick_two_close and above_or_below_sma == "across_sma_from_above_to_below" and tick_two_close < tick_two_open: # and check_retrace_or_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5):
+            elif ask_price < tick_two_close and above_or_below_sma == "across_sma_from_above_to_below" and tick_two_close < tick_two_open and check_retrace_or_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5):
                 # tick_two_close < tick_two_open to ensure this key candle crossing sma is closed a bearish candle.
                 print("sell, across_sma_from_above_to_below")
+
+                # # check if timeframes {timeframe}, H1, and H4 are in the same trend.
+                # if above_or_below_sma_h1 == "below":# and above_or_below_sma_h4 == "below":
+                #     pass
+                # else:
+                #     print(f"timeframes are not identical.")
+                #     print(f"{timeframe}: {above_or_below_sma}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
+                #     continue
+
+                if check_timeframe_consistency:
+                    # check timeframe, and make sure higher timeframes' trends are identical with that of the current timeframe
+                    if timeframe == mt5.TIMEFRAME_M5:
+                        if above_or_below_sma_m15 == "below" and above_or_below_sma_m30 == "below" and above_or_below_sma_h1 == "below":# and above_or_below_sma_h4 == "above":
+                            print("trading on m5. m5 m15 m30 h1 all identical. ok")
+                            pass
+                        else:
+                            print(f"timeframes are not identical.")
+                            print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
+                            continue
+                    elif timeframe == mt5.TIMEFRAME_M15:
+                        if above_or_below_sma_m30 == "below" and above_or_below_sma_h1 == "below":# and above_or_below_sma_h4 == "above":
+                            print("trading on m15. m15 m30 h1 all identical. ok")
+                            pass
+                        else:
+                            print(f"timeframes are not identical.")
+                            print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
+                            continue
+                    elif timeframe == mt5.TIMEFRAME_M30:
+                        if above_or_below_sma_h1 == "below":# and above_or_below_sma_h4 == "above":
+                            print("trading on m30. m30 h1 all identical. ok")
+                            pass
+                        else:
+                            print(f"timeframes are not identical.")
+                            print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
+                            # print(f"{timeframe}: {above_or_below_sma}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
+                            continue
+
+
+
                 # second_tick_high-current_price
                 # sl = rates[1][2] * 1000 - current_price * 1000  # USDJPY
                 # digits = mt5.symbol_info(symbol).digits
@@ -1607,6 +2134,12 @@ def double_tick_strategy():
                     dows_high = tick_one_high
                     sl = dows_high * multiply_digits - ask_price * multiply_digits
 
+
+                # check if it's a large tick that is crossing sma
+                body_points = abs(tick_two_open * multiply_digits - tick_two_close * multiply_digits)
+                if body_points >= body_points_limit and symbol == "USDJPY":
+                    print(f"the body of the tick crossing sma is {body_points}, exceeding {body_points_limit}, too large. aborted.")
+                    continue
 
                 # hard-coded for USD/JPY
                 if sl >= sl_limit and symbol == "USDJPY": # if sl > 300 points, or 30 pips
@@ -1645,21 +2178,32 @@ def double_tick_strategy():
         # time.sleep(0.1)
         elif open_positions != 0:
             try:
-                positions = get_positions_by_symbol(symbol=symbol)
+                # positions = get_positions_by_symbol(symbol=symbol)
+                positions = mt5.positions_get() # get all open positions
                 # as we only open one position at a time, so there should be only one item in this list/set?
                 position =positions[0]
+                # print(position)
+                # print()
+                # print(type(position))
+                # current_symbol = position.symbol
             except Exception as exception:
                 print(traceback.format_exc())
                 print(f"error info: {exception}")
                 continue
 
-                
+            # need to calc new !!!multiply_digits!!!
+            # because if we choose usdjpy but there's an eurusd order opended on another script 
+            # then the multiply_digits is still usdjpy, unless we change it here
+            digits = mt5.symbol_info(position.symbol).digits
+            multiply_digits = 10 ** digits
+
+
             # how far away are we from tp
             # digits = mt5.symbol_info(symbol).digits
             # multiply_digits = 10 ** digits
             points_from_tp = abs(position.price_current - position.tp) * multiply_digits
             # print(f"points_from_tp = {round(points_from_tp, 2)} points   ", end="\r", flush=True)
-            print(f"points_from_tp = {points_from_tp:.2f} points   ", end="\r", flush=True)
+            print(f"points_from_tp = {points_from_tp:.2f} points  *{position.symbol}* ", end="\r", flush=True)
             # output:
             # points_from_tp = 138669.0 points
             # points_from_tp = 138667.0 points
@@ -1712,11 +2256,12 @@ def double_tick_strategy():
             # if points_from_tp <= points_from_tp_limit and position.sl != sl_price:
             #     modify_sl_request(symbol=symbol, ticket=position.ticket, sl_price=sl_price, tp_price=position.tp, type_filling=type_filling)
                 
+            # print(f"\n\n\npoints_from_tp = {points_from_tp:.2f} points \n\n\n  ")
 
             # set sl to price_open, this should work for higher timeframes
             if points_from_tp <= points_from_tp_limit:
                 if position.sl != position.price_open:
-                    modify_sl_request(symbol=symbol, ticket=position.ticket, sl_price=position.price_open, tp_price=position.tp, type_filling=type_filling)
+                    modify_sl_request(symbol=position.symbol, ticket=position.ticket, sl_price=position.price_open, tp_price=position.tp, type_filling=type_filling)
 
 
                 # #### this section counts down from 10 and then close the order ####
@@ -1748,30 +2293,31 @@ def double_tick_strategy():
                 ############
                 # after closing, count down for 2 ticks' time, say 5min chart, then it's 10minutes
                 
-                if timeframe == mt5.TIMEFRAME_M1:
-                    pause_time = 2 * 1 * 60
-                elif timeframe == mt5.TIMEFRAME_M5:
-                    pause_time = 2 * 5 * 60
-                elif timeframe == mt5.TIMEFRAME_M15:
-                    pause_time = 2 * 15 * 60
-                elif timeframe == mt5.TIMEFRAME_M30:
-                    pause_time = 2 * 30 * 60
-                elif timeframe == mt5.TIMEFRAME_H1:
-                    pause_time = 2 * 60 * 60
+                    if count_down_after_modifying_sl:
+                        if timeframe == mt5.TIMEFRAME_M1:
+                            pause_time = 2 * 1 * 60
+                        elif timeframe == mt5.TIMEFRAME_M5:
+                            pause_time = 2 * 5 * 60
+                        elif timeframe == mt5.TIMEFRAME_M15:
+                            pause_time = 2 * 15 * 60
+                        elif timeframe == mt5.TIMEFRAME_M30:
+                            pause_time = 2 * 30 * 60
+                        elif timeframe == mt5.TIMEFRAME_H1:
+                            pause_time = 2 * 60 * 60
 
-                # this is used to reset pause_time
-                # default_pause_time = pause_time
+                        # this is used to reset pause_time
+                        # default_pause_time = pause_time
 
-                for _ in range(0, pause_time+1): # count down + 1 until zero
-                    # print(f"{pause_time} s before looking for another trade...")
-                    print(f"{pause_time} s before looking for another trade...", end="\r", flush=True)
-                    pause_time -= 1
-                    time.sleep(1)
-                    # # in the meantime, if price moves to {points_from_tp_limit} points from tp
-                    # if points_from_tp <= points_from_tp_limit:
-                    #     pause_time = default_pause_time
-                    # # then we need to recount down
-                # #### this section counts down for 2 ticks' time before looking for new trading chances ####
+                        for _ in range(0, pause_time+1): # count down + 1 until zero
+                            # print(f"{pause_time} s before looking for another trade...")
+                            print(f"{pause_time} s before looking for another trade...", end="\r", flush=True)
+                            pause_time -= 1
+                            time.sleep(1)
+                            # # in the meantime, if price moves to {points_from_tp_limit} points from tp
+                            # if points_from_tp <= points_from_tp_limit:
+                            #     pause_time = default_pause_time
+                            # # then we need to recount down
+                        # #### this section counts down for 2 ticks' time before looking for new trading chances ####
 
 
 
@@ -2139,12 +2685,14 @@ def check_if_its_trading_time():
     #     print(f"It's {current_hour}: {current_minute}: {current_second}. We need to follow our plan. Call it a day." )
     #     mt5.shutdown()
     #     quit()
-    if current_hour < 7 or current_hour == 23:
+    # if current_hour < 7 or current_hour == 23:
+    if current_hour < 6 or current_hour == 23:
         if current_hour == 23: # if 23, the remaining hours will be minus. 23 is equivelant to -1
             current_hour = -1
         # time_remaining_in_minutes = 8*60 - current_hour * 60 - current_minute
-        #total_remaining_seconds = 8 * 60 * 60 - current_hour * 60 * 60 - current_minute * 60 - current_second
-        total_remaining_seconds = 7 * 60 * 60 - current_hour * 60 * 60 - current_minute * 60 - current_second
+        #total_remaining_seconds = 8 * 60 * 60 - current_hour * 60 * 60 - current_minute * 60 - current_second # starts at 8am
+        # total_remaining_seconds = 7 * 60 * 60 - current_hour * 60 * 60 - current_minute * 60 - current_second # starts at 7am
+        total_remaining_seconds = 6 * 60 * 60 - current_hour * 60 * 60 - current_minute * 60 - current_second # starts at 6am
         # 5:43 8:00
         # 8*60-5*60-43
         # 7:00 8:00
@@ -2189,7 +2737,7 @@ def main():
     # server_demo = 'ICMarketsSC-Demo'
 
     # fxtm demo
-    account_demo = 160261657 # 160299611 #160265336       ##160260280 # invalid #most used            #160255142 #reverse
+    account_demo = 160330076 # 160299611 #160265336       ##160260280 # invalid #most used            #160255142 #reverse
     password_demo = credential_info.password2
     server_demo = 'ForexTimeFXTM-Demo01'
 
