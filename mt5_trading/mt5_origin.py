@@ -1043,6 +1043,50 @@ def find_which_tick_breaks_after_retracement_when_short(symbol="BTCUSD", timefra
     else:
         return None, None
 
+def find_which_tick_breaks_after_pause_when_long(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=7):
+    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+    index_of_pause_rates = []
+
+    for i in range(2, tick_count):
+        if rates[i]['high'] < rates[i-2]['high'] and rates[i-1]['high'] < rates[i-2]['high']:
+            index_of_pause_rates.append(i)
+        
+    if index_of_pause_rates:
+        i = index_of_pause_rates[-1] + 1
+        # i = index + 1 is because the tick cannot PAUSE and break at the same time. (however, it can RETRACE and break at the same time)
+        while i < tick_count:
+            if rates[i]['high'] > rates[i-2]['high'] and rates[i]['high'] > rates[i-1]['high']:
+                index_of_tick_that_breaks = i
+                ideal_entry_price = max(rates[i-2]['high'], rates[i-1]['high'])
+                break
+            i += 1
+        return index_of_tick_that_breaks, ideal_entry_price
+    
+    else:
+        return None, None
+
+def find_which_tick_breaks_after_pause_when_short(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=7):  
+    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+    index_of_pause_rates = []
+
+    for i in range(2, tick_count):
+        if rates[i]['low'] > rates[i-2]['low'] and rates[i-1]['low'] > rates[i-2]['low']:
+            index_of_pause_rates.append(i)
+
+    if index_of_pause_rates:
+        i = index_of_pause_rates[-1] + 1
+        # i = index + 1 is because the tick cannot PAUSE and break at the same time. (however, it can RETRACE and break at the same time)
+        while i < tick_count:
+            if rates[i]['low'] < rates[i-1]['low'] and rates[i]['low'] < rates[i-2]['low']:
+                index_of_tick_that_breaks = i
+                ideal_entry_price = min(rates[i-1]['low'], rates[i-2]['low'])
+                break
+            i += 1
+
+        return index_of_tick_that_breaks, ideal_entry_price
+    
+    else:
+        return None, None
 
 def check_retrace_when_long_old(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=5): 
     # 0 1 2 3 4 compare low of 2 and 3 with low of 0 and 1
@@ -1198,16 +1242,33 @@ def check_pause_when_short_old(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, star
 def check_retrace_or_pause_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=5):
     retrace_when_long = check_retrace_when_long(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
     pause_when_long = check_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
-    if retrace_when_long or pause_when_long:
-        return True
+    # if retrace_when_long or pause_when_long:
+    #     return True
+    # else:
+    #     return False
+    if retrace_when_long and pause_when_long:
+        return 'retrace_n_pause_when_long'
+    elif retrace_when_long and pause_when_long == False:
+        return 'ratrace_when_long'
+    elif retrace_when_long == False and pause_when_long:
+        return 'pause_when_long'
     else:
         return False
+    
 
 def check_retrace_or_pause_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=5):
     retrace_when_short = check_retrace_when_short(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
     pause_when_short = check_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
-    if retrace_when_short or pause_when_short:
-        return True
+    # if retrace_when_short or pause_when_short:
+    #     return True
+    # else:
+    #     return False
+    if retrace_when_short and pause_when_short:
+        return 'retrace_n_pause_when_short'
+    elif retrace_when_short and pause_when_short == False:
+        return 'ratrace_when_short'
+    elif retrace_when_short == False and pause_when_short:
+        return 'pause_when_short'
     else:
         return False
 
@@ -1788,8 +1849,8 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
             print(f"  {current_pattern}  M5: {above_or_below_sma_m5} {dip_m5:.0f}, M15: {above_or_below_sma_m15} {dip_m15:.0f}, M30: {above_or_below_sma_m30} {dip_m30:.0f}, H1: {above_or_below_sma_h1} {dip_h1:.0f}, H4: {above_or_below_sma_h4} {dip_h4:.0f}  {current_pattern}  *{symbol}|{timeframe}*", end="\r")#, flush=True)
             
             # if current_price > higher_price, and we are above the 24sma, and there's a retracement
-            if current_price > higher_price and check_retrace_or_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5):
-                print("buy")
+            if current_price > higher_price:
+                # print("buy")
                 # sl = current_price * 1000 - rates[1][3] * 1000  # USDJPY
                 # BTC digits -> 2   USDJPY digits -> 3
                 # digits = mt5.symbol_info(symbol).digits # BTC digits -> 2         mt5.symbol_info(symbol).xxx, not mt5.symbol_info_tick(symbol).xxx
@@ -1801,7 +1862,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 # sl = current_price * 100 - lower_price * 100  # BTC
                 
                 # check if we should look for a sell order or a buy order
-                print(f"look_for_sell_or_buy: {look_for_sell_or_buy}")
+                # print(f"look_for_sell_or_buy: {look_for_sell_or_buy}")
                 if look_for_sell_or_buy in {"all", "buy"}:
                     pass
                 else:
@@ -1846,6 +1907,8 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                             # print(f"{timeframe}: {above_or_below_sma}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
                             continue
                 
+
+                ####### find SL ########
                 # dows_low = find_dows_low(symbol=symbol, timeframe=timeframe, tick_count=12)
                 dows_low = find_dows_low(symbol=symbol, timeframe=timeframe, tick_count=4)
                 if dows_low:
@@ -1857,6 +1920,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 # else:
                 #     print(f"didn't find dows_low in previous ticks, won't open order")
                 #     continue
+                ####### ######## ########
 
                 # hard-coded for USD/JPY
                 # if sl >= sl_limit and symbol == "USDJPY": # if sl > 300 points, or 30 pips
@@ -1876,25 +1940,34 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     print(f"actual_offset is {actual_offset}, exceeded offset_limit: {offset_limit} points. not opening tickets")
                     continue
                 
-                
+                retrace_or_pause_when_long = check_retrace_or_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5)
 
-                # find the ideal entry price, which is the recent first breaking price, and compare it with the current price. if it's not the same, it indicates that we are not in the earliest ideal entry
-                index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_retracement_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
-                if index_of_tick_that_breaks:
-                    print(f"index of tick that breaks: {index_of_tick_that_breaks}")
-                    print(f"ideal entry price: {ideal_entry_price}")
-                    print(f"current bid price: {current_price}")
-                    points_gap_between_ideal_n_current = abs((current_price - ideal_entry_price) * multiply_digits)
-                    print(f"points gap between ideal entry price and current bid price: {points_gap_between_ideal_n_current}")
-                    if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
-                        print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
-                        continue
-                else: # no retracement # but it meets requirements. then it means there's pause
+                if retrace_or_pause_when_long is False:
+                    continue
 
-                    # to do
-                    # check pause and find ideal entry price
-
-                    pass
+                elif retrace_or_pause_when_long in {'retrace_n_pause_when_long', 'ratrace_when_long'}:
+                    # find the ideal entry price, which is the recent first breaking price, and compare it with the current price. if it's not the same, it indicates that we are not in the earliest ideal entry
+                    index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_retracement_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
+                    if index_of_tick_that_breaks: # this seems redundant as it should always be true
+                        print(f"index of tick that breaks after_retracement_when_long: {index_of_tick_that_breaks}")
+                        print(f"ideal entry price: {ideal_entry_price}")
+                        print(f"current bid price: {current_price}")
+                        points_gap_between_ideal_n_current = abs((current_price - ideal_entry_price) * multiply_digits)
+                        print(f"points gap between ideal entry price and current bid price: {points_gap_between_ideal_n_current}")
+                        if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
+                            print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
+                            continue
+                elif retrace_or_pause_when_long == 'pause_when_long':
+                    index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
+                    if index_of_tick_that_breaks: # this seems redundant as it should always be true
+                        print(f"index of tick that breaks after_pause_when_long: {index_of_tick_that_breaks}")
+                        print(f"ideal entry price: {ideal_entry_price}")
+                        print(f"current bid price: {current_price}")
+                        points_gap_between_ideal_n_current = abs((current_price - ideal_entry_price) * multiply_digits)
+                        print(f"points gap between ideal entry price and current bid price: {points_gap_between_ideal_n_current}")
+                        if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
+                            print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
+                            continue
 
 
                 # check if SMAs in different timeframes are standing in the way towards our tp
@@ -1962,10 +2035,13 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 # if check_adx_ascending_res == False:
                 #     continue
 
+
+                
+
                 open_request(sl_price=dows_low, type="buy", sl=sl, symbol=symbol, type_filling=type_filling, commision_per_lot=commision_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, tp_percent=tp_percent)
                 # continue # if we opened an order, we go back to the beginning of the loop, we don't sleep
-            elif ask_price < lower_price and check_retrace_or_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5): # if current_price < lower_price and we are below the 25sma
-                print("sell")
+            elif ask_price < lower_price: # if current_price < lower_price and we are below the 25sma
+                # print("sell")
 
                 # # check if timeframes {timeframe}, H1, and H4 are in the same trend.
                 # if above_or_below_sma_h1 == "below":# and above_or_below_sma_h4 == "below":
@@ -1976,7 +2052,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 #     continue
 
                 # check if we should look for a sell order or a buy order
-                print(f"look_for_sell_or_buy: {look_for_sell_or_buy}")
+                # print(f"look_for_sell_or_buy: {look_for_sell_or_buy}")
                 if look_for_sell_or_buy in {"all", "sell"}:
                     pass
                 else:
@@ -2022,7 +2098,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
 
 
 
-
+                ##### find SL #####
                 # second_tick_high-current_price
                 # sl = rates[1][2] * 1000 - current_price * 1000  # USDJPY
                 # digits = mt5.symbol_info(symbol).digits
@@ -2038,6 +2114,8 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     sl = dows_high * multiply_digits - ask_price * multiply_digits
                     
                 # sl = higher_price * 100 - current_price * 100  # BTC
+                ##### ##### #####
+                
 
                 # check if sl too large too small
                 if symbol in {"USDJPY", "EURUSD"}:
@@ -2053,23 +2131,33 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     print(f"actual_offset is {actual_offset}, exceeded offset_limit: {offset_limit} points. not opening tickets")
                     continue
                 
-                index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_retracement_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
-                if index_of_tick_that_breaks:
-                    print(f"index of tick that breaks: {index_of_tick_that_breaks}")
-                    print(f"ideal entry price: {ideal_entry_price}")
-                    print(f"current ask price: {ask_price}")
-                    points_gap_between_ideal_n_current = abs((ask_price - ideal_entry_price) * multiply_digits)
-                    print(f"points gap between ideal entry price and current ask price: {points_gap_between_ideal_n_current}")
-                    if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
-                        print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
-                        continue
-                else: # no retracement # but it meets requirements. then it means there's pause
+                retrace_or_pause_when_short = check_retrace_or_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5)
+                if retrace_or_pause_when_short is False:
+                    continue
+                elif retrace_or_pause_when_short in {'retrace_n_pause_when_short', 'ratrace_when_short'}:
+                    index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_retracement_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
+                    if index_of_tick_that_breaks:
+                        print(f"tick_breaks_after_retracement_when_short: {index_of_tick_that_breaks}")
+                        print(f"ideal entry price: {ideal_entry_price}")
+                        print(f"current ask price: {ask_price}")
+                        points_gap_between_ideal_n_current = abs((ask_price - ideal_entry_price) * multiply_digits)
+                        print(f"points gap between ideal entry price and current ask price: {points_gap_between_ideal_n_current}")
+                        if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
+                            print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
+                            continue
+                elif retrace_or_pause_when_short == 'pause_when_short':
+                    index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
+                    if index_of_tick_that_breaks:
+                        print(f"tick_breaks_after_pause_when_short: {index_of_tick_that_breaks}")
+                        print(f"ideal entry price: {ideal_entry_price}")
+                        print(f"current ask price: {ask_price}")
+                        points_gap_between_ideal_n_current = abs((ask_price - ideal_entry_price) * multiply_digits)
+                        print(f"points gap between ideal entry price and current ask price: {points_gap_between_ideal_n_current}")
+                        if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
+                            print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
+                            continue
 
-                    # to do
-                    # check pause and find ideal entry price
 
-                    pass   
-                
 
                 # check if SMAs in different timeframes are standing in the way towards our tp
                 if check_sma_resistance:
@@ -2134,6 +2222,8 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 # if check_adx_ascending_res == False:
                 #     continue
 
+
+
                 open_request(sl_price=dows_high, type="sell", sl=sl, symbol=symbol, type_filling=type_filling, commision_per_lot=commision_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, tp_percent=tp_percent)
                 # continue
 
@@ -2146,14 +2236,14 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
 
             # across_sma_from_below_to_above, 
             #elif current_price > tick_two_close and above_or_below_sma == "across_sma_from_below_to_above" and tick_two_close > tick_two_open: # and check_retrace_or_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5):
-            elif current_price > tick_two_close and above_or_below_sma == "across_sma_from_below_to_above" and tick_two_close > tick_two_open and check_retrace_or_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5):
+            elif current_price > tick_two_close and above_or_below_sma == "across_sma_from_below_to_above" and tick_two_close > tick_two_open:
                 # tick_two_close > tick_two_open to ensure this key candle crossing sma is closed a bullish candle.
                 # sometimes there might be a jump (window) or maybe the sma is steep, and the candle will close as a bearish candle with a very small body and a long upper wick
                 # if this happens, we do not think this is a valid crossing. i guess this usually happens in lower timeframes. i observed this on m5
                 # in such case this is the so called 
                 
                 # check if we should look for a sell order or a buy order
-                print(f"look_for_sell_or_buy: {look_for_sell_or_buy}")
+                # print(f"look_for_sell_or_buy: {look_for_sell_or_buy}")
                 if look_for_sell_or_buy in {"all", "buy"}:
                     pass
                 else:
@@ -2202,7 +2292,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                             # print(f"{timeframe}: {above_or_below_sma}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
                             continue
 
-
+                ##### find SL ######
                 # sl = current_price * 1000 - rates[1][3] * 1000  # USDJPY
                 # BTC digits -> 2   USDJPY digits -> 3
                 # digits = mt5.symbol_info(symbol).digits # BTC digits -> 2         mt5.symbol_info(symbol).xxx, not mt5.symbol_info_tick(symbol).xxx
@@ -2225,6 +2315,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     dows_low = tick_one_low
                     sl = current_price * multiply_digits - dows_low * multiply_digits
                 # sl = current_price * 100 - lower_price * 100  # BTC
+                ##################
 
                 # check if it's a large tick that is crossing sma
                 body_points = abs(tick_two_open * multiply_digits - tick_two_close * multiply_digits)
@@ -2246,6 +2337,39 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     print(f"actual_offset is {actual_offset}, exceeded offset_limit: {offset_limit} points. not opening tickets")
                     continue
                 
+
+
+                retrace_or_pause_when_long = check_retrace_or_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5)
+
+                if retrace_or_pause_when_long is False:
+                    continue
+
+                elif retrace_or_pause_when_long in {'retrace_n_pause_when_long', 'ratrace_when_long'}:
+                    # find the ideal entry price, which is the recent first breaking price, and compare it with the current price. if it's not the same, it indicates that we are not in the earliest ideal entry
+                    index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_retracement_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
+                    if index_of_tick_that_breaks: # this seems redundant as it should always be true
+                        print(f"index of tick that breaks after_retracement_when_long: {index_of_tick_that_breaks}")
+                        print(f"ideal entry price: {ideal_entry_price}")
+                        print(f"current bid price: {current_price}")
+                        points_gap_between_ideal_n_current = abs((current_price - ideal_entry_price) * multiply_digits)
+                        print(f"points gap between ideal entry price and current bid price: {points_gap_between_ideal_n_current}")
+                        if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
+                            print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
+                            continue
+                elif retrace_or_pause_when_long == 'pause_when_long':
+                    index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
+                    if index_of_tick_that_breaks: # this seems redundant as it should always be true
+                        print(f"index of tick that breaks after_pause_when_long: {index_of_tick_that_breaks}")
+                        print(f"ideal entry price: {ideal_entry_price}")
+                        print(f"current bid price: {current_price}")
+                        points_gap_between_ideal_n_current = abs((current_price - ideal_entry_price) * multiply_digits)
+                        print(f"points gap between ideal entry price and current bid price: {points_gap_between_ideal_n_current}")
+                        if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
+                            print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
+                            continue
+
+
+
                 # check if SMAs in different timeframes are standing in the way towards our tp
                 if check_sma_resistance:
 
@@ -2307,14 +2431,16 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 # if check_adx_ascending_res == False:
                 #     continue
                 
+
+
                 open_request(sl_price=dows_low, type="buy", sl=sl, symbol=symbol, type_filling=type_filling, commision_per_lot=commision_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, tp_percent=tp_percent)
                 # continue # if we opened an order, we go back to the beginning of the loop, we don't sleep
             # across_sma_from_above_to_below
-            elif ask_price < tick_two_close and above_or_below_sma == "across_sma_from_above_to_below" and tick_two_close < tick_two_open and check_retrace_or_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5):
+            elif ask_price < tick_two_close and above_or_below_sma == "across_sma_from_above_to_below" and tick_two_close < tick_two_open:
                 # tick_two_close < tick_two_open to ensure this key candle crossing sma is closed a bearish candle.
                 
                 # check if we should look for a sell order or a buy order
-                print(f"look_for_sell_or_buy: {look_for_sell_or_buy}")
+                # print(f"look_for_sell_or_buy: {look_for_sell_or_buy}")
                 if look_for_sell_or_buy in {"all", "sell"}:
                     pass
                 else:
@@ -2365,6 +2491,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
 
 
 
+                ##### find SL #####
                 # second_tick_high-current_price
                 # sl = rates[1][2] * 1000 - current_price * 1000  # USDJPY
                 # digits = mt5.symbol_info(symbol).digits
@@ -2384,6 +2511,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     print(f"didn't find dows_high in previous 5 ticks, will get last 3 ticks and use the first tick's high as dow's high")
                     dows_high = tick_one_high
                     sl = dows_high * multiply_digits - ask_price * multiply_digits
+                ##### ###### ######
 
 
                 # check if it's a large tick that is crossing sma
@@ -2406,6 +2534,35 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     print(f"actual_offset is {actual_offset}, exceeded offset_limit: {offset_limit} points. not opening tickets")
                     continue
                 
+
+
+                retrace_or_pause_when_short = check_retrace_or_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5)
+                if retrace_or_pause_when_short is False:
+                    continue
+                elif retrace_or_pause_when_short in {'retrace_n_pause_when_short', 'ratrace_when_short'}:
+                    index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_retracement_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
+                    if index_of_tick_that_breaks:
+                        print(f"tick_breaks_after_retracement_when_short: {index_of_tick_that_breaks}")
+                        print(f"ideal entry price: {ideal_entry_price}")
+                        print(f"current ask price: {ask_price}")
+                        points_gap_between_ideal_n_current = abs((ask_price - ideal_entry_price) * multiply_digits)
+                        print(f"points gap between ideal entry price and current ask price: {points_gap_between_ideal_n_current}")
+                        if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
+                            print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
+                            continue
+                elif retrace_or_pause_when_short == 'pause_when_short':
+                    index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
+                    if index_of_tick_that_breaks:
+                        print(f"tick_breaks_after_pause_when_short: {index_of_tick_that_breaks}")
+                        print(f"ideal entry price: {ideal_entry_price}")
+                        print(f"current ask price: {ask_price}")
+                        points_gap_between_ideal_n_current = abs((ask_price - ideal_entry_price) * multiply_digits)
+                        print(f"points gap between ideal entry price and current ask price: {points_gap_between_ideal_n_current}")
+                        if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
+                            print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
+                            continue
+
+
                 # check if SMAs in different timeframes are standing in the way towards our tp
                 if check_sma_resistance:
 
@@ -2464,6 +2621,9 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 # check_adx_ascending_res = check_adx_ascending(symbol=symbol, timeframe=timeframe, n=3)
                 # if check_adx_ascending_res == False:
                 #     continue
+
+
+
 
                 # sl = higher_price * 100 - current_price * 100  # BTC
                 open_request(sl_price=dows_high, type="sell", sl=sl, symbol=symbol, type_filling=type_filling, commision_per_lot=commision_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, tp_percent=tp_percent)
@@ -3087,7 +3247,7 @@ def main():
     # sl_limit = 600 #520 #320 #200 # points for USDJPY # 300
     # sl_limit = 270
     # body_points_limit = 160
-    sl_limit = 360
+    sl_limit = 450 #360
     sl_min = 60
     body_points_limit = 200
     
@@ -3120,7 +3280,7 @@ def main():
     # # also if the program freezes, the print output will not change, which draws us attention
     # timer = 0
 
-    count_down_after_modifying_sl = True
+    count_down_after_modifying_sl = False
     check_if_trading_time = True # there's a func called check_if_its_trading_time # do not use that same name or it will cause issues
     
     # # enabled
