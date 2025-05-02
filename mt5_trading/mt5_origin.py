@@ -2,15 +2,15 @@
 """
 To-do
 1. calculate lot size
-lot_size = (risk_ratio * capital) / (stop_loss * pip_value + commision_per_lot + spread)    [X]
+lot_size = (risk_ratio * capital) / (stop_loss * pip_value + commission_per_lot + spread)    [X]
 !!!
 !!!
 This is wrong. Spread should not be in the (), should be spread/10*pip_value
 
 formula
-lot * stop_loss * pip_value + lot * commision_per_lot + lot * spread/10*pip_value = capital_in_risk
-lot * (stop_loss * pip_value + commision_per_lot + spread/10*pip_value) = capital_in_risk
-lot = capital_in_risk / (stop_loss * pip_value + commision_per_lot + spread/10*pip_value)   [OK]
+lot * stop_loss * pip_value + lot * commission_per_lot + lot * spread/10*pip_value = capital_in_risk
+lot * (stop_loss * pip_value + commission_per_lot + spread/10*pip_value) = capital_in_risk
+lot = capital_in_risk / (stop_loss * pip_value + commission_per_lot + spread/10*pip_value)   [OK]
 
 2. calculate spread in SL and TP
 
@@ -164,7 +164,6 @@ def initialize(path):
     if not mt5.initialize(path):
         print("initialize() failed, error code =",mt5.last_error())
         quit()
-
     # if not mt5.initialize(login=account, server=server_live, password=password):
     #     print("initialize() failed, error code =",mt5.last_error())
     #     quit()
@@ -262,7 +261,7 @@ def check_current_symbol_open_positions(symbol="USDJPY"):
     return current_symbol_open_positions
 
 
-# def calculate_lot_size(sl, symbol, risk_ratio=0.05, commision_per_lot=4): #sl is in points, need to convert     # currently @param commision_per_lot is not included in the passed parameters
+# def calculate_lot_size(sl, symbol, risk_ratio=0.05, commission_per_lot=4): #sl is in points, need to convert     # currently @param commission_per_lot is not included in the passed parameters
 #     # pip_value = 1/10**(digits-1)*contract_size?
 #     # EURUSD 1/(10**(5-1)) * 100000 => 10 USD
 #     # USDJPY 1/(10**(3-1)) * 100000 => 1000 JPY
@@ -295,14 +294,14 @@ def check_current_symbol_open_positions(symbol="USDJPY"):
 
 #     # commission is of two operations, open and close. So it's 2 times of what mt5 specification shows (which is only for opening or closing, not opening and closing)
 #     # stop_loss is in pips, not points
-#     # lot_size = (risk_ratio * capital) / (stop_loss * pip_value + commision_per_lot + spread)
-#     # lot_size = capital_in_risk / (stop_loss * pip_value + commision_per_lot)
-#     lot_size = capital_in_risk / (stop_loss * pip_value + commision_per_lot + spread/10*pip_value)
+#     # lot_size = (risk_ratio * capital) / (stop_loss * pip_value + commission_per_lot + spread)
+#     # lot_size = capital_in_risk / (stop_loss * pip_value + commission_per_lot)
+#     lot_size = capital_in_risk / (stop_loss * pip_value + commission_per_lot + spread/10*pip_value)
 
 
 #     print(f"lot size = {lot_size} before rounding")
 #     lot_size = round(lot_size, 2)
-#     print(f"lot size = {lot_size}, commision = {lot_size*commision_per_lot}, commision_per_lot = {commision_per_lot}")
+#     print(f"lot size = {lot_size}, commision = {lot_size*commission_per_lot}, commission_per_lot = {commission_per_lot}")
 
 #     if lot_size < 0.01:
 #         print(f"lot size = {lot_size}. Change to 0.01")
@@ -316,13 +315,119 @@ def check_current_symbol_open_positions(symbol="USDJPY"):
 
 #     return lot_size
 
-def calculate_lot_size(sl, symbol, risk_ratio=0.05, commision_per_lot=4): #sl is in points, need to convert     # currently @param commision_per_lot is not included in the passed parameters
+# def calculate_lot_size(sl, symbol, risk_ratio=0.05, commission_per_lot=4): #sl is in points, need to convert     # currently @param commission_per_lot is not included in the passed parameters
+#     # pip_value = 1/10**(digits-1)*contract_size?
+#     # EURUSD 1/(10**(5-1)) * 100000 => 10 USD
+#     # USDJPY 1/(10**(3-1)) * 100000 => 1000 JPY
+#     # BTCUSD 1/(10**(2-1)) * 1 => 0.1 USD
+
+#     spread = mt5.symbol_info(symbol).spread
+
+#     #convert 
+#     stop_loss = sl/10
+#     print(f"sl pip: {stop_loss}")
+
+#     trade_contract_size = mt5.symbol_info(symbol).trade_contract_size
+#     digits = mt5.symbol_info(symbol).digits
+
+#     # pip_value = 1/10**(digits-1)*trade_contract_size
+#     # # pip_value = 1/10**(digits-1)*trade_contract_size * 
+    
+#     # # hard code not the best way
+#     # # tmp method
+#     # if symbol == "USDJPY":
+#     #     pip_value = pip_value / mt5.symbol_info(symbol).ask
+
+#     """
+#     With a similar contract, the Pip don't have the same value on every currency pairs. the formula is:
+
+#     S: Size of the contract
+#     dPIP: pip definition (0.0001, 0.001...)
+#     XXX: the first currency
+#     YYY: the second currency
+
+#     the value of the Pip for the pair XXX/YYY = S * dPIP * YYY/USD
+#     """
+#     dPIP = 1/10**(digits-1)
+#     YYY = symbol[-3:]
+#     if YYY == "USD":
+#         YYY_USD = "USDUSD"
+#         print(f"YYY_USD: {YYY_USD}")
+#         value_YYY_USD = 1
+#         print(f"value_YYY_USD: {value_YYY_USD}")
+#     else:
+#         YYY_USD = YYY + "USD"
+#         USD_YYY = "USD" + YYY
+#         print(f"YYY_USD: {YYY_USD}")
+#         print(f"USD_YYY: {USD_YYY}")
+#         value_YYY_USD = 1/mt5.symbol_info(USD_YYY).bid
+#         print(f"value_YYY_USD: {value_YYY_USD}")
+
+    
+#     pip_value = trade_contract_size * dPIP * value_YYY_USD
+    
+#     print(f"pip_value: {pip_value}")
+#     print(f"spread: {spread}")
+
+#     capital = mt5.account_info().balance
+#     capital_in_risk = risk_ratio * capital
+
+#     print(f"capital: {capital}")
+#     print(f"capital in risk: {capital_in_risk}") 
+#     # print(f"65% risk capital: {capital_in_risk * 0.65}")
+
+#     # commission is of two operations, open and close. So it's 2 times of what mt5 specification shows (which is only for opening or closing, not opening and closing)
+#     # stop_loss is in pips, not points
+#     # lot_size = (risk_ratio * capital) / (stop_loss * pip_value + commission_per_lot + spread)
+#     # lot_size = capital_in_risk / (stop_loss * pip_value + commission_per_lot)
+#     lot_size = capital_in_risk / (stop_loss * pip_value + commission_per_lot + spread/10*pip_value)
+
+
+#     print(f"lot size = {lot_size} before rounding")
+#     # lot_size = round(lot_size, 2)
+
+
+#     # check if lot size is valid
+#     if lot_size < 0.01:
+#         # # 1. stop the program
+#         # print(f"lot_size_truncated is {lot_size}, less than 0.01, cannot open trade.")
+#         # print(f"Insufficient funds. Cannot open {lot_size} lot.")
+#         # mt5.shutdown()
+#         # quit()
+
+#         # 2. set lot_size to min_lot_limit
+#         print(f"lot_size_truncated {lot_size} is less than min_lot_limit 0.01. \nsetting it to 0.01.")
+#         lot_size = 0.01
+        
+#     elif lot_size > 100:
+#         print(f"lot_size_truncated is {lot_size}. \nsetting it to maximum.")
+#         lot_size = 100
+
+#     # moved it from before to after the above block (lot size 0.01 to 100)
+#     # after we limit lot size to 0.01 to 100, then we are safe to use the str split method.
+#     # conservative lot size
+#     if "." in str(lot_size): # !!!!! FATAL ERROR !!!! if lot_size is displayed in scientific notation, e.g. 1.7977235979606702e-05    this will be converted to 1.79 lot; it should be converted to 0.01
+#         lot_size = float(str(lot_size).split(".")[0] + "." + str(lot_size).split(".")[1][:2])
+#         print("lot size changed to conservative")
+
+#     print(f"lot size = {lot_size}, commision = {lot_size*commission_per_lot}, commission_per_lot = {commission_per_lot}")
+    
+#     # or maybe quit
+#     # if lot_size < 0.01:
+#     #     print("Insufficient funds. Cannot make 0.01 lots.")
+#     #     mt5.shutdown()
+#     #     quit()
+
+#     return lot_size
+
+def calculate_lot_size(sl, symbol, risk_ratio, commission_per_lot): #sl is in points, need to convert     # currently @param commission_per_lot is not included in the passed parameters
     # pip_value = 1/10**(digits-1)*contract_size?
     # EURUSD 1/(10**(5-1)) * 100000 => 10 USD
     # USDJPY 1/(10**(3-1)) * 100000 => 1000 JPY
     # BTCUSD 1/(10**(2-1)) * 1 => 0.1 USD
 
     spread = mt5.symbol_info(symbol).spread
+    # print(f"{mt5.symbol_info(symbol)}") # this does not contain commission info
 
     #convert 
     stop_loss = sl/10
@@ -350,42 +455,90 @@ def calculate_lot_size(sl, symbol, risk_ratio=0.05, commision_per_lot=4): #sl is
     the value of the Pip for the pair XXX/YYY = S * dPIP * YYY/USD
     """
     dPIP = 1/10**(digits-1)
-    YYY = symbol[-3:]
-    if YYY == "USD":
-        YYY_USD = "USDUSD"
-        print(f"YYY_USD: {YYY_USD}")
-        value_YYY_USD = 1
-        print(f"value_YYY_USD: {value_YYY_USD}")
-    else:
-        YYY_USD = YYY + "USD"
-        USD_YYY = "USD" + YYY
-        print(f"YYY_USD: {YYY_USD}")
-        print(f"USD_YYY: {USD_YYY}")
-        value_YYY_USD = 1/mt5.symbol_info(USD_YYY).bid
-        print(f"value_YYY_USD: {value_YYY_USD}")
 
+
+    # if len(symbol) == 6 and "USD" in symbol: # if it's USDXXX or XXXUSD, e.g. USDJPY and EURUSD 
+    if "USD" in symbol:
+        YYY = symbol[3:6]
+        # for example, xauusd.p
+        if YYY == "USD": # XXXUSD
+            YYY_USD = "USDUSD"
+            print(f"YYY_USD: {YYY_USD}")
+            value_YYY_USD = 1
+            print(f"value_YYY_USD: {value_YYY_USD}")
+        else: # USDXXX # e.g. usdjpy.p
+            YYY_USD = YYY + "USD"
+            USD_YYY = "USD" + YYY
+            print(f"YYY_USD: {YYY_USD}")
+            print(f"USD_YYY: {USD_YYY}")
+            value_YYY_USD = 1/mt5.symbol_info(USD_YYY).bid
+            print(f"value_YYY_USD: {value_YYY_USD}")
+
+        pip_value = trade_contract_size * dPIP * value_YYY_USD
+
+    elif symbol == "BITCOIN": # just !!!STAY AWAY!!! from it. the commission is HUGE!
+        value_YYY_USD = 1
+        pip_value = trade_contract_size * dPIP * value_YYY_USD
+        commission_per_lot = mt5.symbol_info(symbol).bid * 0.0015 # as describled in specification on mt5, it's ## 0.15% in USD per lot (min 0.01) ##
+        commission_per_lot = 2 * commission_per_lot # as the commission_per_lot here is the final total commission. but actually commission per lot is calculated each time when you buy or sell, so when you close a trade, it is calculated twice.
+
+    # # error ! because not every broker has symbols like xauusd, for dominion, they have xauusd.p, which is not a length of 6.
+    # # if len(symbol) == 6 and "USD" in symbol: # if it's USDXXX or XXXUSD, e.g. USDJPY and EURUSD 
+    # if len(symbol) == 6:
+
+    #     YYY = symbol[-3:]
+    #     if YYY == "USD": # XXXUSD
+    #         YYY_USD = "USDUSD"
+    #         print(f"YYY_USD: {YYY_USD}")
+    #         value_YYY_USD = 1
+    #         print(f"value_YYY_USD: {value_YYY_USD}")
+    #     else: # USDXXX
+    #         YYY_USD = YYY + "USD"
+    #         USD_YYY = "USD" + YYY
+    #         print(f"YYY_USD: {YYY_USD}")
+    #         print(f"USD_YYY: {USD_YYY}")
+    #         value_YYY_USD = 1/mt5.symbol_info(USD_YYY).bid
+    #         print(f"value_YYY_USD: {value_YYY_USD}")
+
+    #     pip_value = trade_contract_size * dPIP * value_YYY_USD
+
+    # elif symbol == "BITCOIN": # just !!!STAY AWAY!!! from it. the commission is HUGE!
+    #     value_YYY_USD = 1
+    #     pip_value = trade_contract_size * dPIP * value_YYY_USD
+    #     commission_per_lot = mt5.symbol_info(symbol).bid * 0.0015 # as describled in specification on mt5, it's ## 0.15% in USD per lot (min 0.01) ##
+    #     commission_per_lot = 2 * commission_per_lot # as the commission_per_lot here is the final total commission. but actually commission per lot is calculated each time when you buy or sell, so when you close a trade, it is calculated twice. 
     
-    pip_value = trade_contract_size * dPIP * value_YYY_USD
+    
     
     print(f"pip_value: {pip_value}")
     print(f"spread: {spread}")
 
     capital = mt5.account_info().balance
+    # # testing to avoid error
+    # if capital == 0:
+    #     capital = 1000
+    #     print("!!!!!!!!!!!!!!!!!!!!")
+    #     print(f"capital is 0. setting it to {capital} just for testing")
     capital_in_risk = risk_ratio * capital
 
+     # do not print capital, just do the right trades, not focusing on the balance
     print(f"capital: {capital}")
     print(f"capital in risk: {capital_in_risk}") 
     # print(f"65% risk capital: {capital_in_risk * 0.65}")
 
     # commission is of two operations, open and close. So it's 2 times of what mt5 specification shows (which is only for opening or closing, not opening and closing)
     # stop_loss is in pips, not points
-    # lot_size = (risk_ratio * capital) / (stop_loss * pip_value + commision_per_lot + spread)
-    # lot_size = capital_in_risk / (stop_loss * pip_value + commision_per_lot)
-    lot_size = capital_in_risk / (stop_loss * pip_value + commision_per_lot + spread/10*pip_value)
+    # lot_size = (risk_ratio * capital) / (stop_loss * pip_value + commission_per_lot + spread)
+    # lot_size = capital_in_risk / (stop_loss * pip_value + commission_per_lot)
+    lot_size = capital_in_risk / (stop_loss * pip_value + commission_per_lot + spread/10*pip_value)
 
 
-    print(f"lot size = {lot_size} before rounding")
-    # lot_size = round(lot_size, 2)
+    # # need to move it after checking lot_size validity, bc if lot size < 0.01, lot_size is 0.00, and radicalize it will be 0.00, and later calculation will yield errors, like float division by zero
+    # oh, actually the divison by zero error is due to the capital is zero
+    # radical_lot_size = round(lot_size, 2)
+    # print(f"lot size = {lot_size} before rounding")
+    # # lot_size = round(lot_size, 2)
+
 
 
     # check if lot size is valid
@@ -404,28 +557,45 @@ def calculate_lot_size(sl, symbol, risk_ratio=0.05, commision_per_lot=4): #sl is
         print(f"lot_size_truncated is {lot_size}. \nsetting it to maximum.")
         lot_size = 100
 
+    # moved after checking lot_size validity, bc if lot size < 0.01, lot_size is 0.00, and radicalize it will be 0.00, and later calculation will yield errors, like float division by zero
+    radical_lot_size = round(lot_size, 2)
+    print(f"lot size = {lot_size} before rounding")
+
+    
+    # !!!!! FATAL ERROR !!!! if lot_size is displayed in scientific notation, e.g. 1.7977235979606702e-05    this will be converted to 1.79 lot; it should be converted to 0.01
     # moved it from before to after the above block (lot size 0.01 to 100)
     # after we limit lot size to 0.01 to 100, then we are safe to use the str split method.
     # conservative lot size
-    if "." in str(lot_size): # !!!!! FATAL ERROR !!!! if lot_size is displayed in scientific notation, e.g. 1.7977235979606702e-05    this will be converted to 1.79 lot; it should be converted to 0.01
+    if "." in str(lot_size):
         lot_size = float(str(lot_size).split(".")[0] + "." + str(lot_size).split(".")[1][:2])
         print("lot size changed to conservative")
 
-    print(f"lot size = {lot_size}, commision = {lot_size*commision_per_lot}, commision_per_lot = {commision_per_lot}")
+    print(f"lot size = {lot_size}, commision = {lot_size*commission_per_lot}, commission_per_lot = {commission_per_lot}")
     
-    # or maybe quit
-    # if lot_size < 0.01:
-    #     print("Insufficient funds. Cannot make 0.01 lots.")
-    #     mt5.shutdown()
-    #     quit()
-
+    print()
+    print(f"radical lot size: {radical_lot_size}")
+    actual_capital_in_risk_without_fee = radical_lot_size * (stop_loss * pip_value)
+    print(f"actual_capital_in_risk_without_fee: {actual_capital_in_risk_without_fee}, risk percent: {actual_capital_in_risk_without_fee/capital}") 
+    # print(f"actual_capital_in_risk_without_fee: {actual_capital_in_risk_without_fee}, risk percent: {actual_capital_in_risk_without_fee/capital*100:.4f}%")
+    actual_capital_in_risk_with_fee = radical_lot_size * (stop_loss * pip_value + commission_per_lot + spread/10*pip_value)
+    print(f"actual_capital_in_risk_with_fee: {actual_capital_in_risk_with_fee}, risk percent: {actual_capital_in_risk_with_fee/capital} ({actual_capital_in_risk_with_fee/capital*100:.2f}%)")
+    print(f"total fee: {radical_lot_size * (commission_per_lot + spread/10*pip_value)}, where: \n commission: {radical_lot_size * commission_per_lot}\n spread fee: {radical_lot_size * spread/10*pip_value}") 
+    
+    print()
+    print(f"conservative lot size: {lot_size}")
+    actual_capital_in_risk_without_fee = lot_size * (stop_loss * pip_value)
+    print(f"actual_capital_in_risk_without_fee: {actual_capital_in_risk_without_fee}, risk percent: {actual_capital_in_risk_without_fee/capital}") 
+    actual_capital_in_risk_with_fee = lot_size * (stop_loss * pip_value + commission_per_lot + spread/10*pip_value)
+    print(f"actual_capital_in_risk_with_fee: {actual_capital_in_risk_with_fee}, risk percent: {actual_capital_in_risk_with_fee/capital} ({actual_capital_in_risk_with_fee/capital*100:.2f}%)")
+    print(f"total fee: {lot_size * (commission_per_lot + spread/10*pip_value)}, where: \n commission: {lot_size * commission_per_lot}\n spread fee: {lot_size * spread/10*pip_value}") 
+    
     return lot_size
 
 
-def open_request(sl_price, type="buy", sl=100, symbol="USDJPY", type_filling=mt5.ORDER_FILLING_FOK, commision_per_lot=4, risk_ratio=0.05, risk_reward_ratio=2, tp_percent=0.75):
+def open_request(sl_price, type="buy", sl=100, symbol="USDJPY", type_filling=mt5.ORDER_FILLING_IOC, commission_per_lot=0, risk_ratio=0.05, risk_reward_ratio=2, tp_percent=0.75, added_points_to_sl=0, fixed_tp=True, fixed_tp_in_points=0):
     
     # lot = 0.1
-    lot = calculate_lot_size(sl=sl, symbol=symbol, risk_ratio=risk_ratio, commision_per_lot=commision_per_lot) # sl, symbol, risk_ratio=0.05, commision_per_lot=4
+    lot = calculate_lot_size(sl=sl, symbol=symbol, risk_ratio=risk_ratio, commission_per_lot=commission_per_lot) # sl, symbol, risk_ratio=0.05, commission_per_lot=4
 
     point = mt5.symbol_info(symbol).point    #EURUSD point: 1e-05   #BTCUSD point: 0.01 
     #####################
@@ -444,10 +614,21 @@ def open_request(sl_price, type="buy", sl=100, symbol="USDJPY", type_filling=mt5
         # if sell, sl shoult be price -  100* (-point)
         point = -point
     
-    # in points
-    tp = sl / risk_reward_ratio
-    # make tp 75% of theo tp
-    tp = int(tp * tp_percent)
+    if fixed_tp:
+        tp = fixed_tp_in_points
+    else:
+        # in points
+        tp = sl / risk_reward_ratio
+        # make tp 75% of theo tp
+        tp = int(tp * tp_percent)
+
+    # tp is already ideal sl + added_points_to_sl, 
+    # but let's add an additional added_points_to_sl to tp
+    # so that tp is ideal sl + added_points_to_sl + added_points_to_sl
+    # meaning 2 * added_points_to_sl
+    # i.e. tp = tight sl (without one pip below the low) + 1 pip and then + another 1 (to cover the spread and commission fees)
+    # comment this so that tp = sl, not sl + 1 pip
+    tp = tp + added_points_to_sl 
 
     request = {
         "action": mt5.TRADE_ACTION_DEAL,
@@ -589,7 +770,7 @@ points_from_tp = 138572.0 points
 
 def modify_sl_request(symbol, ticket, sl_price, tp_price, type_filling): # MUST set TP, OR TP will be empty, NO TP after modifying SL
     # # lot = 0.1
-    # lot = calculate_lot_size(sl=sl, symbol=symbol, risk_ratio=risk_ratio, commision_per_lot=commision_per_lot) # sl, symbol, risk_ratio=0.05, commision_per_lot=4
+    # lot = calculate_lot_size(sl=sl, symbol=symbol, risk_ratio=risk_ratio, commission_per_lot=commission_per_lot) # sl, symbol, risk_ratio=0.05, commission_per_lot=4
 
     # point = mt5.symbol_info(symbol).point    #EURUSD point: 1e-05   #BTCUSD point: 0.01 
     #####################
@@ -1610,9 +1791,9 @@ def confirm_symbol_n_timeframe(symbol, timeframe):
     return symbol, timeframe
 
 def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body_points_limit, points_gap_between_ideal_n_current_limit,
-                         offset_limit, points_from_tp_limit, commision_per_lot, risk_ratio, risk_reward_ratio, tp_percent, 
+                         offset_limit, points_from_tp_limit, commission_per_lot, risk_ratio, risk_reward_ratio, tp_percent, 
                          check_timeframe_consistency, count_down_after_modifying_sl, check_above_or_below_sma, check_if_trading_time, check_sma_resistance,
-                         pattern_list, pattern_index):
+                         pattern_list, pattern_index, added_points_to_sl, fixed_tp, fixed_tp_in_points, hedge, adx_threshold, is_check_adx_threshold_enabled, is_check_adx_ascending_enabled):
     """
     USDJPY
     [(1658511000, 136.061, 136.191, 135.883, 136.007, 3592, 0, 0)
@@ -1683,6 +1864,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
     symbol_point = mt5.symbol_info(symbol).point
 
     while True:
+        time.sleep(0.1) # this is under the whole while loop. so we check if it's trading time & current open position status every 0.1 second # this is moved to the start of the while loop to fix crazy spinning bars when DT happens BUT continues
         # is_trading_time = True
         if check_if_trading_time: 
             is_trading_time = check_if_its_trading_time()
@@ -1712,7 +1894,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
         if len(current_symbol_open_positions) == 0:
             look_for_trades = True
             look_for_sell_or_buy = "all"
-        elif len(current_symbol_open_positions) == 1 and abs(current_symbol_open_positions[0].time - mt5.symbol_info(symbol).time) > 60:
+        elif hedge == True and len(current_symbol_open_positions) == 1 and abs(current_symbol_open_positions[0].time - mt5.symbol_info(symbol).time) > 60:
                 # and abs(current_symbol_open_positions[0].price_open - get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=1)[0][4]) * multiply_digits > points_gap_between_ideal_n_current_limit):
                 # there are issues on the gap check. 1. on demo we accidentally opened a second sell on H4 after 10 minutes at almost the same price, 1.09024, 1.09043. 2. if price reverses, it can theoretically break at the same price, but in an opposite direction and at a later time. 
                 # Therefore, we abandon this condition. and add another filter: look_for_sell_or_buy
@@ -1726,11 +1908,11 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 look_for_sell_or_buy = "buy"
 
         else:
-            # debug
-            print(f"current_symbol_open_positions[0].time: {current_symbol_open_positions[0].time}")
-            print(f"mt5.symbol_info(symbol).time: {mt5.symbol_info(symbol).time}")
-            print(f"time gap: {abs(current_symbol_open_positions[0].time - mt5.symbol_info(symbol).time)}")
-            print(f"price gap: {abs(current_symbol_open_positions[0].price_open - get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=1)[0][4]) * multiply_digits}")
+            # # debug
+            # print(f"current_symbol_open_positions[0].time: {current_symbol_open_positions[0].time}")
+            # print(f"mt5.symbol_info(symbol).time: {mt5.symbol_info(symbol).time}")
+            # print(f"time gap: {abs(current_symbol_open_positions[0].time - mt5.symbol_info(symbol).time)}")
+            # print(f"price gap: {abs(current_symbol_open_positions[0].price_open - get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=1)[0][4]) * multiply_digits}")
             # debug
             look_for_trades = False
             look_for_sell_or_buy = False
@@ -1882,7 +2064,9 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     # check if timeframes {timeframe}, H1, and H4 are in the same trend.
 
                     if timeframe == mt5.TIMEFRAME_M5:
-                        if above_or_below_sma_m15 == "above" and above_or_below_sma_m30 == "above" and above_or_below_sma_h1 == "above":# and above_or_below_sma_h4 == "above":
+                        #if above_or_below_sma_m15 == "above" and above_or_below_sma_m30 == "above" and above_or_below_sma_h1 == "above":# and above_or_below_sma_h4 == "above": 
+                        # we have to consider when we are CROSSING the sma, sitting at the next running candle right after the key crossing candle which has closed. At that moment the above_or_below_sma_xxx is not above or below, but across_sma_from_below_to_above, but it's actually still above or below
+                        if above_or_below_sma_m15 in {"above", "across_sma_from_below_to_above"} and above_or_below_sma_m30 in {"above", "across_sma_from_below_to_above"} and above_or_below_sma_h1 in {"above", "across_sma_from_below_to_above"}:
                             print("trading on m5. m5 m15 m30 h1 all identical. ok")
                             pass
                         else:
@@ -1890,7 +2074,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                             print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
                             continue
                     elif timeframe == mt5.TIMEFRAME_M15:
-                        if above_or_below_sma_m30 == "above" and above_or_below_sma_h1 == "above":# and above_or_below_sma_h4 == "above":
+                        if above_or_below_sma_m30 in {"above", "across_sma_from_below_to_above"} and above_or_below_sma_h1 in {"above", "across_sma_from_below_to_above"}:# and above_or_below_sma_h4 == "above":
                             print("trading on m15. m15 m30 h1 all identical. ok")
                             pass
                         else:
@@ -1898,7 +2082,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                             print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
                             continue
                     elif timeframe == mt5.TIMEFRAME_M30:
-                        if above_or_below_sma_h1 == "above":# and above_or_below_sma_h4 == "above":
+                        if above_or_below_sma_h1 in {"above", "across_sma_from_below_to_above"}:# and above_or_below_sma_h4 == "above":
                             print("trading on m30. m30 h1 all identical. ok")
                             pass
                         else:
@@ -1922,17 +2106,27 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 #     continue
                 ####### ######## ########
 
+                # make sl one pip larger. because we want the sl price to be one pip below or above dows high and low
+                sl = sl + added_points_to_sl
+                dows_low = (dows_low * multiply_digits - added_points_to_sl) / multiply_digits # 141.350 * 1000 - 10 is 141350 - 10, which is 141340. then 141340 / 1000 is 141.340
+
                 # hard-coded for USD/JPY
                 # if sl >= sl_limit and symbol == "USDJPY": # if sl > 300 points, or 30 pips
                     # print(f"sl is {sl} points. too large. aborted.")
                     # continue
-                if symbol in {"USDJPY", "EURUSD"}:
-                    if sl > sl_limit:  # if sl > 300 points, or 30 pips
-                        print(f"sl is {sl} points. too large, > sl_limit {sl_limit}, aborted.")
-                        continue
-                    elif sl < sl_min:
-                        print(f"sl is {sl} points. too small, < sl_min {sl_min}, aborted.")
-                        continue
+                # if symbol in {"USDJPY", "EURUSD"}:
+                #     if sl > sl_limit:  # if sl > 300 points, or 30 pips
+                #         print(f"sl is {sl} points. too large, > sl_limit {sl_limit}, aborted.")
+                #         continue
+                #     elif sl < sl_min:
+                #         print(f"sl is {sl} points. too small, < sl_min {sl_min}, aborted.")
+                #         continue
+                if sl > sl_limit:  # if sl > 300 points, or 30 pips
+                    print(f"sl is {sl} points. too large, > sl_limit {sl_limit}, aborted.")
+                    continue
+                elif sl < sl_min:
+                    print(f"sl is {sl} points. too small, < sl_min {sl_min}, aborted.")
+                    continue
 
                 # if the price passes two ticks, but far from ideal opening position. (This typically happens when the price moves very fast and hits TP, and the entry and the exit is on the same tick)
                 actual_offset = multiply_digits * abs(current_price - higher_price)
@@ -1973,10 +2167,13 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 # check if SMAs in different timeframes are standing in the way towards our tp
                 if check_sma_resistance:
 
-                    # sl is sl points. need to add it to entry price to get tp price
-                    tp = sl / risk_reward_ratio # tp in points
-                    tp = int(tp * tp_percent)
-                    tp_price = ask_price + tp * symbol_point
+                    if fixed_tp:
+                        tp = fixed_tp_in_points
+                    else:
+                        # sl is sl points. need to add it to entry price to get tp price
+                        tp = sl / risk_reward_ratio # tp in points
+                        tp = int(tp * tp_percent)
+                        tp_price = ask_price + tp * symbol_point
 
                     if timeframe == mt5.TIMEFRAME_M30:
                         if current_price < sma_list_h4[-1] < tp_price:
@@ -2025,20 +2222,21 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
 
 
                 
-                # # this checks if adx is above 25
-                # check_adx_result = check_if_adx_meets_requirements(symbol=symbol, timeframe=timeframe)
-                # if check_adx_result == False:
-                #     continue
-
-                # # this checks if adx is ascending
-                # check_adx_ascending_res = check_adx_ascending(symbol=symbol, timeframe=timeframe, n=3)
-                # if check_adx_ascending_res == False:
-                #     continue
+                if is_check_adx_threshold_enabled:
+                    # this checks if adx is above 25
+                    check_adx_result = check_if_adx_meets_requirements(symbol=symbol, timeframe=timeframe, adx_threshold=adx_threshold)
+                    if check_adx_result == False:
+                        continue
+                if is_check_adx_ascending_enabled:
+                    # this checks if adx is ascending
+                    check_adx_ascending_res = check_adx_ascending(symbol=symbol, timeframe=timeframe, n=2) # previously working setting was that n was set to 3
+                    if check_adx_ascending_res == False:
+                        continue
 
 
                 
 
-                open_request(sl_price=dows_low, type="buy", sl=sl, symbol=symbol, type_filling=type_filling, commision_per_lot=commision_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, tp_percent=tp_percent)
+                open_request(sl_price=dows_low, type="buy", sl=sl, symbol=symbol, type_filling=type_filling, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, tp_percent=tp_percent, added_points_to_sl=added_points_to_sl, fixed_tp=fixed_tp, fixed_tp_in_points=fixed_tp_in_points)
                 # continue # if we opened an order, we go back to the beginning of the loop, we don't sleep
             elif ask_price < lower_price: # if current_price < lower_price and we are below the 25sma
                 # print("sell")
@@ -2071,7 +2269,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 if check_timeframe_consistency:
                     # check timeframe, and make sure higher timeframes' trends are identical with that of the current timeframe
                     if timeframe == mt5.TIMEFRAME_M5:
-                        if above_or_below_sma_m15 == "below" and above_or_below_sma_m30 == "below" and above_or_below_sma_h1 == "below":# and above_or_below_sma_h4 == "above":
+                        if above_or_below_sma_m15 in {"below", "across_sma_from_above_to_below"} and above_or_below_sma_m30 in {"below", "across_sma_from_above_to_below"} and above_or_below_sma_h1 in {"below", "across_sma_from_above_to_below"}:# and above_or_below_sma_h4 == "above":
                             print("trading on m5. m5 m15 m30 h1 all identical. ok")
                             pass
                         else:
@@ -2079,7 +2277,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                             print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
                             continue
                     elif timeframe == mt5.TIMEFRAME_M15:
-                        if above_or_below_sma_m30 == "below" and above_or_below_sma_h1 == "below":# and above_or_below_sma_h4 == "above":
+                        if above_or_below_sma_m30 in {"below", "across_sma_from_above_to_below"} and above_or_below_sma_h1 in {"below", "across_sma_from_above_to_below"}:# and above_or_below_sma_h4 == "above":
                             print("trading on m15. m15 m30 h1 all identical. ok")
                             pass
                         else:
@@ -2087,7 +2285,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                             print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
                             continue
                     elif timeframe == mt5.TIMEFRAME_M30:
-                        if above_or_below_sma_h1 == "below":# and above_or_below_sma_h4 == "above":
+                        if above_or_below_sma_h1 in {"below", "across_sma_from_above_to_below"}:# and above_or_below_sma_h4 == "above":
                             print("trading on m30. m30 h1 all identical. ok")
                             pass
                         else:
@@ -2115,16 +2313,19 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     
                 # sl = higher_price * 100 - current_price * 100  # BTC
                 ##### ##### #####
+
+                # make sl one pip larger. because we want the sl price to be one pip below or above dows high and low
+                sl = sl + added_points_to_sl
+                dows_high = (dows_high * multiply_digits + added_points_to_sl) / multiply_digits # 141.350 * 1000 - 10 is 141350 - 10, which is 141340. then 141340 / 1000 is 141.340
                 
 
                 # check if sl too large too small
-                if symbol in {"USDJPY", "EURUSD"}:
-                    if sl > sl_limit:  # if sl > 300 points, or 30 pips
-                        print(f"sl is {sl} points. too large, > sl_limit {sl_limit}, aborted.")
-                        continue
-                    elif sl < sl_min:
-                        print(f"sl is {sl} points. too small, < sl_min {sl_min}, aborted.")
-                        continue
+                if sl > sl_limit:  # if sl > 300 points, or 30 pips
+                    print(f"sl is {sl} points. too large, > sl_limit {sl_limit}, aborted.")
+                    continue
+                elif sl < sl_min:
+                    print(f"sl is {sl} points. too small, < sl_min {sl_min}, aborted.")
+                    continue
 
                 actual_offset = multiply_digits * abs(ask_price - lower_price)
                 if actual_offset > offset_limit:
@@ -2161,11 +2362,14 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
 
                 # check if SMAs in different timeframes are standing in the way towards our tp
                 if check_sma_resistance:
-
-                    # sl is sl points. need to add it to entry price to get tp price
-                    tp = sl / risk_reward_ratio # tp in points
-                    tp = int(tp * tp_percent)
-                    tp_price = ask_price - tp * symbol_point
+                    
+                    if fixed_tp:
+                        tp = fixed_tp_in_points
+                    else:
+                        # sl is sl points. need to add it to entry price to get tp price
+                        tp = sl / risk_reward_ratio # tp in points
+                        tp = int(tp * tp_percent)
+                        tp_price = ask_price - tp * symbol_point
 
                     if timeframe == mt5.TIMEFRAME_M30:
                         if ask_price > sma_list_h4[-1] > tp_price:
@@ -2213,18 +2417,20 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 #     print("no ascending steps. OK to place order.")
 
 
+                if is_check_adx_threshold_enabled:
+                    # this checks if adx is above 25
+                    check_adx_result = check_if_adx_meets_requirements(symbol=symbol, timeframe=timeframe, adx_threshold=adx_threshold)
+                    if check_adx_result == False:
+                        continue
+                if is_check_adx_ascending_enabled:
+                    # this checks if adx is ascending
+                    check_adx_ascending_res = check_adx_ascending(symbol=symbol, timeframe=timeframe, n=2) # previously working setting was that n was set to 3
+                    if check_adx_ascending_res == False:
+                        continue
 
-                # check_adx_result = check_if_adx_meets_requirements(symbol=symbol, timeframe=timeframe)
-                # if check_adx_result == False:
-                #     continue
-
-                # check_adx_ascending_res = check_adx_ascending(symbol=symbol, timeframe=timeframe, n=3)
-                # if check_adx_ascending_res == False:
-                #     continue
 
 
-
-                open_request(sl_price=dows_high, type="sell", sl=sl, symbol=symbol, type_filling=type_filling, commision_per_lot=commision_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, tp_percent=tp_percent)
+                open_request(sl_price=dows_high, type="sell", sl=sl, symbol=symbol, type_filling=type_filling, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, tp_percent=tp_percent, added_points_to_sl=added_points_to_sl, fixed_tp=fixed_tp, fixed_tp_in_points=fixed_tp_in_points)
                 # continue
 
             # do we need to check retrace or pause when doing across sma trades?
@@ -2267,7 +2473,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 if check_timeframe_consistency:
                     # check timeframe, and make sure higher timeframes' trends are identical with that of the current timeframe
                     if timeframe == mt5.TIMEFRAME_M5:
-                        if above_or_below_sma_m15 == "above" and above_or_below_sma_m30 == "above" and above_or_below_sma_h1 == "above":# and above_or_below_sma_h4 == "above":
+                        if above_or_below_sma_m15 in {"above", "across_sma_from_below_to_above"} and above_or_below_sma_m30 in {"above", "across_sma_from_below_to_above"} and above_or_below_sma_h1 in {"above", "across_sma_from_below_to_above"}:# and above_or_below_sma_h4 == "above":
                             print("trading on m5. m5 m15 m30 h1 all identical. ok")
                             pass
                         else:
@@ -2275,7 +2481,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                             print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
                             continue
                     elif timeframe == mt5.TIMEFRAME_M15:
-                        if above_or_below_sma_m30 == "above" and above_or_below_sma_h1 == "above":# and above_or_below_sma_h4 == "above":
+                        if above_or_below_sma_m30 in {"above", "across_sma_from_below_to_above"} and above_or_below_sma_h1 in {"above", "across_sma_from_below_to_above"}:# and above_or_below_sma_h4 == "above":
                             print("trading on m15. m15 m30 h1 all identical. ok")
                             pass
                         else:
@@ -2283,7 +2489,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                             print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
                             continue
                     elif timeframe == mt5.TIMEFRAME_M30:
-                        if above_or_below_sma_h1 == "above":# and above_or_below_sma_h4 == "above":
+                        if above_or_below_sma_h1 in {"above", "across_sma_from_below_to_above"}:# and above_or_below_sma_h4 == "above":
                             print("trading on m30. m30 h1 all identical. ok")
                             pass
                         else:
@@ -2317,20 +2523,23 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 # sl = current_price * 100 - lower_price * 100  # BTC
                 ##################
 
+                # make sl one pip larger. because we want the sl price to be one pip below or above dows high and low
+                sl = sl + added_points_to_sl
+                dows_low = (dows_low * multiply_digits - added_points_to_sl) / multiply_digits # 141.350 * 1000 - 10 is 141350 - 10, which is 141340. then 141340 / 1000 is 141.340
+
                 # check if it's a large tick that is crossing sma
                 body_points = abs(tick_two_open * multiply_digits - tick_two_close * multiply_digits)
-                if body_points >= body_points_limit and symbol == "USDJPY":
+                if body_points >= body_points_limit:# and symbol == "USDJPY":
                     print(f"the body of the tick crossing sma is {body_points}, exceeding {body_points_limit}, too large. aborted.")
                     continue
 
                 # check if sl too large too small
-                if symbol in {"USDJPY", "EURUSD"}:
-                    if sl > sl_limit:  # if sl > 300 points, or 30 pips
-                        print(f"sl is {sl} points. too large, > sl_limit {sl_limit}, aborted.")
-                        continue
-                    elif sl < sl_min:
-                        print(f"sl is {sl} points. too small, < sl_min {sl_min}, aborted.")
-                        continue
+                if sl > sl_limit:  # if sl > 300 points, or 30 pips
+                    print(f"sl is {sl} points. too large, > sl_limit {sl_limit}, aborted.")
+                    continue
+                elif sl < sl_min:
+                    print(f"sl is {sl} points. too small, < sl_min {sl_min}, aborted.")
+                    continue
 
                 actual_offset = multiply_digits * abs(current_price - tick_two_close)
                 if actual_offset > offset_limit:
@@ -2372,11 +2581,14 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
 
                 # check if SMAs in different timeframes are standing in the way towards our tp
                 if check_sma_resistance:
-
-                    # sl is sl points. need to add it to entry price to get tp price
-                    tp = sl / risk_reward_ratio # tp in points
-                    tp = int(tp * tp_percent)
-                    tp_price = ask_price + tp * symbol_point
+                    
+                    if fixed_tp:
+                        tp = fixed_tp_in_points
+                    else:
+                        # sl is sl points. need to add it to entry price to get tp price
+                        tp = sl / risk_reward_ratio # tp in points
+                        tp = int(tp * tp_percent)
+                        tp_price = ask_price + tp * symbol_point
 
                     if timeframe == mt5.TIMEFRAME_M30:
                         if current_price < sma_list_h4[-1] < tp_price:
@@ -2423,17 +2635,20 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 #     print("no descending steps. OK to place order.")
 
 
-                # check_adx_result = check_if_adx_meets_requirements(symbol=symbol, timeframe=timeframe)
-                # if check_adx_result == False:
-                #     continue
-
-                # check_adx_ascending_res = check_adx_ascending(symbol=symbol, timeframe=timeframe, n=3)
-                # if check_adx_ascending_res == False:
-                #     continue
+                if is_check_adx_threshold_enabled:
+                    # this checks if adx is above 25
+                    check_adx_result = check_if_adx_meets_requirements(symbol=symbol, timeframe=timeframe, adx_threshold=adx_threshold)
+                    if check_adx_result == False:
+                        continue
+                if is_check_adx_ascending_enabled:
+                    # this checks if adx is ascending
+                    check_adx_ascending_res = check_adx_ascending(symbol=symbol, timeframe=timeframe, n=2) # previously working setting was that n was set to 3
+                    if check_adx_ascending_res == False:
+                        continue
                 
 
 
-                open_request(sl_price=dows_low, type="buy", sl=sl, symbol=symbol, type_filling=type_filling, commision_per_lot=commision_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, tp_percent=tp_percent)
+                open_request(sl_price=dows_low, type="buy", sl=sl, symbol=symbol, type_filling=type_filling, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, tp_percent=tp_percent, added_points_to_sl=added_points_to_sl, fixed_tp=fixed_tp, fixed_tp_in_points=fixed_tp_in_points)
                 # continue # if we opened an order, we go back to the beginning of the loop, we don't sleep
             # across_sma_from_above_to_below
             elif ask_price < tick_two_close and above_or_below_sma == "across_sma_from_above_to_below" and tick_two_close < tick_two_open:
@@ -2464,7 +2679,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 if check_timeframe_consistency:
                     # check timeframe, and make sure higher timeframes' trends are identical with that of the current timeframe
                     if timeframe == mt5.TIMEFRAME_M5:
-                        if above_or_below_sma_m15 == "below" and above_or_below_sma_m30 == "below" and above_or_below_sma_h1 == "below":# and above_or_below_sma_h4 == "above":
+                        if above_or_below_sma_m15 in {"below", "across_sma_from_above_to_below"} and above_or_below_sma_m30 in {"below", "across_sma_from_above_to_below"} and above_or_below_sma_h1 in {"below", "across_sma_from_above_to_below"}:# and above_or_below_sma_h4 == "above":
                             print("trading on m5. m5 m15 m30 h1 all identical. ok")
                             pass
                         else:
@@ -2472,7 +2687,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                             print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
                             continue
                     elif timeframe == mt5.TIMEFRAME_M15:
-                        if above_or_below_sma_m30 == "below" and above_or_below_sma_h1 == "below":# and above_or_below_sma_h4 == "above":
+                        if above_or_below_sma_m30 in {"below", "across_sma_from_above_to_below"} and above_or_below_sma_h1 in {"below", "across_sma_from_above_to_below"}:# and above_or_below_sma_h4 == "above":
                             print("trading on m15. m15 m30 h1 all identical. ok")
                             pass
                         else:
@@ -2480,7 +2695,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                             print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
                             continue
                     elif timeframe == mt5.TIMEFRAME_M30:
-                        if above_or_below_sma_h1 == "below":# and above_or_below_sma_h4 == "above":
+                        if above_or_below_sma_h1 in {"below", "across_sma_from_above_to_below"}:# and above_or_below_sma_h4 == "above":
                             print("trading on m30. m30 h1 all identical. ok")
                             pass
                         else:
@@ -2512,22 +2727,24 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     dows_high = tick_one_high
                     sl = dows_high * multiply_digits - ask_price * multiply_digits
                 ##### ###### ######
-
+                
+                # make sl one pip larger. because we want the sl price to be one pip below or above dows high and low
+                sl = sl + added_points_to_sl
+                dows_high = (dows_high * multiply_digits + added_points_to_sl) / multiply_digits # 141.350 * 1000 - 10 is 141350 - 10, which is 141340. then 141340 / 1000 is 141.340
 
                 # check if it's a large tick that is crossing sma
                 body_points = abs(tick_two_open * multiply_digits - tick_two_close * multiply_digits)
-                if body_points >= body_points_limit and symbol == "USDJPY":
+                if body_points >= body_points_limit:# and symbol == "USDJPY":
                     print(f"the body of the tick crossing sma is {body_points}, exceeding {body_points_limit}, too large. aborted.")
                     continue
 
                 # check if sl too large too small
-                if symbol in {"USDJPY", "EURUSD"}:
-                    if sl > sl_limit:  # if sl > 300 points, or 30 pips
-                        print(f"sl is {sl} points. too large, > sl_limit {sl_limit}, aborted.")
-                        continue
-                    elif sl < sl_min:
-                        print(f"sl is {sl} points. too small, < sl_min {sl_min}, aborted.")
-                        continue
+                if sl > sl_limit:  # if sl > 300 points, or 30 pips
+                    print(f"sl is {sl} points. too large, > sl_limit {sl_limit}, aborted.")
+                    continue
+                elif sl < sl_min:
+                    print(f"sl is {sl} points. too small, < sl_min {sl_min}, aborted.")
+                    continue
 
                 actual_offset = multiply_digits * abs(ask_price - tick_two_close)
                 if actual_offset > offset_limit:
@@ -2565,11 +2782,14 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
 
                 # check if SMAs in different timeframes are standing in the way towards our tp
                 if check_sma_resistance:
-
-                    # sl is sl points. need to add it to entry price to get tp price
-                    tp = sl / risk_reward_ratio # tp in points
-                    tp = int(tp * tp_percent)
-                    tp_price = ask_price - tp * symbol_point
+                    
+                    if fixed_tp:
+                        tp = fixed_tp_in_points
+                    else:
+                        # sl is sl points. need to add it to entry price to get tp price
+                        tp = sl / risk_reward_ratio # tp in points
+                        tp = int(tp * tp_percent)
+                        tp_price = ask_price - tp * symbol_point
 
                     if timeframe == mt5.TIMEFRAME_M30:
                         if ask_price > sma_list_h4[-1] > tp_price:
@@ -2614,24 +2834,27 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 # else:
                 #     print("no ascending steps. OK to place order.")
 
-                # check_adx_result = check_if_adx_meets_requirements(symbol=symbol, timeframe=timeframe)
-                # if check_adx_result == False:
-                #     continue
-
-                # check_adx_ascending_res = check_adx_ascending(symbol=symbol, timeframe=timeframe, n=3)
-                # if check_adx_ascending_res == False:
-                #     continue
-
+                
+                if is_check_adx_threshold_enabled:
+                    # this checks if adx is above 25
+                    check_adx_result = check_if_adx_meets_requirements(symbol=symbol, timeframe=timeframe, adx_threshold=adx_threshold)
+                    if check_adx_result == False:
+                        continue
+                if is_check_adx_ascending_enabled:
+                    # this checks if adx is ascending
+                    check_adx_ascending_res = check_adx_ascending(symbol=symbol, timeframe=timeframe, n=2) # previously working setting was that n was set to 3
+                    if check_adx_ascending_res == False:
+                        continue
 
 
 
                 # sl = higher_price * 100 - current_price * 100  # BTC
-                open_request(sl_price=dows_high, type="sell", sl=sl, symbol=symbol, type_filling=type_filling, commision_per_lot=commision_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, tp_percent=tp_percent)
+                open_request(sl_price=dows_high, type="sell", sl=sl, symbol=symbol, type_filling=type_filling, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, tp_percent=tp_percent, added_points_to_sl=added_points_to_sl, fixed_tp=fixed_tp, fixed_tp_in_points=fixed_tp_in_points)
                 # continue
 
             ############### This seems to be not working well on at least M5. So disable it temporarily ###################
 
-        # time.sleep(0.1)
+            # time.sleep(0.1)
         # elif open_positions != 0:
         elif len(current_symbol_open_positions) != 0:
             try:
@@ -2797,7 +3020,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
             # print(f"\t\t\t\t{timer}", end="\r", flush=True) # timer
             
 
-        time.sleep(0.1)
+        # time.sleep(0.1) # this is under the whole while loop. so we check if it's trading time & current open position status every 0.1 second # this is moved to the start of the while loop to fix crazy spinning bars when DT happens BUT continues
         # os.system('cls') # this will clean all the output, not what we expect
         # timer += 0.1 # timer
 
@@ -3009,25 +3232,42 @@ def get_last_n_adx(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15, start_position=
 def check_adx_ascending(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15, n=3):
     is_valid = False
     last_n_adx_list = get_last_n_adx(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=150, n=n)
-    if last_n_adx_list[0] < last_n_adx_list[1] < last_n_adx_list[2]:
-        print(f"ascending adx. OK to place order")
-        is_valid = True
-    else:
-        print(f"NO ascending adx. aborted")
-    print(f"{last_n_adx_list[0]}, {last_n_adx_list[1]}, {last_n_adx_list[2]}")
+
+    # hard code # because we only compare 2 ADXs or at most maybe 3 ADXs
+    if n == 2:
+        if last_n_adx_list[0] < last_n_adx_list [1]:
+            print(f"ascending adx. OK to place order")
+            is_valid = True
+        else:
+            print(f"Latest {n} ascending adxes are not ascending. Aborted")
+
+        print(f"{last_n_adx_list[0]}, {last_n_adx_list[1]}")
+        return is_valid    
     
-    return is_valid
+    elif n == 3:
+        if last_n_adx_list[0] < last_n_adx_list[1] < last_n_adx_list[2]:
+            print(f"ascending adx. OK to place order")
+            is_valid = True
+        else:
+            print(f"Latest {n} ascending adxes are not ascending. Aborted")
+
+        print(f"{last_n_adx_list[0]}, {last_n_adx_list[1]}, {last_n_adx_list[2]}")
+        return is_valid
+
+    else:
+        print(f"n is hard-coded to support only 2 or 3 adx comparison. the input n is {n}, which is unexpected")
+        return is_valid # which is false
 
 
-def check_if_adx_meets_requirements(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15):
+def check_if_adx_meets_requirements(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15, adx_threshold=25):
     current_adx = get_current_adx(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=150)
-    if current_adx >= 25:
+    if current_adx >= adx_threshold:
         print(f"current_adx: {current_adx}")
-        print("adx >= 25. OK to place order.")
+        print(f"adx >= {adx_threshold}. OK to place order.")
         return True
     else:
         print(f"current_adx: {current_adx}")
-        print("adx < 25. aborted.")
+        print(f"adx < {adx_threshold}. aborted.")
         return False
 
 # positions is a set. if no positions, it's an empty set
@@ -3103,11 +3343,16 @@ def select_mt5_path(main_path, practice_path):
     
     return path
 
-def select_account(account_demo, password_demo, server_demo, account_live, password_live, server_live, account, password, server_to_connect):
+def select_account(
+        account_demo, password_demo, server_demo, 
+        account_live, password_live, server_live,
+        saved_last_manually_input_account_id, saved_last_manually_input_account_password, saved_last_manually_input_account_server,
+        account, password, server_to_connect):
     print(f"current account: {account}")
     print(f"1. live account {account_live}")
     print(f"2. demo account {account_demo}")
     print(f"3. manually input account ID")
+    print(f"4. last manually input account ID {saved_last_manually_input_account_id}")
     confirmation = input("Enter to continue, or choose an account: ")
 
     if confirmation == "":
@@ -3133,6 +3378,39 @@ def select_account(account_demo, password_demo, server_demo, account_live, passw
         else:
             server_to_connect = selected_server
 
+        save_account_n_password = input("Save account and password? [Y/N]")
+        if save_account_n_password in ["Y", "y", "Yes", "yes", ""]:
+            path = r"D:\yue\Documents\python_projects\forex\mt5_trading\credential_info.py"
+            with open(path, "r+") as f:
+                f_lines = f.readlines()
+                # print(f_lines)
+                edited_f_lines = []
+                for line in f_lines:
+                    if "saved_last_manually_input_account_id" in line:
+                        line = "saved_last_manually_input_account_id = " + str(account) + "\n"
+                    if "saved_last_manually_input_account_password" in line:
+                        line = "saved_last_manually_input_account_password = '" + str(password) + "'\n"
+                    if "saved_last_manually_input_account_server" in line:
+                        line = "saved_last_manually_input_account_server = '" + server_to_connect + "'\n"
+                    edited_f_lines.append(line)
+                
+
+                # print(edited_f_lines)
+                # After using readlines the pointe is at the end of the file, so if I don't file.seek then I will append the content to the original content
+                # Reposition the file pointer to the beginning of the file
+                f.seek(0)
+                f.writelines(edited_f_lines)
+        else:
+            pass
+        
+
+        
+
+    elif confirmation == '4':
+        account = saved_last_manually_input_account_id
+        password = saved_last_manually_input_account_password
+        server_to_connect = saved_last_manually_input_account_server
+
     return account, password, server_to_connect
 
 def check_if_its_trading_time():
@@ -3140,11 +3418,18 @@ def check_if_its_trading_time():
     current_time_str = current_time.strftime("%H: %M: %S")
     splitted_current_time_str = current_time_str.split(":")
     current_hour = int(splitted_current_time_str[0])
+
+    # temprarily hard coded to convert dublin time to beijing time
+    # current_hour += 8 # only for winter time # we cannot just +8, what if 23:00??
+    # 9.00 - 23.00 beijing time
+    # 1.00 - 15.00 dublin
+
     current_minute = int(splitted_current_time_str[1])
     current_second = int(splitted_current_time_str[2])
     # print(f"current_hour: {current_hour}")
     # print(f"current_minute: {current_minute}")
     # print(f"current_second: {current_second}")
+    # input()
 
     # >>> datetime.now().strftime("%H: %M: %S")         
     # output
@@ -3154,14 +3439,34 @@ def check_if_its_trading_time():
     #     print(f"It's {current_hour}: {current_minute}: {current_second}. We need to follow our plan. Call it a day." )
     #     mt5.shutdown()
     #     quit()
-    # if current_hour < 7 or current_hour == 23:
-    if current_hour < 9 or current_hour == 23:
-        if current_hour == 23: # if 23, the remaining hours will be minus. 23 is equivelant to -1
-            current_hour = -1
+    # hour_to_start_trading = 9
+    # hour_to_end_trading = 23
+    hour_to_start_trading = 1
+    hour_to_end_trading = 15
+    # hour_to_start_trading = 7
+    # hour_to_end_trading = 1
+    # if hour_to_end_trading == 23:
+    #     hour_to_end_trading = -1
+    # if current_hour == 23:
+    #     current_hour = -1
+    # if current_hour < 7 or current_hour == 23: # trading from 7am to 23pm
+    # if current_hour < 8 or current_hour == 23: # trading from 8am to 23pm
+    # if hour_to_end_trading <= current_hour < hour_to_start_trading: # trading from 7am all the way to 1am dawn next day, one hour after London Close # only when current hour is 1,2,3,4,5,6 the condition is true
+    if hour_to_start_trading <= current_hour < hour_to_end_trading:
+        return True
+    else:
+    # if current_hour < 9 or current_hour == 23: # trading from 9am to 23pm
+        # if current_hour == 23: # if 23, the remaining hours will be minus. 23 is equivelant to -1
+        #     current_hour = -1
         # time_remaining_in_minutes = 8*60 - current_hour * 60 - current_minute
-        #total_remaining_seconds = 8 * 60 * 60 - current_hour * 60 * 60 - current_minute * 60 - current_second # starts at 8am
+        # total_remaining_seconds = 8 * 60 * 60 - current_hour * 60 * 60 - current_minute * 60 - current_second # starts at 8am
         # total_remaining_seconds = 7 * 60 * 60 - current_hour * 60 * 60 - current_minute * 60 - current_second # starts at 7am
-        total_remaining_seconds = 9 * 60 * 60 - current_hour * 60 * 60 - current_minute * 60 - current_second # starts at 6am
+        # total_remaining_seconds = 9 * 60 * 60 - current_hour * 60 * 60 - current_minute * 60 - current_second # starts at 9am
+        if current_hour == 0:
+            current_hour = 24
+        hour_to_start_trading += 24
+
+        total_remaining_seconds = hour_to_start_trading * 60 * 60 - current_hour * 60 * 60 - current_minute * 60 - current_second # starts at 7am
         # 5:43 8:00
         # 8*60-5*60-43
         # 7:00 8:00
@@ -3179,8 +3484,8 @@ def check_if_its_trading_time():
             Time remaining: {remaining_hours}: {remaining_minutes}: {remaining_seconds}          ", end="\r", flush=True)
         # time.sleep(0.5)
         return False
-    else:
-        return True
+    # else:
+    #     return True
            
 def check_n_add_zero_b4_1_digit_natural_nums(num):
     if 0 <= num <= 9:
@@ -3196,9 +3501,9 @@ def main():
     practice_path = r"E:\Program Files\MetaTrader 5\terminal64.exe"
 
     # fxtm live
-    account_live = 10557130 # must be int, not string
+    account_live = credential_info.live_account_id # must be int, not string
     password_live = credential_info.password
-    server_live = "ForexTimeFXTM-Live01"
+    server_live = credential_info.server_live
 
     # # IC demo
     # account_demo = 50919338
@@ -3206,26 +3511,33 @@ def main():
     # server_demo = 'ICMarketsSC-Demo'
 
     # fxtm demo
-    account_demo = 160352708 # 160299611 #160265336       ##160260280 # invalid #most used            #160255142 #reverse
+    account_demo = credential_info.demo_account_id # 160299611 #160265336       ##160260280 # invalid #most used            #160255142 #reverse
     password_demo = credential_info.password2
-    server_demo = 'ForexTimeFXTM-Demo01'
+    server_demo = credential_info.server_demo
 
-    # # choose demo account
-    # account = account_demo
-    # password = password_demo
-    # server_to_connect = server_demo
+    # last manually input info
+    saved_last_manually_input_account_id = credential_info.saved_last_manually_input_account_id
+    saved_last_manually_input_account_password = credential_info.saved_last_manually_input_account_password
+    saved_last_manually_input_account_server = credential_info.saved_last_manually_input_account_server
 
-    # choose live account
-    account = account_live
-    password = password_live
-    server_to_connect = server_live
+    # choose demo account
+    account = account_demo
+    password = password_demo
+    server_to_connect = server_demo
+
+    # # choose live account
+    # account = account_live
+    # password = password_live
+    # server_to_connect = server_live
 
     algo_trading_prompt()
     path = select_mt5_path(main_path, practice_path)
     initialize(path)
+
     account, password, server_to_connect = select_account(
         account_demo, password_demo, server_demo, 
-        account_live, password_live, server_live, 
+        account_live, password_live, server_live,
+        saved_last_manually_input_account_id, saved_last_manually_input_account_password, saved_last_manually_input_account_server,
         account, password, server_to_connect)
     
     login(account, password, server_to_connect)
@@ -3235,23 +3547,31 @@ def main():
 
     ################# variables for dt_strategy function ################
     # symbol="BTCUSD"
-    symbol = "USDJPY"
+    # symbol = "XAUUSD"
+    # symbol = "USDJPY.p"
+    symbol = "EURUSD.p"
     # symbol="AUDUSD"
+    type_filling = mt5.ORDER_FILLING_IOC # dominion markets
     # type_filling = mt5.ORDER_FILLING_IOC # IC
-    type_filling = mt5.ORDER_FILLING_FOK # FXTM
+    # type_filling = mt5.ORDER_FILLING_FOK # FXTM
     # timeframe = mt5.TIMEFRAME_M1
     # timeframe = mt5.TIMEFRAME_M5
     # timeframe = mt5.TIMEFRAME_M15
-    # timeframe = mt5.TIMEFRAME_M30
-    timeframe = mt5.TIMEFRAME_H1
+    timeframe = mt5.TIMEFRAME_M30
+    # timeframe = mt5.TIMEFRAME_H1
+
     # sl_limit = 600 #520 #320 #200 # points for USDJPY # 300
     # sl_limit = 270
     # body_points_limit = 160
-    sl_limit = 450 #360
+
+    sl_limit = 650 #360 # for usdjpy previous setting was 650
+    # sl_limit = 800 #350 # setting to 500 for XAUUSD testing
     sl_min = 60
-    body_points_limit = 200
+    # body points limit is used for crossing sma setups, where the crossing candle's body should be be too big.
+    body_points_limit = 300 # setting it to 400 points for XAUUSD testing 
+    # for usdjpy I set it to 200
     
-    points_gap_between_ideal_n_current_limit = 15
+    points_gap_between_ideal_n_current_limit = 30 # setting it to 15points is TOO TIGHT. might not open order on gold as the spread is already 15-20 points
 
     # distance between ideal opening price & current price  
     offset_limit = 20 # 10 # points for USDJPY
@@ -3262,19 +3582,33 @@ def main():
 
     # if we are two pips shy of TP, we will take actions like moving sl to breakeven
     points_from_tp_limit = 30 #20 # points
+    # points_from_tp_limit = 0 # disable
 
+    added_points_to_sl = 10 # add 1 pips to sl, so that the sl is 1 pip below the dow's low
 
     # specify the commision for each lot here and make sure to pass it in the following open_request() functions
     # currently it is not included in the parameters
-    commision_per_lot = 4
+    commission_per_lot = 7 #4
 
-    risk_ratio = 0.01 # 2% 5%
+    risk_ratio = 0.02 # 0.01 # 2% 5%
 
     risk_reward_ratio = 1 #1:3 risk:reward 2:1
     # risk_reward_ratio = 0.33 #1:3 risk:reward 2:1
 
     # to make the actual tp to 75% of theo tp
     tp_percent = 1 # 0.75
+
+    fixed_tp = False
+    fixed_tp_in_points = 50
+
+    # set hedge to true to look for a second postion which is an opposite position if DT break happens during the first positon's drawdown
+    # if we are in a buy, and price goes into drawdown, and DT break occurs, then a sell is opened (if other requirements including consistency, sma, etc) while the first position is left running.
+    hedge = False
+
+    # check if adx is greater or equal than this value, usually set to 20 or 25
+    adx_threshold = 20
+    is_check_adx_threshold_enabled= False
+    is_check_adx_ascending_enabled = False
 
     # # used to print how many seconds it runs, 
     # # also if the program freezes, the print output will not change, which draws us attention
@@ -3283,19 +3617,19 @@ def main():
     count_down_after_modifying_sl = False
     check_if_trading_time = True # there's a func called check_if_its_trading_time # do not use that same name or it will cause issues
     
-    # # enabled
-    # check_timeframe_consistency = True
+    # enabled
+    check_timeframe_consistency = False
+    # enable: buy above sma, sell below sma. disable: buy/sell as long as price goes beyond ticks and other requirements are met.
+    check_above_or_below_sma = True
+    # check if SMAs in different timeframes are standing in the way towards our tp
+    check_sma_resistance = False
+
+    # # disabled
+    # check_timeframe_consistency = False
     # # enable: buy above sma, sell below sma. disable: buy/sell as long as price goes beyond ticks and other requirements are met.
     # check_above_or_below_sma = True
     # # check if SMAs in different timeframes are standing in the way towards our tp
-    # check_sma_resistance = True
-
-    # disabled
-    check_timeframe_consistency = False
-    # enable: buy above sma, sell below sma. disable: buy/sell as long as price goes beyond ticks and other requirements are met.
-    check_above_or_below_sma = False
-    # check if SMAs in different timeframes are standing in the way towards our tp
-    check_sma_resistance = False
+    # check_sma_resistance = False
 
 
     pattern_list = ["\\", "|", "/", "-"]
@@ -3303,6 +3637,7 @@ def main():
 
     ################# end of variables for dt_strategy function ################
 
+    # confirm risk per trade
     print(f"risk_ratio is {risk_ratio}, or {risk_ratio * 100}%")
     risk_ratio_confirm = input("Press enter to confirm or input a new risk_ratio: ") # 0.00001
     if risk_ratio_confirm == '':
@@ -3311,10 +3646,15 @@ def main():
         risk_ratio = float(risk_ratio_confirm)
     print(f"confirmed risk_ratio is {risk_ratio}, or {risk_ratio * 100}%")
 
+    # confirm sl_limit, sl_min, body_points_limit
+    print(f"sl_limit: {sl_limit}")
+    print(f"sl_min: {sl_min}")
+    print(f"body_points_limit: {body_points_limit}")
+
     double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body_points_limit, points_gap_between_ideal_n_current_limit,
-                         offset_limit, points_from_tp_limit, commision_per_lot, risk_ratio, risk_reward_ratio, tp_percent, 
+                         offset_limit, points_from_tp_limit, commission_per_lot, risk_ratio, risk_reward_ratio, tp_percent, 
                          check_timeframe_consistency, count_down_after_modifying_sl, check_above_or_below_sma, check_if_trading_time, check_sma_resistance,
-                         pattern_list, pattern_index)
+                         pattern_list, pattern_index, added_points_to_sl, fixed_tp, fixed_tp_in_points, hedge, adx_threshold, is_check_adx_threshold_enabled, is_check_adx_ascending_enabled)
     # symbol="XAUUSD"
     # point = mt5.symbol_info(symbol).point
     # print(point)
