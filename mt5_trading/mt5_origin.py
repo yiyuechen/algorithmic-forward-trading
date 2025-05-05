@@ -152,7 +152,7 @@ import traceback
 import MetaTrader5 as mt5
 import numpy as np
 import credential_info
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 # import the 'pandas' module for displaying data obtained in the tabular form
 import pandas as pd
@@ -471,7 +471,7 @@ def calculate_lot_size(sl, symbol, risk_ratio, commission_per_lot): #sl is in po
             USD_YYY = "USD" + YYY
             print(f"YYY_USD: {YYY_USD}")
             print(f"USD_YYY: {USD_YYY}")
-            value_YYY_USD = 1/mt5.symbol_info(USD_YYY).bid
+            value_YYY_USD = 1 / mt5.symbol_info(symbol).bid # I wrote usd_yyy as in mt5.symbol_info(USD_YYY).bid previously, which caused issues. because I assume it'd be USDJPY, but it could be ""USDJPY.p". So it's safer to just use "symbol"
             print(f"value_YYY_USD: {value_YYY_USD}")
 
         pip_value = trade_contract_size * dPIP * value_YYY_USD
@@ -592,7 +592,7 @@ def calculate_lot_size(sl, symbol, risk_ratio, commission_per_lot): #sl is in po
     return lot_size
 
 
-def open_request(sl_price, type="buy", sl=100, symbol="USDJPY", type_filling=mt5.ORDER_FILLING_IOC, commission_per_lot=0, risk_ratio=0.05, risk_reward_ratio=2, tp_percent=0.75, added_points_to_sl=0, fixed_tp=True, fixed_tp_in_points=0):
+def open_request(sl_price, type="buy", sl=100, symbol="USDJPY", type_filling=mt5.ORDER_FILLING_IOC, commission_per_lot=0, risk_ratio=0.05, risk_reward_ratio=2, tp_percent=0.75, added_points_to_sl=0, added_points_to_tp=0, fixed_tp=True, fixed_tp_in_points=0):
     
     # lot = 0.1
     lot = calculate_lot_size(sl=sl, symbol=symbol, risk_ratio=risk_ratio, commission_per_lot=commission_per_lot) # sl, symbol, risk_ratio=0.05, commission_per_lot=4
@@ -628,7 +628,10 @@ def open_request(sl_price, type="buy", sl=100, symbol="USDJPY", type_filling=mt5
     # meaning 2 * added_points_to_sl
     # i.e. tp = tight sl (without one pip below the low) + 1 pip and then + another 1 (to cover the spread and commission fees)
     # comment this so that tp = sl, not sl + 1 pip
-    tp = tp + added_points_to_sl 
+
+    # I'd say don't add another 1 pip to the sl (which is strict sl + 1pip), because it does not work well on m30, m15. price is 1 pip shy from tp and then reverses to hit the sl
+    # tp = tp + added_points_to_sl 
+    tp += added_points_to_tp # so we add (maybe) 1 pip to the tp, then the tp is 1 pip larger than sl, making the RR positive, no matter if the sl is the strict sl or sl + 1pip
 
     request = {
         "action": mt5.TRADE_ACTION_DEAL,
@@ -1793,7 +1796,9 @@ def confirm_symbol_n_timeframe(symbol, timeframe):
 def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body_points_limit, points_gap_between_ideal_n_current_limit,
                          offset_limit, points_from_tp_limit, commission_per_lot, risk_ratio, risk_reward_ratio, tp_percent, 
                          check_timeframe_consistency, count_down_after_modifying_sl, check_above_or_below_sma, check_if_trading_time, check_sma_resistance,
-                         pattern_list, pattern_index, added_points_to_sl, fixed_tp, fixed_tp_in_points, hedge, adx_threshold, is_check_adx_threshold_enabled, is_check_adx_ascending_enabled):
+                         pattern_list, pattern_index, added_points_to_sl, added_points_to_tp, fixed_tp, fixed_tp_in_points, hedge, 
+                         adx_threshold, is_check_adx_threshold_enabled, is_check_adx_ascending_enabled,
+                         mt5_time_offset_hours_from_utc):
     """
     USDJPY
     [(1658511000, 136.061, 136.191, 135.883, 136.007, 3592, 0, 0)
@@ -2236,7 +2241,8 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
 
                 
 
-                open_request(sl_price=dows_low, type="buy", sl=sl, symbol=symbol, type_filling=type_filling, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, tp_percent=tp_percent, added_points_to_sl=added_points_to_sl, fixed_tp=fixed_tp, fixed_tp_in_points=fixed_tp_in_points)
+                open_request(sl_price=dows_low, type="buy", sl=sl, symbol=symbol, type_filling=type_filling, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, 
+                             tp_percent=tp_percent, added_points_to_sl=added_points_to_sl, added_points_to_tp=added_points_to_tp, fixed_tp=fixed_tp, fixed_tp_in_points=fixed_tp_in_points)
                 # continue # if we opened an order, we go back to the beginning of the loop, we don't sleep
             elif ask_price < lower_price: # if current_price < lower_price and we are below the 25sma
                 # print("sell")
@@ -2430,7 +2436,8 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
 
 
 
-                open_request(sl_price=dows_high, type="sell", sl=sl, symbol=symbol, type_filling=type_filling, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, tp_percent=tp_percent, added_points_to_sl=added_points_to_sl, fixed_tp=fixed_tp, fixed_tp_in_points=fixed_tp_in_points)
+                open_request(sl_price=dows_high, type="sell", sl=sl, symbol=symbol, type_filling=type_filling, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, 
+                             tp_percent=tp_percent, added_points_to_sl=added_points_to_sl, added_points_to_tp=added_points_to_tp, fixed_tp=fixed_tp, fixed_tp_in_points=fixed_tp_in_points)
                 # continue
 
             # do we need to check retrace or pause when doing across sma trades?
@@ -2648,7 +2655,8 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 
 
 
-                open_request(sl_price=dows_low, type="buy", sl=sl, symbol=symbol, type_filling=type_filling, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, tp_percent=tp_percent, added_points_to_sl=added_points_to_sl, fixed_tp=fixed_tp, fixed_tp_in_points=fixed_tp_in_points)
+                open_request(sl_price=dows_low, type="buy", sl=sl, symbol=symbol, type_filling=type_filling, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, 
+                             tp_percent=tp_percent, added_points_to_sl=added_points_to_sl, added_points_to_tp=added_points_to_tp, fixed_tp=fixed_tp, fixed_tp_in_points=fixed_tp_in_points)
                 # continue # if we opened an order, we go back to the beginning of the loop, we don't sleep
             # across_sma_from_above_to_below
             elif ask_price < tick_two_close and above_or_below_sma == "across_sma_from_above_to_below" and tick_two_close < tick_two_open:
@@ -2849,7 +2857,8 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
 
 
                 # sl = higher_price * 100 - current_price * 100  # BTC
-                open_request(sl_price=dows_high, type="sell", sl=sl, symbol=symbol, type_filling=type_filling, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, tp_percent=tp_percent, added_points_to_sl=added_points_to_sl, fixed_tp=fixed_tp, fixed_tp_in_points=fixed_tp_in_points)
+                open_request(sl_price=dows_high, type="sell", sl=sl, symbol=symbol, type_filling=type_filling, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, 
+                             tp_percent=tp_percent, added_points_to_sl=added_points_to_sl, added_points_to_tp=added_points_to_tp, fixed_tp=fixed_tp, fixed_tp_in_points=fixed_tp_in_points)
                 # continue
 
             ############### This seems to be not working well on at least M5. So disable it temporarily ###################
@@ -2943,6 +2952,81 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 #     modify_sl_request(symbol=symbol, ticket=position.ticket, sl_price=sl_price, tp_price=position.tp, type_filling=type_filling)
                     
                 # print(f"\n\n\npoints_from_tp = {points_from_tp:.2f} points \n\n\n  ")
+
+
+                # try to check how long the position is open
+                # print(position)
+                # 144745 *USDJPY.p* | TradePosition(ticket=355201, time=1746410198, time_msc=1746410198550, time_update=1746410198, time_update_msc=1746410198550, type=0, magic=0, identifier=355201, reason=0, volume=0.01, price_open=144.746, sl=0.0, tp=0.0, price_current=144.745, swap=0.0, profit=-0.01, symbol='USDJPY.p', comment='', external_id='')
+                
+                # The problem with datetime.utcnow() and datetime.utcfromtimestamp() occurs because these return naïve datetimes (i.e. with no timezone attached), and in Python 3, these are interpreted as system-local times. Explicitly specifying a time zone solves the problem.
+                
+                trade_open_time_sec = position.time
+                # Convert trade open time to datetime
+                
+                open_time_broker_local = datetime.fromtimestamp(trade_open_time_sec) # this converts using my local timezone, utc+1, so there is something wrong
+                open_time_broker_local_real_utc = datetime.fromtimestamp(trade_open_time_sec, tz=timezone.utc)
+
+                open_time_utc = convert_mt5_time_to_utc(trade_open_time_sec, mt5_time_offset_hours_from_utc)
+                
+                # Get current UTC time, timezone-aware
+                now_utc = datetime.now(timezone.utc)     
+                # Calculate time difference
+                time_diff = now_utc - open_time_utc
+
+                print(f"trade_open_time_sec: {trade_open_time_sec}")
+                print(f"open_time_broker_local: {open_time_broker_local}")
+                print(f"open_time_broker_local_real_utc: {open_time_broker_local_real_utc}")
+                print(f"open_time_utc: {open_time_utc}")
+                print(f"now_utc: {now_utc}")
+                print(f"time_diff: {time_diff}")
+                print(f"timedelta(minutes=90): {timedelta(minutes=90)}")
+                # exit()
+
+                """
+                    trade_open_time_sec: 1746454779
+                    open_time_broker_local: 2025-05-05 15:19:39
+                    open_time_broker_local_real_utc: 2025-05-05 14:19:39+00:00
+                    open_time_utc: 2025-05-05 12:19:39+00:00
+                    now_utc: 2025-05-05 12:42:13.502437+00:00
+                    time_diff: 0:22:34.502437
+                    timedelta(minutes=90): 1:30:00
+                """
+
+                # Check if within 90 minutes
+                if time_diff <= timedelta(minutes=90):
+                    print("✅ Trade was opened within the last 90 minutes.")
+                else:
+                    print("❌ Trade is older than 90 minutes.")
+                    # check if the profits is at least 0.3 R
+                    # points_from_tp = abs(position.price_current - position.tp) * position_symbol_multiply_digits
+                    points_full_tp = abs(position.price_open - position.tp) * position_symbol_multiply_digits
+                    if points_from_tp <= points_full_tp:
+                        # at least in profits
+                        points_earned_so_far = abs(position.price_open - position.price_current) * position_symbol_multiply_digits
+                        earned_proportion = points_earned_so_far / points_full_tp
+                        earned_proportion_threshold = 0 # set this to 0.3 (30% of total tp) or any proportion # I feel 30% might be too strict, which might close winners
+                        if earned_proportion >= earned_proportion_threshold: 
+                            print(f"still in profits: {points_earned_so_far} points")
+                            close_trade = False
+                        else:
+                            print(f"doesn't meet earned_proportion_threshold: {earned_proportion_threshold} of total tp. closing...") # if the "if condition is if earned_proportion >= 0" then this can never be run
+                            close_trade = True
+                    else:
+                        # how come points_from_tp is greater than the full tp? that means we are in drawdown
+                        points_earned_so_far = -abs(position.price_open - position.price_current) * position_symbol_multiply_digits
+                        print(f"in drawdown. closing now...")
+                        close_trade = True
+
+                    if close_trade:
+                        order_type = position.type
+                        if order_type == 0:
+                            close_type = 1
+                        elif order_type == 1:
+                            close_type = 0
+
+                        close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)
+
+
 
                 # set sl to price_open, this should work for higher timeframes
                 if points_from_tp <= points_from_tp_limit:
@@ -3039,6 +3123,44 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
 
     #     # sl = rates[1][2] * 1000 - current_price * 1000
     #     # open_request("sell", sl)
+
+
+
+
+def get_mt5_server_offset_hours():
+    positions = mt5.positions_get()
+    if not positions:
+        raise RuntimeError("No open positions found — can't determine server time offset.")
+
+    # Take the time of the first position
+    trade_time = positions[0].time  # this is in server time (Unix timestamp)
+    trade_time_dt = datetime.fromtimestamp(trade_time)
+
+    # Get current UTC time
+    utc_now = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    # this is WRONG!!!! because we are comparing the trade opening time (in the broker's timezone) with the CURRENT utc time, which is not neccessarily the trade open utc time.
+    # we should compare the trade open time (broker time) with the trade open time (utc time)
+
+    # Compute the offset between server time and UTC
+    offset = trade_time_dt - utc_now
+    offset_hours = round(offset.total_seconds() / 3600)
+
+    print(f"trade_time_dt: {trade_time_dt}")
+    print(f"utc_now: {utc_now}")
+    print(f"offset seconds: {offset}")
+    print(f"offset hours: {offset_hours}")
+    
+    return offset_hours
+
+
+
+def convert_mt5_time_to_utc(trade_open_time_sec, mt5_time_offset_hours_from_utc):
+    # offset_hours = get_mt5_server_offset_hours()
+    offset_hours = mt5_time_offset_hours_from_utc
+    open_time_utc = datetime.fromtimestamp(trade_open_time_sec, tz=timezone.utc) - timedelta(hours=offset_hours)
+    return open_time_utc.replace(tzinfo=timezone.utc)
+
 
 
 def find_dows_low(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, tick_count=30):
@@ -3441,8 +3563,14 @@ def check_if_its_trading_time():
     #     quit()
     # hour_to_start_trading = 9
     # hour_to_end_trading = 23
-    hour_to_start_trading = 1
-    hour_to_end_trading = 15
+
+    # normal time
+    # hour_to_start_trading = 1 # 1 (utc+0) = 9 (utc+8)
+    # hour_to_end_trading = 15 # 15(utc+0) = 23 (utc+8)
+    # summer time
+    hour_to_start_trading = 2 # 2am (utc+1) equal to 2+7=9am (utc+8)
+    hour_to_end_trading = 16 # utc+1 => 16+7 = 23 (utc+8)
+
     # hour_to_start_trading = 7
     # hour_to_end_trading = 1
     # if hour_to_end_trading == 23:
@@ -3462,9 +3590,11 @@ def check_if_its_trading_time():
         # total_remaining_seconds = 8 * 60 * 60 - current_hour * 60 * 60 - current_minute * 60 - current_second # starts at 8am
         # total_remaining_seconds = 7 * 60 * 60 - current_hour * 60 * 60 - current_minute * 60 - current_second # starts at 7am
         # total_remaining_seconds = 9 * 60 * 60 - current_hour * 60 * 60 - current_minute * 60 - current_second # starts at 9am
-        if current_hour == 0:
-            current_hour = 24
-        hour_to_start_trading += 24
+
+        # I don't think this is necessary. it seems redundant
+        # if current_hour == 0:
+        #     current_hour = 24
+        #     hour_to_start_trading += 24 # this is absolutely wrong here# seems i wanted to put it in the if currenthour == 0 if condition. but even that is incorrect, or redundant
 
         total_remaining_seconds = hour_to_start_trading * 60 * 60 - current_hour * 60 * 60 - current_minute * 60 - current_second # starts at 7am
         # 5:43 8:00
@@ -3546,10 +3676,11 @@ def main():
     # historical_deals()
 
     ################# variables for dt_strategy function ################
+    mt5_time_offset_hours_from_utc = 3 # 3 means that mt5 is utc+3
     # symbol="BTCUSD"
     # symbol = "XAUUSD"
-    # symbol = "USDJPY.p"
-    symbol = "EURUSD.p"
+    symbol = "USDJPY.p"
+    # symbol = "EURUSD.p"
     # symbol="AUDUSD"
     type_filling = mt5.ORDER_FILLING_IOC # dominion markets
     # type_filling = mt5.ORDER_FILLING_IOC # IC
@@ -3564,9 +3695,9 @@ def main():
     # sl_limit = 270
     # body_points_limit = 160
 
-    sl_limit = 650 #360 # for usdjpy previous setting was 650
+    sl_limit = 300 #360 # for usdjpy previous setting was 650
     # sl_limit = 800 #350 # setting to 500 for XAUUSD testing
-    sl_min = 60
+    sl_min = 100
     # body points limit is used for crossing sma setups, where the crossing candle's body should be be too big.
     body_points_limit = 300 # setting it to 400 points for XAUUSD testing 
     # for usdjpy I set it to 200
@@ -3584,13 +3715,15 @@ def main():
     points_from_tp_limit = 30 #20 # points
     # points_from_tp_limit = 0 # disable
 
-    added_points_to_sl = 10 # add 1 pips to sl, so that the sl is 1 pip below the dow's low
+    added_points_to_sl = 0 # don't add any pips. set to 10 to add 1 pip # add 1 pips to sl, so that the sl is 1 pip below the dow's low, but I find it usually not beneficial, because if it is a winner then usually price won't go that back
+
+    added_points_to_tp = 10 # add 1 pip to tp, so that the tp can cover the fees including commission and spreads, making the risk reward ratio to be 1 to 1
 
     # specify the commision for each lot here and make sure to pass it in the following open_request() functions
     # currently it is not included in the parameters
     commission_per_lot = 7 #4
 
-    risk_ratio = 0.02 # 0.01 # 2% 5%
+    risk_ratio = 0.05 # 0.01 # 2% 5%
 
     risk_reward_ratio = 1 #1:3 risk:reward 2:1
     # risk_reward_ratio = 0.33 #1:3 risk:reward 2:1
@@ -3654,7 +3787,9 @@ def main():
     double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body_points_limit, points_gap_between_ideal_n_current_limit,
                          offset_limit, points_from_tp_limit, commission_per_lot, risk_ratio, risk_reward_ratio, tp_percent, 
                          check_timeframe_consistency, count_down_after_modifying_sl, check_above_or_below_sma, check_if_trading_time, check_sma_resistance,
-                         pattern_list, pattern_index, added_points_to_sl, fixed_tp, fixed_tp_in_points, hedge, adx_threshold, is_check_adx_threshold_enabled, is_check_adx_ascending_enabled)
+                         pattern_list, pattern_index, added_points_to_sl, added_points_to_tp, fixed_tp, fixed_tp_in_points, hedge, 
+                         adx_threshold, is_check_adx_threshold_enabled, is_check_adx_ascending_enabled,
+                         mt5_time_offset_hours_from_utc)
     # symbol="XAUUSD"
     # point = mt5.symbol_info(symbol).point
     # print(point)
