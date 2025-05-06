@@ -156,6 +156,9 @@ from datetime import datetime, timedelta, timezone
 
 # import the 'pandas' module for displaying data obtained in the tabular form
 import pandas as pd
+
+import get_news_data
+
 pd.set_option('display.max_columns', 500) # number of columns to be displayed
 pd.set_option('display.width', 1500)      # max table width to display
 
@@ -1798,7 +1801,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                          check_timeframe_consistency, count_down_after_modifying_sl, check_above_or_below_sma, check_if_trading_time, check_sma_resistance,
                          pattern_list, pattern_index, added_points_to_sl, added_points_to_tp, fixed_tp, fixed_tp_in_points, hedge, 
                          adx_threshold, is_check_adx_threshold_enabled, is_check_adx_ascending_enabled,
-                         mt5_time_offset_hours_from_utc):
+                         mt5_time_offset_hours_from_utc, news_df):
     """
     USDJPY
     [(1658511000, 136.061, 136.191, 135.883, 136.007, 3592, 0, 0)
@@ -2238,7 +2241,12 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     if check_adx_ascending_res == False:
                         continue
 
+                
 
+                # check if there is news ahead or if we are after news
+                news_exist = get_news_data.trades_blocker_to_avoid_news(60, news_df)
+                if news_exist:
+                    continue
                 
 
                 open_request(sl_price=dows_low, type="buy", sl=sl, symbol=symbol, type_filling=type_filling, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, 
@@ -2434,6 +2442,11 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     if check_adx_ascending_res == False:
                         continue
 
+
+                # check if there is news ahead or if we are after news
+                news_exist = get_news_data.trades_blocker_to_avoid_news(60, news_df)
+                if news_exist:
+                    continue
 
 
                 open_request(sl_price=dows_high, type="sell", sl=sl, symbol=symbol, type_filling=type_filling, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, 
@@ -2653,6 +2666,11 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     if check_adx_ascending_res == False:
                         continue
                 
+                
+                # check if there is news ahead or if we are after news
+                news_exist = get_news_data.trades_blocker_to_avoid_news(60, news_df)
+                if news_exist:
+                    continue
 
 
                 open_request(sl_price=dows_low, type="buy", sl=sl, symbol=symbol, type_filling=type_filling, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, 
@@ -2855,6 +2873,11 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                         continue
 
 
+                # check if there is news ahead or if we are after news
+                news_exist = get_news_data.trades_blocker_to_avoid_news(60, news_df)
+                if news_exist:
+                    continue
+
 
                 # sl = higher_price * 100 - current_price * 100  # BTC
                 open_request(sl_price=dows_high, type="sell", sl=sl, symbol=symbol, type_filling=type_filling, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, 
@@ -3004,7 +3027,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                         # at least in profits
                         points_earned_so_far = abs(position.price_open - position.price_current) * position_symbol_multiply_digits
                         earned_proportion = points_earned_so_far / points_full_tp
-                        earned_proportion_threshold = 0 # set this to 0.3 (30% of total tp) or any proportion # I feel 30% might be too strict, which might close winners
+                        earned_proportion_threshold = 0.2 # set this to 0.3 (30% of total tp) or any proportion # I feel 30% might be too strict, which might close winners
                         if earned_proportion >= earned_proportion_threshold: 
                             print(f"still in profits: {points_earned_so_far} points")
                             close_trade = False
@@ -3026,6 +3049,16 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
 
                         close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)
 
+
+                # check if there is news in just 1 minute. This happens when we open a trade and it's be more than 60 minutes, and the trade is still open. Now the news is ahead. We should close it 1 minute before news
+                news_exist = get_news_data.trades_blocker_to_avoid_news(1, news_df)
+                if news_exist:
+                    order_type = position.type
+                    if order_type == 0:
+                        close_type = 1
+                    elif order_type == 1:
+                        close_type = 0
+                    close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)
 
 
                 # set sl to price_open, this should work for higher timeframes
@@ -3126,7 +3159,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
 
 
 
-
+# this function is functioning WRONG and is not used
 def get_mt5_server_offset_hours():
     positions = mt5.positions_get()
     if not positions:
@@ -3596,6 +3629,11 @@ def check_if_its_trading_time():
         #     current_hour = 24
         #     hour_to_start_trading += 24 # this is absolutely wrong here# seems i wanted to put it in the if currenthour == 0 if condition. but even that is incorrect, or redundant
 
+        # i guess it should be:
+        if current_hour >= hour_to_end_trading:
+            hour_to_start_trading += 24
+
+
         total_remaining_seconds = hour_to_start_trading * 60 * 60 - current_hour * 60 * 60 - current_minute * 60 - current_second # starts at 7am
         # 5:43 8:00
         # 8*60-5*60-43
@@ -3784,12 +3822,19 @@ def main():
     print(f"sl_min: {sl_min}")
     print(f"body_points_limit: {body_points_limit}")
 
+
+    # get news dataframe
+    news_df = get_news_data.get_news_df()
+    print(news_df)
+
+
+
     double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body_points_limit, points_gap_between_ideal_n_current_limit,
                          offset_limit, points_from_tp_limit, commission_per_lot, risk_ratio, risk_reward_ratio, tp_percent, 
                          check_timeframe_consistency, count_down_after_modifying_sl, check_above_or_below_sma, check_if_trading_time, check_sma_resistance,
                          pattern_list, pattern_index, added_points_to_sl, added_points_to_tp, fixed_tp, fixed_tp_in_points, hedge, 
                          adx_threshold, is_check_adx_threshold_enabled, is_check_adx_ascending_enabled,
-                         mt5_time_offset_hours_from_utc)
+                         mt5_time_offset_hours_from_utc, news_df)
     # symbol="XAUUSD"
     # point = mt5.symbol_info(symbol).point
     # print(point)
