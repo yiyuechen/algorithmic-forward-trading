@@ -1117,7 +1117,7 @@ def check_retrace_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_p
         if rates[i]['low'] < rates[i-1]['low'] and rates[i]['low'] < rates[i-2]['low']:
             # rates[i] forms retracement
             retracement = True
-            print(f"rates[{i}] forms retracement. rates[{i}]['low'] is {rates[i]['low']} func check_retrace_when_long()")
+            # print(f"rates[{i}] forms retracement. rates[{i}]['low'] is {rates[i]['low']} func check_retrace_when_long()")
     
     # print(f"retracement: {retracement}", end="\r")
     return retracement
@@ -1129,8 +1129,8 @@ def check_pause_when_long(symbol="BTCUSD", timeframe="TIMEFRAME_M5", start_posit
     for i in range(2, tick_count):
         if rates[i]['high'] < rates[i-2]['high'] and rates[i-1]['high'] < rates[i-2]['high']:
             pause = True
-            print(f"rates[{i}] and rates[{i-1}] forms pause, both of their high are lower than that of rates[{i-2}]. func check_pause_when_long")
-            print(f"rates[{i}]['high']: {rates[i]['high']}, rates[{i-1}]['high]: {rates[i-1]['high']}, rates[{i-2}]['high]: {rates[i-2]['high']}")
+            # print(f"rates[{i}] and rates[{i-1}] forms pause, both of their high are lower than that of rates[{i-2}]. func check_pause_when_long")
+            # print(f"rates[{i}]['high']: {rates[i]['high']}, rates[{i-1}]['high]: {rates[i-1]['high']}, rates[{i-2}]['high]: {rates[i-2]['high']}")
 
     # print(f"pause: {pause}", end="\r")
     return pause
@@ -1142,7 +1142,7 @@ def check_retrace_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_
     for i in range(2, tick_count):
         if rates[i]['high'] > rates[i-1]['high'] and rates[i]['high'] > rates[i-2]['high']:
             retracement = True
-            print(f"rates[{i}] forms retracement. rates[{i}]['high'] is {rates[i]['high']} func check_retrace_when_short()")
+            # print(f"rates[{i}] forms retracement. rates[{i}]['high'] is {rates[i]['high']} func check_retrace_when_short()")
 
     # print(f"retracement: {retracement}", end="\r")
     return retracement
@@ -1154,8 +1154,8 @@ def check_pause_when_short(symbol="BTCUSD", timeframe="TIMEFRAME_M5", start_posi
     for i in range(2, tick_count):
         if rates[i]['low'] > rates[i-2]['low'] and rates[i-1]['low'] > rates[i-2]['low']:
             pause = True
-            print(f"rates[{i}] and rates[{i-1}] forms pause, both of their lows are higher than that of rates[{i-2}]. func check_pause_when_short")
-            print(f"rates[{i}]['low']: {rates[i]['low']}, rates[{i-1}]['low']: {rates[i-1]['low']}, rates[{i-2}['low']: {rates[i-2]['low']}")
+            # print(f"rates[{i}] and rates[{i-1}] forms pause, both of their lows are higher than that of rates[{i-2}]. func check_pause_when_short")
+            # print(f"rates[{i}]['low']: {rates[i]['low']}, rates[{i-1}]['low']: {rates[i-1]['low']}, rates[{i-2}['low']: {rates[i-2]['low']}")
 
     # print(f"pause: {pause}", end="\r")
     return pause
@@ -1175,7 +1175,7 @@ def find_which_tick_breaks_after_retracement_when_long(symbol="BTCUSD", timefram
         if rates[i]['low'] < rates[i-1]['low'] and rates[i]['low'] < rates[i-2]['low']:
             # rates[i] forms retracement
             # retracement = True
-            print(f"rates[{i}] forms retracement. rates[{i}]['low'] is {rates[i]['low']} func find_which_tick_breaks_after_retracement_when_long")
+            # print(f"rates[{i}] forms retracement. rates[{i}]['low'] is {rates[i]['low']} func find_which_tick_breaks_after_retracement_when_long")
             index_of_retracement_rates.append(i)
     
     if index_of_retracement_rates:
@@ -1212,7 +1212,7 @@ def find_which_tick_breaks_after_retracement_when_short(symbol="BTCUSD", timefra
 
     for i in range(2, tick_count):
         if rates[i]['high'] > rates[i-1]['high'] and rates[i]['high'] > rates[i-2]['high']:
-            print(f"rates[{i}] forms retracement. rates[{i}]['high'] is {rates[i]['high']} func find_which_tick_breaks_after_retracement_when_short")      
+            # print(f"rates[{i}] forms retracement. rates[{i}]['high'] is {rates[i]['high']} func find_which_tick_breaks_after_retracement_when_short")      
             index_of_retracement_rates.append(i)
 
     if index_of_retracement_rates:
@@ -1801,7 +1801,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                          check_timeframe_consistency, count_down_after_modifying_sl, check_above_or_below_sma, check_if_trading_time, check_sma_resistance,
                          pattern_list, pattern_index, added_points_to_sl, added_points_to_tp, fixed_tp, fixed_tp_in_points, hedge, 
                          adx_threshold, is_check_adx_threshold_enabled, is_check_adx_ascending_enabled,
-                         mt5_time_offset_hours_from_utc, news_df):
+                         broker_time_offset_hours_from_utc, news_df, trade_state):
     """
     USDJPY
     [(1658511000, 136.061, 136.191, 135.883, 136.007, 3592, 0, 0)
@@ -2106,7 +2106,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 if dows_low:
                     sl = current_price * multiply_digits - dows_low * multiply_digits
                 else:
-                    print(f"didn't find dows_low in previous 4 ticks, will get last 3 ticks and use the first tick's low as dow's low")
+                    # print(f"didn't find dows_low in previous 4 ticks, will get last 3 ticks and use the first tick's low as dow's low")
                     dows_low = tick_one_low
                     sl = current_price * multiply_digits - dows_low * multiply_digits
                 # else:
@@ -2130,16 +2130,16 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 #         print(f"sl is {sl} points. too small, < sl_min {sl_min}, aborted.")
                 #         continue
                 if sl > sl_limit:  # if sl > 300 points, or 30 pips
-                    print(f"sl is {sl} points. too large, > sl_limit {sl_limit}, aborted.")
+                    # print(f"sl is {sl} points. too large, > sl_limit {sl_limit}, aborted.")
                     continue
                 elif sl < sl_min:
-                    print(f"sl is {sl} points. too small, < sl_min {sl_min}, aborted.")
+                    # print(f"sl is {sl} points. too small, < sl_min {sl_min}, aborted.")
                     continue
 
                 # if the price passes two ticks, but far from ideal opening position. (This typically happens when the price moves very fast and hits TP, and the entry and the exit is on the same tick)
                 actual_offset = multiply_digits * abs(current_price - higher_price)
                 if actual_offset > offset_limit:
-                    print(f"actual_offset is {actual_offset}, exceeded offset_limit: {offset_limit} points. not opening tickets")
+                    # print(f"actual_offset is {actual_offset}, exceeded offset_limit: {offset_limit} points. not opening tickets")
                     continue
                 
                 retrace_or_pause_when_long = check_retrace_or_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5)
@@ -2151,24 +2151,24 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     # find the ideal entry price, which is the recent first breaking price, and compare it with the current price. if it's not the same, it indicates that we are not in the earliest ideal entry
                     index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_retracement_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
                     if index_of_tick_that_breaks: # this seems redundant as it should always be true
-                        print(f"index of tick that breaks after_retracement_when_long: {index_of_tick_that_breaks}")
-                        print(f"ideal entry price: {ideal_entry_price}")
-                        print(f"current bid price: {current_price}")
+                        # print(f"index of tick that breaks after_retracement_when_long: {index_of_tick_that_breaks}")
+                        # print(f"ideal entry price: {ideal_entry_price}")
+                        # print(f"current bid price: {current_price}")
                         points_gap_between_ideal_n_current = abs((current_price - ideal_entry_price) * multiply_digits)
-                        print(f"points gap between ideal entry price and current bid price: {points_gap_between_ideal_n_current}")
+                        # print(f"points gap between ideal entry price and current bid price: {points_gap_between_ideal_n_current}")
                         if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
-                            print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
+                            # print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
                             continue
                 elif retrace_or_pause_when_long == 'pause_when_long':
                     index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
                     if index_of_tick_that_breaks: # this seems redundant as it should always be true
-                        print(f"index of tick that breaks after_pause_when_long: {index_of_tick_that_breaks}")
-                        print(f"ideal entry price: {ideal_entry_price}")
-                        print(f"current bid price: {current_price}")
+                        # print(f"index of tick that breaks after_pause_when_long: {index_of_tick_that_breaks}")
+                        # print(f"ideal entry price: {ideal_entry_price}")
+                        # print(f"current bid price: {current_price}")
                         points_gap_between_ideal_n_current = abs((current_price - ideal_entry_price) * multiply_digits)
-                        print(f"points gap between ideal entry price and current bid price: {points_gap_between_ideal_n_current}")
+                        # print(f"points gap between ideal entry price and current bid price: {points_gap_between_ideal_n_current}")
                         if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
-                            print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
+                            # print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
                             continue
 
 
@@ -2321,7 +2321,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 if dows_high:
                     sl = dows_high * multiply_digits - ask_price * multiply_digits
                 else:
-                    print(f"didn't find dows_high in previous 4 ticks, will get last 3 ticks and use the first tick's high as dow's high")
+                    # print(f"didn't find dows_high in previous 4 ticks, will get last 3 ticks and use the first tick's high as dow's high")
                     dows_high = tick_one_high
                     sl = dows_high * multiply_digits - ask_price * multiply_digits
                     
@@ -2335,15 +2335,15 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
 
                 # check if sl too large too small
                 if sl > sl_limit:  # if sl > 300 points, or 30 pips
-                    print(f"sl is {sl} points. too large, > sl_limit {sl_limit}, aborted.")
+                    # print(f"sl is {sl} points. too large, > sl_limit {sl_limit}, aborted.")
                     continue
                 elif sl < sl_min:
-                    print(f"sl is {sl} points. too small, < sl_min {sl_min}, aborted.")
+                    # print(f"sl is {sl} points. too small, < sl_min {sl_min}, aborted.")
                     continue
 
                 actual_offset = multiply_digits * abs(ask_price - lower_price)
                 if actual_offset > offset_limit:
-                    print(f"actual_offset is {actual_offset}, exceeded offset_limit: {offset_limit} points. not opening tickets")
+                    # print(f"actual_offset is {actual_offset}, exceeded offset_limit: {offset_limit} points. not opening tickets")
                     continue
                 
                 retrace_or_pause_when_short = check_retrace_or_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5)
@@ -2352,24 +2352,24 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 elif retrace_or_pause_when_short in {'retrace_n_pause_when_short', 'ratrace_when_short'}:
                     index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_retracement_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
                     if index_of_tick_that_breaks:
-                        print(f"tick_breaks_after_retracement_when_short: {index_of_tick_that_breaks}")
-                        print(f"ideal entry price: {ideal_entry_price}")
-                        print(f"current ask price: {ask_price}")
+                        # print(f"tick_breaks_after_retracement_when_short: {index_of_tick_that_breaks}")
+                        # print(f"ideal entry price: {ideal_entry_price}")
+                        # print(f"current ask price: {ask_price}")
                         points_gap_between_ideal_n_current = abs((ask_price - ideal_entry_price) * multiply_digits)
-                        print(f"points gap between ideal entry price and current ask price: {points_gap_between_ideal_n_current}")
+                        # print(f"points gap between ideal entry price and current ask price: {points_gap_between_ideal_n_current}")
                         if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
-                            print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
+                            # print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
                             continue
                 elif retrace_or_pause_when_short == 'pause_when_short':
                     index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
                     if index_of_tick_that_breaks:
-                        print(f"tick_breaks_after_pause_when_short: {index_of_tick_that_breaks}")
-                        print(f"ideal entry price: {ideal_entry_price}")
-                        print(f"current ask price: {ask_price}")
+                        # print(f"tick_breaks_after_pause_when_short: {index_of_tick_that_breaks}")
+                        # print(f"ideal entry price: {ideal_entry_price}")
+                        # print(f"current ask price: {ask_price}")
                         points_gap_between_ideal_n_current = abs((ask_price - ideal_entry_price) * multiply_digits)
-                        print(f"points gap between ideal entry price and current ask price: {points_gap_between_ideal_n_current}")
+                        # print(f"points gap between ideal entry price and current ask price: {points_gap_between_ideal_n_current}")
                         if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
-                            print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
+                            # print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
                             continue
 
 
@@ -2537,7 +2537,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 if dows_low:
                     sl = current_price * multiply_digits - dows_low * multiply_digits
                 else:
-                    print(f"didn't find dows_low in previous 5 ticks, will get last 3 ticks and use the first tick's low as dow's low")
+                    # print(f"didn't find dows_low in previous 5 ticks, will get last 3 ticks and use the first tick's low as dow's low")
                     dows_low = tick_one_low
                     sl = current_price * multiply_digits - dows_low * multiply_digits
                 # sl = current_price * 100 - lower_price * 100  # BTC
@@ -2555,15 +2555,15 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
 
                 # check if sl too large too small
                 if sl > sl_limit:  # if sl > 300 points, or 30 pips
-                    print(f"sl is {sl} points. too large, > sl_limit {sl_limit}, aborted.")
+                    # print(f"sl is {sl} points. too large, > sl_limit {sl_limit}, aborted.")
                     continue
                 elif sl < sl_min:
-                    print(f"sl is {sl} points. too small, < sl_min {sl_min}, aborted.")
+                    # print(f"sl is {sl} points. too small, < sl_min {sl_min}, aborted.")
                     continue
 
                 actual_offset = multiply_digits * abs(current_price - tick_two_close)
                 if actual_offset > offset_limit:
-                    print(f"actual_offset is {actual_offset}, exceeded offset_limit: {offset_limit} points. not opening tickets")
+                    # print(f"actual_offset is {actual_offset}, exceeded offset_limit: {offset_limit} points. not opening tickets")
                     continue
                 
 
@@ -2577,24 +2577,24 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     # find the ideal entry price, which is the recent first breaking price, and compare it with the current price. if it's not the same, it indicates that we are not in the earliest ideal entry
                     index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_retracement_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
                     if index_of_tick_that_breaks: # this seems redundant as it should always be true
-                        print(f"index of tick that breaks after_retracement_when_long: {index_of_tick_that_breaks}")
-                        print(f"ideal entry price: {ideal_entry_price}")
-                        print(f"current bid price: {current_price}")
+                        # print(f"index of tick that breaks after_retracement_when_long: {index_of_tick_that_breaks}")
+                        # print(f"ideal entry price: {ideal_entry_price}")
+                        # print(f"current bid price: {current_price}")
                         points_gap_between_ideal_n_current = abs((current_price - ideal_entry_price) * multiply_digits)
-                        print(f"points gap between ideal entry price and current bid price: {points_gap_between_ideal_n_current}")
+                        # print(f"points gap between ideal entry price and current bid price: {points_gap_between_ideal_n_current}")
                         if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
-                            print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
+                            # print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
                             continue
                 elif retrace_or_pause_when_long == 'pause_when_long':
                     index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
                     if index_of_tick_that_breaks: # this seems redundant as it should always be true
-                        print(f"index of tick that breaks after_pause_when_long: {index_of_tick_that_breaks}")
-                        print(f"ideal entry price: {ideal_entry_price}")
-                        print(f"current bid price: {current_price}")
+                        # print(f"index of tick that breaks after_pause_when_long: {index_of_tick_that_breaks}")
+                        # print(f"ideal entry price: {ideal_entry_price}")
+                        # print(f"current bid price: {current_price}")
                         points_gap_between_ideal_n_current = abs((current_price - ideal_entry_price) * multiply_digits)
-                        print(f"points gap between ideal entry price and current bid price: {points_gap_between_ideal_n_current}")
+                        # print(f"points gap between ideal entry price and current bid price: {points_gap_between_ideal_n_current}")
                         if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
-                            print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
+                            # print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
                             continue
 
 
@@ -2749,7 +2749,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 if dows_high:
                     sl = dows_high * multiply_digits - ask_price * multiply_digits
                 else:
-                    print(f"didn't find dows_high in previous 5 ticks, will get last 3 ticks and use the first tick's high as dow's high")
+                    # print(f"didn't find dows_high in previous 5 ticks, will get last 3 ticks and use the first tick's high as dow's high")
                     dows_high = tick_one_high
                     sl = dows_high * multiply_digits - ask_price * multiply_digits
                 ##### ###### ######
@@ -2766,15 +2766,15 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
 
                 # check if sl too large too small
                 if sl > sl_limit:  # if sl > 300 points, or 30 pips
-                    print(f"sl is {sl} points. too large, > sl_limit {sl_limit}, aborted.")
+                    # print(f"sl is {sl} points. too large, > sl_limit {sl_limit}, aborted.")
                     continue
                 elif sl < sl_min:
-                    print(f"sl is {sl} points. too small, < sl_min {sl_min}, aborted.")
+                    # print(f"sl is {sl} points. too small, < sl_min {sl_min}, aborted.")
                     continue
 
                 actual_offset = multiply_digits * abs(ask_price - tick_two_close)
                 if actual_offset > offset_limit:
-                    print(f"actual_offset is {actual_offset}, exceeded offset_limit: {offset_limit} points. not opening tickets")
+                    # print(f"actual_offset is {actual_offset}, exceeded offset_limit: {offset_limit} points. not opening tickets")
                     continue
                 
 
@@ -2785,24 +2785,24 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 elif retrace_or_pause_when_short in {'retrace_n_pause_when_short', 'ratrace_when_short'}:
                     index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_retracement_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
                     if index_of_tick_that_breaks:
-                        print(f"tick_breaks_after_retracement_when_short: {index_of_tick_that_breaks}")
-                        print(f"ideal entry price: {ideal_entry_price}")
-                        print(f"current ask price: {ask_price}")
+                        # print(f"tick_breaks_after_retracement_when_short: {index_of_tick_that_breaks}")
+                        # print(f"ideal entry price: {ideal_entry_price}")
+                        # print(f"current ask price: {ask_price}")
                         points_gap_between_ideal_n_current = abs((ask_price - ideal_entry_price) * multiply_digits)
-                        print(f"points gap between ideal entry price and current ask price: {points_gap_between_ideal_n_current}")
+                        # print(f"points gap between ideal entry price and current ask price: {points_gap_between_ideal_n_current}")
                         if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
-                            print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
+                            # print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
                             continue
                 elif retrace_or_pause_when_short == 'pause_when_short':
                     index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
                     if index_of_tick_that_breaks:
-                        print(f"tick_breaks_after_pause_when_short: {index_of_tick_that_breaks}")
-                        print(f"ideal entry price: {ideal_entry_price}")
-                        print(f"current ask price: {ask_price}")
+                        # print(f"tick_breaks_after_pause_when_short: {index_of_tick_that_breaks}")
+                        # print(f"ideal entry price: {ideal_entry_price}")
+                        # print(f"current ask price: {ask_price}")
                         points_gap_between_ideal_n_current = abs((ask_price - ideal_entry_price) * multiply_digits)
-                        print(f"points gap between ideal entry price and current ask price: {points_gap_between_ideal_n_current}")
+                        # print(f"points gap between ideal entry price and current ask price: {points_gap_between_ideal_n_current}")
                         if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
-                            print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
+                            # print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
                             continue
 
 
@@ -2906,6 +2906,9 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 print(f"error info: {exception}")
                 continue
 
+
+
+
             for position in positions:
                 # need to calc new !!!multiply_digits!!!
                 # because if we choose usdjpy but there's an eurusd order opended on another script 
@@ -2915,10 +2918,53 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 position_symbol_multiply_digits = 10 ** position_symbol_digits
 
 
+                ###### some variables that we need later on #####
+                points_from_tp = abs(position.price_current - position.tp) * position_symbol_multiply_digits
+                points_from_entry = abs(position.price_current - position.price_open) * position_symbol_multiply_digits
+
+                points_full_tp = abs(position.price_open - position.tp) * position_symbol_multiply_digits
+                points_full_sl = abs(position.price_open - position.sl) * position_symbol_multiply_digits
+                ###### some variables that we need later on #####
+
+
+                ###################### realize max positive excursion (MPE) #################### # I checked but this is not an industry used name
+                # definition: the highest floating points this trade has ever had
+                # this is the initialization of the trade with mpe information
+                if position.ticket not in trade_state:
+                    trade_state[position.ticket] = {
+                        'mpe': 0, # in points
+                        'be_moved'  : False,
+                        'checked_first_candle_close': False,
+                        'checked_60': False,
+                        'checked_90': False
+                    }
+                # with the initialization, we can say that we have this "position.ticket" in the trade_state dict
+
+                # now let's update the mpe information
+                current_ticket_state = trade_state[position.ticket]
+                # points_from_tp = abs(position.price_current - position.tp) * position_symbol_multiply_digits
+                # points_full_tp = abs(position.price_open - position.tp) * position_symbol_multiply_digits
+
+                if points_from_tp <= points_full_tp:
+                    # in profits or at least BE
+                    points_earned_so_far = abs(position.price_open - position.price_current) * position_symbol_multiply_digits
+                    # compare it with the current mpe
+                    if points_earned_so_far > current_ticket_state['mpe']:
+                        current_ticket_state['mpe'] = points_earned_so_far # python mutable objects (lists, dicts) any name bound to them refers to the same underlying object
+
+                else:
+                    # in drawdown
+                    # no need to update the MPE
+                    pass
+            
+                ###################### realize max positive excursion (MPE) ####################
+
+
+
                 # how far away are we from tp
                 # digits = mt5.symbol_info(symbol).digits
                 # multiply_digits = 10 ** digits
-                points_from_tp = abs(position.price_current - position.tp) * position_symbol_multiply_digits
+                # points_from_tp = abs(position.price_current - position.tp) * position_symbol_multiply_digits
                 # print(f"points_from_tp = {round(points_from_tp, 2)} points   ", end="\r", flush=True)
                 # print(f"points_from_tp = {points_from_tp:.2f} points  *{position.symbol}* ", end="\r", flush=True) # working one
                 print(f"{points_from_tp:.0f} *{position.symbol}* |", end=" ", flush=True)
@@ -2984,25 +3030,25 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 # The problem with datetime.utcnow() and datetime.utcfromtimestamp() occurs because these return naïve datetimes (i.e. with no timezone attached), and in Python 3, these are interpreted as system-local times. Explicitly specifying a time zone solves the problem.
                 
                 trade_open_time_sec = position.time
-                # Convert trade open time to datetime
                 
+                # Convert trade open time to datetime
                 open_time_broker_local = datetime.fromtimestamp(trade_open_time_sec) # this converts using my local timezone, utc+1, so there is something wrong
                 open_time_broker_local_real_utc = datetime.fromtimestamp(trade_open_time_sec, tz=timezone.utc)
 
-                open_time_utc = convert_mt5_time_to_utc(trade_open_time_sec, mt5_time_offset_hours_from_utc)
+                open_time_utc = convert_mt5_time_to_utc(trade_open_time_sec, broker_time_offset_hours_from_utc)
                 
                 # Get current UTC time, timezone-aware
                 now_utc = datetime.now(timezone.utc)     
                 # Calculate time difference
                 time_diff = now_utc - open_time_utc
 
-                print(f"trade_open_time_sec: {trade_open_time_sec}")
-                print(f"open_time_broker_local: {open_time_broker_local}")
-                print(f"open_time_broker_local_real_utc: {open_time_broker_local_real_utc}")
-                print(f"open_time_utc: {open_time_utc}")
-                print(f"now_utc: {now_utc}")
-                print(f"time_diff: {time_diff}")
-                print(f"timedelta(minutes=90): {timedelta(minutes=90)}")
+                # print(f"trade_open_time_sec: {trade_open_time_sec}")
+                # print(f"open_time_broker_local: {open_time_broker_local}")
+                # print(f"open_time_broker_local_real_utc: {open_time_broker_local_real_utc}")
+                # print(f"open_time_utc: {open_time_utc}")
+                # print(f"now_utc: {now_utc}")
+                # print(f"time_diff: {time_diff}")
+                # print(f"timedelta(minutes=90): {timedelta(minutes=90)}")
                 # exit()
 
                 """
@@ -3015,21 +3061,106 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     timedelta(minutes=90): 1:30:00
                 """
 
-                # Check if within 90 minutes
-                if time_diff <= timedelta(minutes=90):
-                    print("✅ Trade was opened within the last 90 minutes.")
+                # 1. SPIKE in 30 mins (previously the rule is 5 minutes)
+                # check spike in drawndown >= 75% of full stop loss within 5 minutes CONTINUOUSLY
+                if time_diff <= timedelta(minutes=30): # instead of 5, let's do 30
+                    if points_from_tp <= points_full_tp:
+                        # the points between the current price and the take profit price is <= than the points of the full take profit
+                        # this means we are in profits or BE
+                        pass
+                    else:
+                        # we are in drawdown
+                        drawdown_proportion = points_from_entry / points_full_sl # e.g 150 / 200 points = 0.75
+                        if drawdown_proportion >= 0.75:
+                            order_type = position.type
+                            if order_type == 0:
+                                close_type = 1
+                            elif order_type == 1:
+                                close_type = 0
+                            print("Risk Management 1")
+                            close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)                            
+
+                # 2. FIRST CANDLE CLOSE healthcheck
+                # check right when the first bar is closed, how can I do this? this is tricky
+                # I can write down the open time, and calculate how many minutes are left before the entry candle closes, calling it minutes_left_for_entry_close, and then minutes_left_for_entry_close += 30
+                
+                if 0 <= open_time_utc.minute < 30:
+                    entry_bar_start_time = open_time_utc.replace(minute=0, second=0, microsecond=0)
                 else:
-                    print("❌ Trade is older than 90 minutes.")
+                    # minute has to be 30 to 59 in this condition
+                    entry_bar_start_time = open_time_utc.replace(minute=30, second=0, microsecond=0)
+                
+                first_full_bar_start = entry_bar_start_time + timedelta(minutes=30)
+                first_full_bar_close = first_full_bar_start + timedelta(minutes=30)
+
+                # if the current time is later than the first bar close time and the first_candle_close is not checked
+                if now_utc >= first_full_bar_close and not current_ticket_state['checked_first_candle_close']: 
+                    current_ticket_state['checked_first_candle_close'] = True
+                    if points_from_tp <= points_full_tp:
+                        # in profits or BE
+                        # do nothing
+                        pass
+                    else:
+                        drawdown_proportion = points_from_entry / points_full_sl
+                        if drawdown_proportion >= 0.3:
+                            order_type = position.type
+                            if order_type == 0:
+                                close_type = 1
+                            elif order_type == 1:
+                                close_type = 0
+                            print("Risk Management 2")
+                            close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)    
+
+                # 3. 60 Min no-momentum check (runs ONCE at 60 minutes)
+                if time_diff >= timedelta(minutes=60) and not current_ticket_state['checked_60']:
+                    current_ticket_state['checked_60'] = True
+                    
+                    mpe_proportion = current_ticket_state['mpe'] / points_full_tp
+
+                    if points_from_tp <= points_full_tp:
+                        current_risk_exceeds_limit = False
+                    else:
+                        drawdown_proportion = points_from_entry / points_full_sl
+                        if drawdown_proportion >= 0.2:
+                            current_risk_exceeds_limit = True
+                        else:
+                            current_risk_exceeds_limit = False
+
+
+                    # if BOTH are met, that is, mpe_proportion smaller than 30% AND current floating loss is greater than 20% of the stop loss
+                    # initially we wanted both to be true, later I think "or" might be better
+                    # if mpe_proportion < 0.3 and current_risk_exceeds_limit:
+                    if mpe_proportion < 0.3 or current_risk_exceeds_limit:
+                        order_type = position.type
+                        if order_type == 0:
+                            close_type = 1
+                        elif order_type == 1:
+                            close_type = 0
+                        print("Risk Management 3")
+                        close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)
+                    
+
+                # Check *AT* 90 minutes, if price has ever reached 30% profits, If so, then leave it. If not, close the trade.
+                # ... #
+
+                # 4. 90 minutes check
+                # Check if within 90 minutes
+                # Check constantly if after 90 minutes, we are above 20% profits, if at any time price retraces below 20% proits, close IMMEDIATELY. So this is CONTINUOUS checking
+                # if time_diff <= timedelta(minutes=90):
+                #     print("✅ Trade was opened within the last 90 minutes.")
+                # else:
+                #     print("❌ Trade is older than 90 minutes.")
+                if time_diff > timedelta(minutes=90):
                     # check if the profits is at least 0.3 R
                     # points_from_tp = abs(position.price_current - position.tp) * position_symbol_multiply_digits
-                    points_full_tp = abs(position.price_open - position.tp) * position_symbol_multiply_digits
+                    # points_full_tp = abs(position.price_open - position.tp) * position_symbol_multiply_digits
                     if points_from_tp <= points_full_tp:
                         # at least in profits
                         points_earned_so_far = abs(position.price_open - position.price_current) * position_symbol_multiply_digits
                         earned_proportion = points_earned_so_far / points_full_tp
                         earned_proportion_threshold = 0.2 # set this to 0.3 (30% of total tp) or any proportion # I feel 30% might be too strict, which might close winners
                         if earned_proportion >= earned_proportion_threshold: 
-                            print(f"still in profits: {points_earned_so_far} points")
+                            # print(f"still in profits: {points_earned_so_far} points")
                             close_trade = False
                         else:
                             print(f"doesn't meet earned_proportion_threshold: {earned_proportion_threshold} of total tp. closing...") # if the "if condition is if earned_proportion >= 0" then this can never be run
@@ -3047,6 +3178,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                         elif order_type == 1:
                             close_type = 0
 
+                        print("Risk Management 4")
                         close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)
 
 
@@ -3058,11 +3190,15 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                         close_type = 1
                     elif order_type == 1:
                         close_type = 0
+                    print("Closing trades due to news within 1 minute...")
                     close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)
 
 
+                # points_from_tp_limit is static. here it's tried dynamic based on the 0.1 risk to get tp
+                dynamic_points_from_tp_limit = points_full_tp * 0.1
+
                 # set sl to price_open, this should work for higher timeframes
-                if points_from_tp <= points_from_tp_limit:
+                if points_from_tp <= dynamic_points_from_tp_limit: # points_from_tp_limit
                     if position.sl != position.price_open:
                         modify_sl_request(symbol=position.symbol, ticket=position.ticket, sl_price=position.price_open, tp_price=position.tp, type_filling=type_filling)
 
@@ -3188,9 +3324,9 @@ def get_mt5_server_offset_hours():
 
 
 
-def convert_mt5_time_to_utc(trade_open_time_sec, mt5_time_offset_hours_from_utc):
+def convert_mt5_time_to_utc(trade_open_time_sec, broker_time_offset_hours_from_utc):
     # offset_hours = get_mt5_server_offset_hours()
-    offset_hours = mt5_time_offset_hours_from_utc
+    offset_hours = broker_time_offset_hours_from_utc
     open_time_utc = datetime.fromtimestamp(trade_open_time_sec, tz=timezone.utc) - timedelta(hours=offset_hours)
     return open_time_utc.replace(tzinfo=timezone.utc)
 
@@ -3463,6 +3599,7 @@ def check_symbol_info(symbol):
         # # display the terminal data 'as is'    
         # print(symbol_info)
         # print("EURJPY: spread =",symbol_info.spread,"  digits =",symbol_info.digits)
+
         print(f"{symbol}: spread = {symbol_info.spread}, digits = {symbol_info.digits}")
         
         # display symbol properties as a list
@@ -3650,6 +3787,19 @@ def check_if_its_trading_time():
 
         print(f"                                                            It's {current_time_str}. \
             Time remaining: {remaining_hours}: {remaining_minutes}: {remaining_seconds}          ", end="\r", flush=True)
+        
+        # At the beginning of the trading time, it will print "00: 00: 01", which is not pretty. Because when it's trading time, we don't have the chance to go into this condition to print.
+        # Trying to resolve this.
+        if remaining_hours == 0 and remaining_minutes == 0 and remaining_seconds == 1:
+            time.sleep(1) # wait for 1 sec to simulate
+            remaining_seconds = 0
+            # get current time again, now it should be sharp trading start time
+            current_time = datetime.now()
+            current_time_str = current_time.strftime("%H: %M: %S")
+            print(f"                                                            It's {current_time_str}. \
+                Time remaining: {remaining_hours}: {remaining_minutes}: {remaining_seconds}          ", end="\n", flush=True) # with end="\n", we go to the next line, so that when we exit the checking trading func, we can print info in the next line
+            print("Happy trading!")
+
         # time.sleep(0.5)
         return False
     # else:
@@ -3661,6 +3811,23 @@ def check_n_add_zero_b4_1_digit_natural_nums(num):
         return num # str
     else: # IMPORTANT!!! if it's not 1 digit num, we need to return it as is
         return num # int
+
+def get_broker_time_n_utc_time_offset(symbol):
+    symbol_info = check_symbol_info(symbol)    
+    broker_time = datetime.fromtimestamp(symbol_info.time, tz=timezone.utc)
+    utc_time = datetime.now(timezone.utc)
+    time_offset = broker_time - utc_time
+    hours_offset = time_offset.total_seconds() / 3600
+    hours_offset_int = round(hours_offset)
+
+    print(f"broker_time: {broker_time}")
+    print(f"utc_time: {utc_time}")
+    print(f"time_offset: {time_offset}")
+    print(f"hours_offset: {hours_offset}")
+    print(f"hours_offset_int: {hours_offset_int}")
+
+    return hours_offset_int
+
 
 def main():
     # # main mt5 path
@@ -3714,7 +3881,7 @@ def main():
     # historical_deals()
 
     ################# variables for dt_strategy function ################
-    mt5_time_offset_hours_from_utc = 3 # 3 means that mt5 is utc+3
+    # broker_time_offset_hours_from_utc = 3 # 3 means that mt5 is utc+3
     # symbol="BTCUSD"
     # symbol = "XAUUSD"
     symbol = "USDJPY.p"
@@ -3728,6 +3895,10 @@ def main():
     # timeframe = mt5.TIMEFRAME_M15
     timeframe = mt5.TIMEFRAME_M30
     # timeframe = mt5.TIMEFRAME_H1
+
+    broker_time_offset_hours_from_utc = get_broker_time_n_utc_time_offset(symbol)
+    print(f"broker_time_offset_hours_from_utc: {broker_time_offset_hours_from_utc}")
+    print()
 
     # sl_limit = 600 #520 #320 #200 # points for USDJPY # 300
     # sl_limit = 270
@@ -3825,8 +3996,19 @@ def main():
 
     # get news dataframe
     news_df = get_news_data.get_news_df()
+    # print all news_df
+    print("All news this week:")
     print(news_df)
+    print("Important news related to USDJPY:")
+    # print only high impact and USD JPY related
+    print(news_df[
+        (news_df["importance"].isin(["High"])) &
+        (news_df["country"].isin(["USD", "JPY"]))
+    ])
+    
 
+    # A place to store per-trade state ---
+    trade_state = {}   # key = ticket, value = dict(entry_price, stop_dist, mpe, start_time)
 
 
     double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body_points_limit, points_gap_between_ideal_n_current_limit,
@@ -3834,7 +4016,7 @@ def main():
                          check_timeframe_consistency, count_down_after_modifying_sl, check_above_or_below_sma, check_if_trading_time, check_sma_resistance,
                          pattern_list, pattern_index, added_points_to_sl, added_points_to_tp, fixed_tp, fixed_tp_in_points, hedge, 
                          adx_threshold, is_check_adx_threshold_enabled, is_check_adx_ascending_enabled,
-                         mt5_time_offset_hours_from_utc, news_df)
+                         broker_time_offset_hours_from_utc, news_df, trade_state)
     # symbol="XAUUSD"
     # point = mt5.symbol_info(symbol).point
     # print(point)
