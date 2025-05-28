@@ -2582,30 +2582,32 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
 
                 if retrace_or_pause_when_long is False:
                     continue
-
-                elif retrace_or_pause_when_long in {'retrace_n_pause_when_long', 'ratrace_when_long'}:
-                    # find the ideal entry price, which is the recent first breaking price, and compare it with the current price. if it's not the same, it indicates that we are not in the earliest ideal entry
-                    index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_retracement_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
-                    if index_of_tick_that_breaks: # this seems redundant as it should always be true
-                        # print(f"index of tick that breaks after_retracement_when_long: {index_of_tick_that_breaks}")
-                        # print(f"ideal entry price: {ideal_entry_price}")
-                        # print(f"current bid price: {current_price}")
-                        points_gap_between_ideal_n_current = abs((current_price - ideal_entry_price) * multiply_digits)
-                        # print(f"points gap between ideal entry price and current bid price: {points_gap_between_ideal_n_current}")
-                        if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
-                            # print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
-                            continue
-                elif retrace_or_pause_when_long == 'pause_when_long':
-                    index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
-                    if index_of_tick_that_breaks: # this seems redundant as it should always be true
-                        # print(f"index of tick that breaks after_pause_when_long: {index_of_tick_that_breaks}")
-                        # print(f"ideal entry price: {ideal_entry_price}")
-                        # print(f"current bid price: {current_price}")
-                        points_gap_between_ideal_n_current = abs((current_price - ideal_entry_price) * multiply_digits)
-                        # print(f"points gap between ideal entry price and current bid price: {points_gap_between_ideal_n_current}")
-                        if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
-                            # print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
-                            continue
+                
+                ########### I imagine we do not need to check the current price with the ideal entry (the breaking price) for crossing sma scenarios. because there should normally be a visible gap, making it "not ideal"##############
+                ########### if we compare this, we will rarely open a trade (unless in rare conditions where the next canlde after the breaking candle is still around the ideal price) ##########
+                # elif retrace_or_pause_when_long in {'retrace_n_pause_when_long', 'ratrace_when_long'}:
+                #     # find the ideal entry price, which is the recent first breaking price, and compare it with the current price. if it's not the same, it indicates that we are not in the earliest ideal entry
+                #     index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_retracement_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
+                #     if index_of_tick_that_breaks: # this seems redundant as it should always be true
+                #         # print(f"index of tick that breaks after_retracement_when_long: {index_of_tick_that_breaks}")
+                #         # print(f"ideal entry price: {ideal_entry_price}")
+                #         # print(f"current bid price: {current_price}")
+                #         points_gap_between_ideal_n_current = abs((current_price - ideal_entry_price) * multiply_digits)
+                #         # print(f"points gap between ideal entry price and current bid price: {points_gap_between_ideal_n_current}")
+                #         if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
+                #             # print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
+                #             continue
+                # elif retrace_or_pause_when_long == 'pause_when_long':
+                #     index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
+                #     if index_of_tick_that_breaks: # this seems redundant as it should always be true
+                #         # print(f"index of tick that breaks after_pause_when_long: {index_of_tick_that_breaks}")
+                #         # print(f"ideal entry price: {ideal_entry_price}")
+                #         # print(f"current bid price: {current_price}")
+                #         points_gap_between_ideal_n_current = abs((current_price - ideal_entry_price) * multiply_digits)
+                #         # print(f"points gap between ideal entry price and current bid price: {points_gap_between_ideal_n_current}")
+                #         if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
+                #             # print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
+                #             continue
 
 
 
@@ -2789,31 +2791,33 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 
 
 
+                ########### I imagine we do not need to check the current price with the ideal entry (the breaking price) for crossing sma scenarios. because there should normally be a visible gap, making it "not ideal"##############
+                ########### if we compare this, we will rarely open a trade (unless in rare conditions where the next canlde after the breaking candle is still around the ideal price) ##########
                 retrace_or_pause_when_short = check_retrace_or_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5)
                 if retrace_or_pause_when_short is False:
                     continue
-                elif retrace_or_pause_when_short in {'retrace_n_pause_when_short', 'ratrace_when_short'}:
-                    index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_retracement_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
-                    if index_of_tick_that_breaks:
-                        # print(f"tick_breaks_after_retracement_when_short: {index_of_tick_that_breaks}")
-                        # print(f"ideal entry price: {ideal_entry_price}")
-                        # print(f"current ask price: {ask_price}")
-                        points_gap_between_ideal_n_current = abs((ask_price - ideal_entry_price) * multiply_digits)
-                        # print(f"points gap between ideal entry price and current ask price: {points_gap_between_ideal_n_current}")
-                        if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
-                            # print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
-                            continue
-                elif retrace_or_pause_when_short == 'pause_when_short':
-                    index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
-                    if index_of_tick_that_breaks:
-                        # print(f"tick_breaks_after_pause_when_short: {index_of_tick_that_breaks}")
-                        # print(f"ideal entry price: {ideal_entry_price}")
-                        # print(f"current ask price: {ask_price}")
-                        points_gap_between_ideal_n_current = abs((ask_price - ideal_entry_price) * multiply_digits)
-                        # print(f"points gap between ideal entry price and current ask price: {points_gap_between_ideal_n_current}")
-                        if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
-                            # print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
-                            continue
+                # elif retrace_or_pause_when_short in {'retrace_n_pause_when_short', 'ratrace_when_short'}:
+                #     index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_retracement_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
+                #     if index_of_tick_that_breaks:
+                #         # print(f"tick_breaks_after_retracement_when_short: {index_of_tick_that_breaks}")
+                #         # print(f"ideal entry price: {ideal_entry_price}")
+                #         # print(f"current ask price: {ask_price}")
+                #         points_gap_between_ideal_n_current = abs((ask_price - ideal_entry_price) * multiply_digits)
+                #         # print(f"points gap between ideal entry price and current ask price: {points_gap_between_ideal_n_current}")
+                #         if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
+                #             # print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
+                #             continue
+                # elif retrace_or_pause_when_short == 'pause_when_short':
+                #     index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
+                #     if index_of_tick_that_breaks:
+                #         # print(f"tick_breaks_after_pause_when_short: {index_of_tick_that_breaks}")
+                #         # print(f"ideal entry price: {ideal_entry_price}")
+                #         # print(f"current ask price: {ask_price}")
+                #         points_gap_between_ideal_n_current = abs((ask_price - ideal_entry_price) * multiply_digits)
+                #         # print(f"points gap between ideal entry price and current ask price: {points_gap_between_ideal_n_current}")
+                #         if points_gap_between_ideal_n_current > points_gap_between_ideal_n_current_limit:
+                #             # print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
+                #             continue
 
 
                 # check if SMAs in different timeframes are standing in the way towards our tp
