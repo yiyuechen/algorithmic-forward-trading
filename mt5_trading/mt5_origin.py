@@ -3695,6 +3695,8 @@ def select_account(
             script_dir = os.path.dirname(os.path.abspath(__file__))
             # Create a path to the file in the same directory
             path = os.path.join(script_dir, "credential_info.py")
+            # we read every line, and append it to the new array as it is, only modifying the three lines we need to change. this is not efficient but working for now
+            # after we have the new modified content for the file, we move the cursor back to the beginning, and write the whole file all over, and remove the leftover at the end bc it won't remove automatically
             with open(path, "r+") as f:
                 f_lines = f.readlines()
                 # print(f_lines)
@@ -3714,6 +3716,8 @@ def select_account(
                 # Reposition the file pointer to the beginning of the file
                 f.seek(0)
                 f.writelines(edited_f_lines)
+                # clean the leftover after the new writing. if the new written content is shorter than before. then the old content at the end is stil there. we need to remove it
+                f.truncate()
         else:
             pass
         
