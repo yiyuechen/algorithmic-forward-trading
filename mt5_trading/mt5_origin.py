@@ -721,8 +721,10 @@ def close_request(symbol, ticket, lot, type_filling, close_type):
     # send a trading request
     result = mt5.order_send(request)
     # check the execution result
-    print("3. close position #{}: sell {} {} lots at {} with deviation={} points".format(ticket, symbol, lot, price, deviation));
-    while result.retcode != mt5.TRADE_RETCODE_DONE:
+    print("3. close position #{}: sell {} {} lots at {} with deviation={} points".format(ticket, symbol, lot, price, deviation))
+
+    max_attempts = 5
+    while result.retcode != mt5.TRADE_RETCODE_DONE and max_attempts > 0:
         print("4. order_send failed, retcode={}".format(result.retcode))
         # print("   result", result)
         # request the result as a dictionary and display it element by element
@@ -746,6 +748,8 @@ def close_request(symbol, ticket, lot, type_filling, close_type):
 
         # send AGAIN until it successfully closes the trade
         result = mt5.order_send(request)
+
+        max_attempts -= 1
 
 
     if result.retcode == mt5.TRADE_RETCODE_DONE:
