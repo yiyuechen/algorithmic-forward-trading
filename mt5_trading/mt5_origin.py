@@ -3885,7 +3885,9 @@ def main():
     # broker_time_offset_hours_from_utc = 3 # 3 means that mt5 is utc+3
     # symbol="BTCUSD"
     # symbol = "XAUUSD"
-    symbol = "USDJPY.p"
+    symbol = input("Enter the symbol to trade: (default USDJPY.p)")
+    if symbol == "":
+        symbol = "USDJPY.p"
     # symbol = "EURUSD.p"
     # symbol="AUDUSD"
     type_filling = mt5.ORDER_FILLING_IOC # dominion markets
