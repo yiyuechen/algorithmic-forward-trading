@@ -157,6 +157,8 @@ from datetime import datetime, timedelta, timezone
 # import the 'pandas' module for displaying data obtained in the tabular form
 import pandas as pd
 
+import os
+
 import get_news_data
 
 pd.set_option('display.max_columns', 500) # number of columns to be displayed
@@ -3686,7 +3688,13 @@ def select_account(
 
         save_account_n_password = input("Save account and password? [Y/N]")
         if save_account_n_password in ["Y", "y", "Yes", "yes", ""]:
-            path = r"D:\yue\Documents\python_projects\forex\mt5_trading\credential_info.py"
+            # hard-coded path
+            # path = r"D:\yue\Documents\python_projects\forex\mt5_trading\credential_info.py"
+            # dynamic path
+            # Get the absolute path of the current script
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            # Create a path to the file in the same directory
+            path = os.path.join(script_dir, "credential_info.py")
             with open(path, "r+") as f:
                 f_lines = f.readlines()
                 # print(f_lines)
