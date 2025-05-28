@@ -1082,13 +1082,17 @@ def check_price_sma_position(sma_list, timeframe=mt5.TIMEFRAME_M5, symbol="BTCUS
     # [added on 2/8/2023] the above line is WRONG! We need to compare the current price and the sma. If across_sma_from_below_to_above, we need the current price to be at least above sma.
     # or else, if it goes down below sma, and then further breaks the two candles' lows, it still detects as "across_sma_from_below_to_above", but at that moment, "across_sma_from_below_to_above"
     # is broken, and instead it's a below sma sell.
-    if rate_data_list[sma_list_length-2]['close'] >= rate_data_list[sma_list_length-2]['sma'] and current_bid_price >= current_sma and \
-        compare_two_and_get_higher(rate_data_list[sma_list_length-3]['high'], rate_data_list[sma_list_length-4]['high']) < rate_data_list[sma_list_length-2]['sma']:
+    if rate_data_list[sma_list_length-2]['close'] >= rate_data_list[sma_list_length-2]['sma'] and \
+        rate_data_list[sma_list_length-2]['close'] > compare_two_and_get_higher(rate_data_list[sma_list_length-3]['high'], rate_data_list[sma_list_length-4]['high']) and \
+        rate_data_list[sma_list_length-3]['high'] < rate_data_list[sma_list_length-3]['sma'] and \
+        rate_data_list[sma_list_length-4]['high'] < rate_data_list[sma_list_length-4]['sma']:
         #4 is current, #3 is crossing from below to above, and close >= its sma. #3 passes #2 and #1's high, but at that moment, #3's price (namely the higher of #1 and #2 is not >= #3's sma
         # but, we see #3's close is >= #3's sma. so this is valid for a buy based on special rule crossing sma from below to above) 
         position = "across_sma_from_below_to_above"
-    elif rate_data_list[sma_list_length-2]['close'] <= rate_data_list[sma_list_length-2]['sma'] and current_ask_price <= current_sma and \
-        compare_two_and_get_lower(rate_data_list[sma_list_length-3]['low'], rate_data_list[sma_list_length-4]['low']) > rate_data_list[sma_list_length-2]['sma']:
+    elif rate_data_list[sma_list_length-2]['close'] <= rate_data_list[sma_list_length-2]['sma'] and \
+        rate_data_list[sma_list_length-2]['close'] < compare_two_and_get_lower(rate_data_list[sma_list_length-3]['low'], rate_data_list[sma_list_length-4]['low']) and \
+        rate_data_list[sma_list_length-3]['low'] > rate_data_list[sma_list_length-3]['sma'] and \
+        rate_data_list[sma_list_length-4]['low'] > rate_data_list[sma_list_length-4]['sma']:
         position = "across_sma_from_above_to_below"
     elif current_bid_price >= current_sma:
         position = "above"
