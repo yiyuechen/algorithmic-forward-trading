@@ -2479,7 +2479,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 else:
                     continue                
                 
-                print("buy, across_sma_from_below_to_above")
+                # print("buy, across_sma_from_below_to_above")
                 if check_above_or_below_sma:
                     pass
                 else:
@@ -2554,7 +2554,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 # check if it's a large tick that is crossing sma
                 body_points = abs(tick_two_open * multiply_digits - tick_two_close * multiply_digits)
                 if body_points >= body_points_limit:# and symbol == "USDJPY":
-                    print(f"the body of the tick crossing sma is {body_points}, exceeding {body_points_limit}, too large. aborted.")
+                    # print(f"the body of the tick crossing sma is {body_points}, exceeding {body_points_limit}, too large. aborted.")
                     continue
 
                 # check if sl too large too small
@@ -2691,7 +2691,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 else:
                     continue                
                 
-                print("sell, across_sma_from_above_to_below")
+                # print("sell, across_sma_from_above_to_below")
                 if check_above_or_below_sma:
                     pass
                 else:
@@ -2765,7 +2765,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 # check if it's a large tick that is crossing sma
                 body_points = abs(tick_two_open * multiply_digits - tick_two_close * multiply_digits)
                 if body_points >= body_points_limit:# and symbol == "USDJPY":
-                    print(f"the body of the tick crossing sma is {body_points}, exceeding {body_points_limit}, too large. aborted.")
+                    # print(f"the body of the tick crossing sma is {body_points}, exceeding {body_points_limit}, too large. aborted.")
                     continue
 
                 # check if sl too large too small
