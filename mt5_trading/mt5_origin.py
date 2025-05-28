@@ -3790,9 +3790,9 @@ def check_if_its_trading_time():
         
         # At the beginning of the trading time, it will print "00: 00: 01", which is not pretty. Because when it's trading time, we don't have the chance to go into this condition to print.
         # Trying to resolve this.
-        if remaining_hours == 0 and remaining_minutes == 0 and remaining_seconds == 1:
+        if remaining_hours == "00" and remaining_minutes == "00" and remaining_seconds == "01":
             time.sleep(1) # wait for 1 sec to simulate
-            remaining_seconds = 0
+            remaining_seconds = "00"
             # get current time again, now it should be sharp trading start time
             current_time = datetime.now()
             current_time_str = current_time.strftime("%H: %M: %S")
@@ -3810,7 +3810,8 @@ def check_n_add_zero_b4_1_digit_natural_nums(num):
         num = '0' + str(num)
         return num # str
     else: # IMPORTANT!!! if it's not 1 digit num, we need to return it as is
-        return num # int
+        # return num # int
+        return str(num) # now it's also str
 
 def get_broker_time_n_utc_time_offset(symbol):
     symbol_info = check_symbol_info(symbol)    
