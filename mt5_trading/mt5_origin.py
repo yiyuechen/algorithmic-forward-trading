@@ -153,11 +153,15 @@ import MetaTrader5 as mt5
 import numpy as np
 import credential_info
 from datetime import datetime, timedelta, timezone
+from datetime import time as dt_time
 
 # import the 'pandas' module for displaying data obtained in the tabular form
 import pandas as pd
 
 import os
+
+from tqdm import trange
+import math
 
 import get_news_data
 
@@ -1817,7 +1821,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                          check_timeframe_consistency, count_down_after_modifying_sl, check_above_or_below_sma, check_if_trading_time, check_sma_resistance,
                          pattern_list, pattern_index, added_points_to_sl, added_points_to_tp, fixed_tp, fixed_tp_in_points, hedge, 
                          adx_threshold, is_check_adx_threshold_enabled, is_check_adx_ascending_enabled,
-                         broker_time_offset_hours_from_utc, news_df, trade_state):
+                         broker_time_offset_hours_from_utc, news_df, trade_state, consecutive_losing_trade_limit):
     """
     USDJPY
     [(1658511000, 136.061, 136.191, 135.883, 136.007, 3592, 0, 0)
@@ -1894,6 +1898,90 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
             is_trading_time = check_if_its_trading_time()
         else:
             is_trading_time = True
+
+
+
+        ################### check today's order history and see if there are x lossing trades in a row ######################
+        # if so, call it a day.
+        # let's do it quick and dirty here and then write it as a function
+        dt_utc_now = datetime.now(timezone.utc)
+        server_time_now = convert_utc_to_mt5_time(dt_utc_now, broker_time_offset_hours_from_utc)
+        server_date = server_time_now.date()
+        start_of_day_server = datetime.combine(server_date, dt_time.min)
+        start_of_day_server = start_of_day_server.replace(tzinfo=timezone.utc)
+
+        from_date = start_of_day_server
+        to_date = server_time_now
+        # debug
+        # to_date = datetime(year=2025, month=5, day=30, hour=14, minute=6, second=0)
+        # # debug
+        # print(f"from_date: {from_date}")
+        # print(f"to_date: {to_date}")
+        # print()
+
+        # get deals
+        deals = mt5.history_deals_get(from_date, to_date, group=symbol)
+        # debug
+        # # display these deals as a table using pandas.DataFrame
+        # df = pd.DataFrame(list(deals), columns=deals[0]._asdict().keys())
+        # df['time'] = pd.to_datetime(df['time'], unit='s')
+        # print(df)
+        
+        
+
+        # Just got the idea. you only need to check the last n trades to see if they are consecutive losses. if so, then call it a day, right?
+        # let's say n is 2
+        # I don't care if you have 2 trades, and the last 2 trades are losses. I don't care if you have 10 trades, and the 9th and 10th trades are losses.
+        # if n is 3.
+        # as len < 3, no worries. once len >= 3, just keep checking the last 3 trades.
+
+        consecutive_losing_deal_limit = consecutive_losing_trade_limit * 2 # deal count is 2 times of trade count
+        # # debug
+        # print(f"consecutive losing deal_limit: {consecutive_losing_deal_limit}")
+        # print(f"length of deals: {len(deals)}")
+        if len(deals) >= consecutive_losing_deal_limit:
+            # # debug
+            # print("we are in if len(deals) >= consecutive_losing_deal_limit:")
+            # get last {2 * consecutive_losing_trade_limit} deals
+            last_few_deals = deals[-consecutive_losing_deal_limit:]
+
+            # note that we are now looking at TRADE, not deals.
+            # we check the commission where it's 0, indicating it's a closing deal. We see this as a completion signal of a trade, counting it as a trade.
+            # we count how many trades are of negative profits (we do not look at commissions for simplicity for now)
+            consecutive_losing_trade_count = 0
+            for deal in last_few_deals:
+                if deal.commission == 0 and deal.profit < 0:
+                    consecutive_losing_trade_count += 1
+
+            if consecutive_losing_trade_count == consecutive_losing_trade_limit:
+                print(f"We have {consecutive_losing_trade_limit} consecutive losses. Call it a day.")
+                print("The latest losing trades are:")
+                # display these deals as a table using pandas.DataFrame
+                df = pd.DataFrame(list(last_few_deals), columns=last_few_deals[0]._asdict().keys())
+                df['time'] = pd.to_datetime(df['time'], unit='s')
+                print(df)
+
+                # we have dt_utc_now, and we wnat to sleep until utc time 15:00, right? Note it's UTC !!! time
+                # let's wait until today's end, so as the time sleep stops, we should be out of trading time and the check_if_trading_time should be right at that time starting to counting down
+                # Define 15:00 UTC today
+                target_utc_time_today = datetime.combine(dt_utc_now.date(), dt_time(15, 0, 0), tzinfo=timezone.utc)
+                # Calculate seconds between now and 15:00 UTC
+                seconds_to_sleep = (target_utc_time_today - dt_utc_now).total_seconds()
+                # print(f"seconds_to_sleep: {seconds_to_sleep}, type: {type(seconds_to_sleep)}")
+                seconds_to_sleep = math.ceil(seconds_to_sleep) # convert it to an integer so that trange is happy
+                # we will use trange from module tqdm to print a progress bar
+                print(f"We will sleep {seconds_to_sleep} seconds, which is about {seconds_to_sleep // 3600} hours {(seconds_to_sleep / 3600 - seconds_to_sleep // 3600) * 60:.0f} minutes until {target_utc_time_today}.")
+                for _ in trange(seconds_to_sleep):
+                    time.sleep(1)
+                
+                # after sleeping completes, we continue, so that we do not run the below code, but go to the next loop. because we want to check if it's trading time next. 
+                # Otherwise, we will assume it's trading time, and probably will execute a trade if all conditions are met for opening a trade
+                continue
+                
+
+        #########################################
+
+
 
         # the below if statement is not needed. see comment in below """ """ which lists 4 possibilities
         # if is_trading_time == False:
@@ -3350,6 +3438,25 @@ def convert_mt5_time_to_utc(trade_open_time_sec, broker_time_offset_hours_from_u
     open_time_utc = datetime.fromtimestamp(trade_open_time_sec, tz=timezone.utc) - timedelta(hours=offset_hours)
     return open_time_utc.replace(tzinfo=timezone.utc)
 
+def convert_utc_to_mt5_time(dt_utc, broker_time_offset_hours_from_utc):
+    offset_hours = broker_time_offset_hours_from_utc
+    # Ensure our input really is UTC
+    if dt_utc.tzinfo is None or dt_utc.tzinfo != timezone.utc:
+        dt_utc = dt_utc.replace(tzinfo=timezone.utc)
+    
+    # Add the offset to move into server local time
+    dt_server = dt_utc + timedelta(hours=offset_hours)
+    # Tag it with timezone info
+    # return dt_server.replace(tzinfo=timezone(timedelta(hours=offset_hours)))
+    
+    return dt_server.replace(tzinfo=timezone.utc)
+"""
+# we must return it with the timezone specified as UTC time. 
+# because mt5 treats deal time stored on server as utc tz, even it's actually utc+3. 
+# and if we set it as naive time, it sees it as local time (utc+1) and converts to utc time by -1 hour and then send to mt5 server. 
+# and then it sees the time in utc as utc+3 time and compares with the deal time which is in utc+3
+"""
+
 
 
 def find_dows_low(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, tick_count=30):
@@ -3933,6 +4040,9 @@ def main():
     print(f"broker_time_offset_hours_from_utc: {broker_time_offset_hours_from_utc}")
     print()
 
+    # set a limit to avoid bad days. if x losing trades in a row, call it day
+    consecutive_losing_trade_limit = 3
+
     # sl_limit = 600 #520 #320 #200 # points for USDJPY # 300
     # sl_limit = 270
     # body_points_limit = 160
@@ -4049,7 +4159,7 @@ def main():
                          check_timeframe_consistency, count_down_after_modifying_sl, check_above_or_below_sma, check_if_trading_time, check_sma_resistance,
                          pattern_list, pattern_index, added_points_to_sl, added_points_to_tp, fixed_tp, fixed_tp_in_points, hedge, 
                          adx_threshold, is_check_adx_threshold_enabled, is_check_adx_ascending_enabled,
-                         broker_time_offset_hours_from_utc, news_df, trade_state)
+                         broker_time_offset_hours_from_utc, news_df, trade_state, consecutive_losing_trade_limit)
     # symbol="XAUUSD"
     # point = mt5.symbol_info(symbol).point
     # print(point)
