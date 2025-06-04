@@ -973,7 +973,7 @@ def if_above_or_below_sma(sma_list, timeframe=mt5.TIMEFRAME_M5, symbol="BTCUSD",
 """
 This is the revised version of func if_above_or_below_sma()
 return a string with a value of one of the below four:
-above, below, across_sma_from_below_to_above, across_sma_from_above_to_below
+above, below, across_sma_up, across_sma_down
 
 also we have a list that contains five (or designated length) tick's position relative to the sma
 this is not returned
@@ -1029,10 +1029,10 @@ def check_each_tick_close_price_above_or_below_sma(sma_list, timeframe=mt5.TIMEF
         position = "below"
     elif sma_position_list[sma_list_length-1] == "above" and sma_position_list[sma_list_length-2] in {"above", "equal"} \
         and sma_position_list[sma_list_length-3] == "below" and sma_position_list[sma_list_length-4] == "below" and sma_position_list[sma_list_length-5] == "below":
-        position = "across_sma_from_below_to_above"
+        position = "across_sma_up"
     elif sma_position_list[sma_list_length-1] == "below" and sma_position_list[sma_list_length-2] in {"below", "equal"} \
         and sma_position_list[sma_list_length-3] == "above" and sma_position_list[sma_list_length-4] == "above" and sma_position_list[sma_list_length-5] == "above":
-        position = "across_sma_from_above_to_below"
+        position = "across_sma_down"
     # else:
     #     position = "mixed"
     # in the below two conditions. we want to simulate when the price touch the sma and then bounce back to its previous trend. 
@@ -1095,8 +1095,8 @@ def check_price_sma_position(sma_list, timeframe=mt5.TIMEFRAME_M5, symbol="BTCUS
     current_ask_price = mt5.symbol_info_tick(symbol).ask
     current_sma = rate_data_list[sma_list_length-1]['sma']
     # if current_bid_price > current_sma and # this is not needed, and may even cause issues. we don't care what the current price is at as long as the crossing tick closes >= its sma.
-    # [added on 2/8/2023] the above line is WRONG! We need to compare the current price and the sma. If across_sma_from_below_to_above, we need the current price to be at least above sma.
-    # or else, if it goes down below sma, and then further breaks the two candles' lows, it still detects as "across_sma_from_below_to_above", but at that moment, "across_sma_from_below_to_above"
+    # [added on 2/8/2023] the above line is WRONG! We need to compare the current price and the sma. If across_sma_up, we need the current price to be at least above sma.
+    # or else, if it goes down below sma, and then further breaks the two candles' lows, it still detects as "across_sma_up", but at that moment, "across_sma_up"
     # is broken, and instead it's a below sma sell.
     if rate_data_list[sma_list_length-2]['close'] >= rate_data_list[sma_list_length-2]['sma'] and \
         rate_data_list[sma_list_length-2]['close'] > compare_two_and_get_higher(rate_data_list[sma_list_length-3]['high'], rate_data_list[sma_list_length-4]['high']) and \
@@ -1104,12 +1104,12 @@ def check_price_sma_position(sma_list, timeframe=mt5.TIMEFRAME_M5, symbol="BTCUS
         rate_data_list[sma_list_length-4]['high'] < rate_data_list[sma_list_length-4]['sma']:
         #4 is current, #3 is crossing from below to above, and close >= its sma. #3 passes #2 and #1's high, but at that moment, #3's price (namely the higher of #1 and #2 is not >= #3's sma
         # but, we see #3's close is >= #3's sma. so this is valid for a buy based on special rule crossing sma from below to above) 
-        position = "across_sma_from_below_to_above"
+        position = "across_sma_up"
     elif rate_data_list[sma_list_length-2]['close'] <= rate_data_list[sma_list_length-2]['sma'] and \
         rate_data_list[sma_list_length-2]['close'] < compare_two_and_get_lower(rate_data_list[sma_list_length-3]['low'], rate_data_list[sma_list_length-4]['low']) and \
         rate_data_list[sma_list_length-3]['low'] > rate_data_list[sma_list_length-3]['sma'] and \
         rate_data_list[sma_list_length-4]['low'] > rate_data_list[sma_list_length-4]['sma']:
-        position = "across_sma_from_above_to_below"
+        position = "across_sma_down"
     elif current_bid_price >= current_sma:
         position = "above"
     elif current_ask_price <= current_sma:
@@ -1118,9 +1118,9 @@ def check_price_sma_position(sma_list, timeframe=mt5.TIMEFRAME_M5, symbol="BTCUS
         position = "mixed" # when spread is large. bid < sma, ask > sma.
 
     # calc points between price and sma
-    if position in ["above", "across_sma_from_below_to_above"]:
+    if position in ["above", "across_sma_up"]:
         distance_in_points = (current_bid_price - current_sma) * multiply_digits
-    elif position in ["below", "across_sma_from_above_to_below"]:
+    elif position in ["below", "across_sma_down"]:
         # negative value
         distance_in_points = (current_ask_price - current_sma) * multiply_digits
     elif position == "mixed":
@@ -2177,8 +2177,8 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
 
                     if timeframe == mt5.TIMEFRAME_M5:
                         #if above_or_below_sma_m15 == "above" and above_or_below_sma_m30 == "above" and above_or_below_sma_h1 == "above":# and above_or_below_sma_h4 == "above": 
-                        # we have to consider when we are CROSSING the sma, sitting at the next running candle right after the key crossing candle which has closed. At that moment the above_or_below_sma_xxx is not above or below, but across_sma_from_below_to_above, but it's actually still above or below
-                        if above_or_below_sma_m15 in {"above", "across_sma_from_below_to_above"} and above_or_below_sma_m30 in {"above", "across_sma_from_below_to_above"} and above_or_below_sma_h1 in {"above", "across_sma_from_below_to_above"}:
+                        # we have to consider when we are CROSSING the sma, sitting at the next running candle right after the key crossing candle which has closed. At that moment the above_or_below_sma_xxx is not above or below, but across_sma_up, but it's actually still above or below
+                        if above_or_below_sma_m15 in {"above", "across_sma_up"} and above_or_below_sma_m30 in {"above", "across_sma_up"} and above_or_below_sma_h1 in {"above", "across_sma_up"}:
                             print("trading on m5. m5 m15 m30 h1 all identical. ok")
                             pass
                         else:
@@ -2186,7 +2186,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                             print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
                             continue
                     elif timeframe == mt5.TIMEFRAME_M15:
-                        if above_or_below_sma_m30 in {"above", "across_sma_from_below_to_above"} and above_or_below_sma_h1 in {"above", "across_sma_from_below_to_above"}:# and above_or_below_sma_h4 == "above":
+                        if above_or_below_sma_m30 in {"above", "across_sma_up"} and above_or_below_sma_h1 in {"above", "across_sma_up"}:# and above_or_below_sma_h4 == "above":
                             print("trading on m15. m15 m30 h1 all identical. ok")
                             pass
                         else:
@@ -2194,7 +2194,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                             print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
                             continue
                     elif timeframe == mt5.TIMEFRAME_M30:
-                        if above_or_below_sma_h1 in {"above", "across_sma_from_below_to_above"}:# and above_or_below_sma_h4 == "above":
+                        if above_or_below_sma_h1 in {"above", "across_sma_up"}:# and above_or_below_sma_h4 == "above":
                             print("trading on m30. m30 h1 all identical. ok")
                             pass
                         else:
@@ -2387,7 +2387,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 if check_timeframe_consistency:
                     # check timeframe, and make sure higher timeframes' trends are identical with that of the current timeframe
                     if timeframe == mt5.TIMEFRAME_M5:
-                        if above_or_below_sma_m15 in {"below", "across_sma_from_above_to_below"} and above_or_below_sma_m30 in {"below", "across_sma_from_above_to_below"} and above_or_below_sma_h1 in {"below", "across_sma_from_above_to_below"}:# and above_or_below_sma_h4 == "above":
+                        if above_or_below_sma_m15 in {"below", "across_sma_down"} and above_or_below_sma_m30 in {"below", "across_sma_down"} and above_or_below_sma_h1 in {"below", "across_sma_down"}:# and above_or_below_sma_h4 == "above":
                             print("trading on m5. m5 m15 m30 h1 all identical. ok")
                             pass
                         else:
@@ -2395,7 +2395,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                             print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
                             continue
                     elif timeframe == mt5.TIMEFRAME_M15:
-                        if above_or_below_sma_m30 in {"below", "across_sma_from_above_to_below"} and above_or_below_sma_h1 in {"below", "across_sma_from_above_to_below"}:# and above_or_below_sma_h4 == "above":
+                        if above_or_below_sma_m30 in {"below", "across_sma_down"} and above_or_below_sma_h1 in {"below", "across_sma_down"}:# and above_or_below_sma_h4 == "above":
                             print("trading on m15. m15 m30 h1 all identical. ok")
                             pass
                         else:
@@ -2403,7 +2403,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                             print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
                             continue
                     elif timeframe == mt5.TIMEFRAME_M30:
-                        if above_or_below_sma_h1 in {"below", "across_sma_from_above_to_below"}:# and above_or_below_sma_h4 == "above":
+                        if above_or_below_sma_h1 in {"below", "across_sma_down"}:# and above_or_below_sma_h4 == "above":
                             print("trading on m30. m30 h1 all identical. ok")
                             pass
                         else:
@@ -2564,9 +2564,9 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
 
             ############### This seems to be not working well on at least M5. So disable it temporarily ###################
 
-            # across_sma_from_below_to_above, 
-            #elif current_price > tick_two_close and above_or_below_sma == "across_sma_from_below_to_above" and tick_two_close > tick_two_open: # and check_retrace_or_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5):
-            elif current_price > tick_two_close and above_or_below_sma == "across_sma_from_below_to_above" and tick_two_close > tick_two_open:
+            # across_sma_up, 
+            #elif current_price > tick_two_close and above_or_below_sma == "across_sma_up" and tick_two_close > tick_two_open: # and check_retrace_or_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5):
+            elif current_price > tick_two_close and above_or_below_sma == "across_sma_up" and tick_two_close > tick_two_open:
                 # tick_two_close > tick_two_open to ensure this key candle crossing sma is closed a bullish candle.
                 # sometimes there might be a jump (window) or maybe the sma is steep, and the candle will close as a bearish candle with a very small body and a long upper wick
                 # if this happens, we do not think this is a valid crossing. i guess this usually happens in lower timeframes. i observed this on m5
@@ -2579,11 +2579,11 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 else:
                     continue                
                 
-                # print("buy, across_sma_from_below_to_above")
+                # print("buy, across_sma_up")
                 if check_above_or_below_sma:
                     pass
                 else:
-                    # does check above or below sma, so there's no such thing as across_sma_from_below_to_above
+                    # does check above or below sma, so there's no such thing as across_sma_up
                     continue
 
                 # # check if timeframes {timeframe}, H1, and H4 are in the same trend.
@@ -2597,7 +2597,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 if check_timeframe_consistency:
                     # check timeframe, and make sure higher timeframes' trends are identical with that of the current timeframe
                     if timeframe == mt5.TIMEFRAME_M5:
-                        if above_or_below_sma_m15 in {"above", "across_sma_from_below_to_above"} and above_or_below_sma_m30 in {"above", "across_sma_from_below_to_above"} and above_or_below_sma_h1 in {"above", "across_sma_from_below_to_above"}:# and above_or_below_sma_h4 == "above":
+                        if above_or_below_sma_m15 in {"above", "across_sma_up"} and above_or_below_sma_m30 in {"above", "across_sma_up"} and above_or_below_sma_h1 in {"above", "across_sma_up"}:# and above_or_below_sma_h4 == "above":
                             print("trading on m5. m5 m15 m30 h1 all identical. ok")
                             pass
                         else:
@@ -2605,7 +2605,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                             print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
                             continue
                     elif timeframe == mt5.TIMEFRAME_M15:
-                        if above_or_below_sma_m30 in {"above", "across_sma_from_below_to_above"} and above_or_below_sma_h1 in {"above", "across_sma_from_below_to_above"}:# and above_or_below_sma_h4 == "above":
+                        if above_or_below_sma_m30 in {"above", "across_sma_up"} and above_or_below_sma_h1 in {"above", "across_sma_up"}:# and above_or_below_sma_h4 == "above":
                             print("trading on m15. m15 m30 h1 all identical. ok")
                             pass
                         else:
@@ -2613,7 +2613,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                             print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
                             continue
                     elif timeframe == mt5.TIMEFRAME_M30:
-                        if above_or_below_sma_h1 in {"above", "across_sma_from_below_to_above"}:# and above_or_below_sma_h4 == "above":
+                        if above_or_below_sma_h1 in {"above", "across_sma_up"}:# and above_or_below_sma_h4 == "above":
                             print("trading on m30. m30 h1 all identical. ok")
                             pass
                         else:
@@ -2782,8 +2782,8 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 open_request(sl_price=dows_low, type="buy", sl=sl, symbol=symbol, type_filling=type_filling, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, 
                              tp_percent=tp_percent, added_points_to_sl=added_points_to_sl, added_points_to_tp=added_points_to_tp, fixed_tp=fixed_tp, fixed_tp_in_points=fixed_tp_in_points)
                 # continue # if we opened an order, we go back to the beginning of the loop, we don't sleep
-            # across_sma_from_above_to_below
-            elif ask_price < tick_two_close and above_or_below_sma == "across_sma_from_above_to_below" and tick_two_close < tick_two_open:
+            # across_sma_down
+            elif ask_price < tick_two_close and above_or_below_sma == "across_sma_down" and tick_two_close < tick_two_open:
                 # tick_two_close < tick_two_open to ensure this key candle crossing sma is closed a bearish candle.
                 
                 # check if we should look for a sell order or a buy order
@@ -2793,11 +2793,11 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 else:
                     continue                
                 
-                # print("sell, across_sma_from_above_to_below")
+                # print("sell, across_sma_down")
                 if check_above_or_below_sma:
                     pass
                 else:
-                    # does check above or below sma, so there's no such thing as across_sma_from_below_to_above
+                    # does check above or below sma, so there's no such thing as across_sma_up
                     continue
 
                 # # check if timeframes {timeframe}, H1, and H4 are in the same trend.
@@ -2811,7 +2811,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 if check_timeframe_consistency:
                     # check timeframe, and make sure higher timeframes' trends are identical with that of the current timeframe
                     if timeframe == mt5.TIMEFRAME_M5:
-                        if above_or_below_sma_m15 in {"below", "across_sma_from_above_to_below"} and above_or_below_sma_m30 in {"below", "across_sma_from_above_to_below"} and above_or_below_sma_h1 in {"below", "across_sma_from_above_to_below"}:# and above_or_below_sma_h4 == "above":
+                        if above_or_below_sma_m15 in {"below", "across_sma_down"} and above_or_below_sma_m30 in {"below", "across_sma_down"} and above_or_below_sma_h1 in {"below", "across_sma_down"}:# and above_or_below_sma_h4 == "above":
                             print("trading on m5. m5 m15 m30 h1 all identical. ok")
                             pass
                         else:
@@ -2819,7 +2819,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                             print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
                             continue
                     elif timeframe == mt5.TIMEFRAME_M15:
-                        if above_or_below_sma_m30 in {"below", "across_sma_from_above_to_below"} and above_or_below_sma_h1 in {"below", "across_sma_from_above_to_below"}:# and above_or_below_sma_h4 == "above":
+                        if above_or_below_sma_m30 in {"below", "across_sma_down"} and above_or_below_sma_h1 in {"below", "across_sma_down"}:# and above_or_below_sma_h4 == "above":
                             print("trading on m15. m15 m30 h1 all identical. ok")
                             pass
                         else:
@@ -2827,7 +2827,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                             print(f"M5: {above_or_below_sma_m5}, M15: {above_or_below_sma_m15}, M30: {above_or_below_sma_m30}, H1: {above_or_below_sma_h1}, H4: {above_or_below_sma_h4}")
                             continue
                     elif timeframe == mt5.TIMEFRAME_M30:
-                        if above_or_below_sma_h1 in {"below", "across_sma_from_above_to_below"}:# and above_or_below_sma_h4 == "above":
+                        if above_or_below_sma_h1 in {"below", "across_sma_down"}:# and above_or_below_sma_h4 == "above":
                             print("trading on m30. m30 h1 all identical. ok")
                             pass
                         else:
