@@ -600,6 +600,69 @@ def calculate_lot_size(sl, symbol, risk_ratio, commission_per_lot): #sl is in po
     
     return lot_size
 
+def cancel_pending_orders(symbol):
+    # Get all pending orders
+    pending_orders = mt5.orders_get()
+
+    # Check and print them
+    if pending_orders is None:
+        print("No orders found or error:", mt5.last_error())
+    elif len(pending_orders) == 0:
+        print("No pending orders found.")
+    else:
+        print(f"Found {len(pending_orders)} pending orders:")
+        # for order in pending_orders:
+        #     print(order)
+        for order in pending_orders:
+            # only cancel the current symbol
+            if order.symbol == symbol:
+                request = {
+                    "action": mt5.TRADE_ACTION_REMOVE,
+                    "order": order.ticket,
+                    "symbol": order.symbol,
+                    "comment": "Cancelled bc new market order",
+                }
+
+                result = mt5.order_send(request)
+                
+                if result.retcode != mt5.TRADE_RETCODE_DONE:
+                    print(f"Failed to cancel order #{order.ticket}: {result.retcode}")
+                else:
+                    print(f"Successfully cancelled order #{order.ticket}")
+
+
+def pending_request(entry_price=0, type="buy", sl=100, sl_price=0, tp_price=0, symbol="USDJPY", type_filling=mt5.ORDER_FILLING_IOC, commission_per_lot=0, risk_ratio=0.05):
+    
+    deviation = 20
+
+    lot = calculate_lot_size(sl=sl, symbol=symbol, risk_ratio=risk_ratio, commission_per_lot=commission_per_lot) # sl, symbol, risk_ratio=0.05, commission_per_lot=4
+    
+    request = {
+        "action": mt5.TRADE_ACTION_PENDING,
+        "symbol": symbol,
+        "volume": lot,
+        "type": type,# mt5.ORDER_BUY_LIMIT,  # or SELL_LIMIT / BUY_STOP / SELL_STOP
+        "price": entry_price,
+        "sl": sl_price,
+        "tp": tp_price,
+        "deviation": deviation,
+        "magic": 2077,  # any unique number
+        "comment": "pending_order",
+        "type_time": mt5.ORDER_TIME_GTC,  # Good till cancelled
+        "type_filling": type_filling # mt5.ORDER_FILLING_RETURN,  # type_filling is required for many brokers
+        # If using expiration:
+        # "type_time": mt5.ORDER_TIME_SPECIFIED,
+        # "expiration": expiration_time,
+    }
+
+    result = mt5.order_send(request)
+    
+    if result.retcode != mt5.TRADE_RETCODE_DONE:
+        print(f"Order send failed, retcode={result.retcode}")
+        print(result)
+    else:
+        print("Pending order successfully placed!")
+        print(result)
 
 def open_request(sl_price, type="buy", sl=100, symbol="USDJPY", type_filling=mt5.ORDER_FILLING_IOC, commission_per_lot=0, risk_ratio=0.05, risk_reward_ratio=2, tp_percent=0.75, added_points_to_sl=0, added_points_to_tp=0, fixed_tp=True, fixed_tp_in_points=0):
     
@@ -1186,6 +1249,10 @@ def check_pause_when_short(symbol="BTCUSD", timeframe="TIMEFRAME_M5", start_posi
 def find_which_tick_breaks_after_retracement_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=7):
     # retracement = False
     rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+    # set these two as None. For a long time I didn't set it and it worked fine because we call this function when we are already breaking, meaning we are sure that these two are not None
+    # but now we want to use call this function for our special rule check right after our trading time starts
+    index_of_tick_that_breaks = None
+    ideal_entry_price = None
 
     # a list of rates that forms retracement. so that we know the first and last rates that form retracement
     index_of_retracement_rates = []
@@ -1226,6 +1293,10 @@ def find_which_tick_breaks_after_retracement_when_long(symbol="BTCUSD", timefram
         
 def find_which_tick_breaks_after_retracement_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=7):
     rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+    # set these two as None. For a long time I didn't set it and it worked fine because we call this function when we are already breaking, meaning we are sure that these two are not None
+    # but now we want to use call this function for our special rule check right after our trading time starts
+    index_of_tick_that_breaks = None
+    ideal_entry_price = None
 
     # a list of rates that forms retracement. so that we know the first and last rates that form retracement
     index_of_retracement_rates = []
@@ -1252,12 +1323,17 @@ def find_which_tick_breaks_after_retracement_when_short(symbol="BTCUSD", timefra
 
 def find_which_tick_breaks_after_pause_when_long(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=7):
     rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+    # set these two as None. For a long time I didn't set it and it worked fine because we call this function when we are already breaking, meaning we are sure that these two are not None
+    # but now we want to use call this function for our special rule check right after our trading time starts
+    index_of_tick_that_breaks = None
+    ideal_entry_price = None
+
     index_of_pause_rates = []
 
     for i in range(2, tick_count):
         if rates[i]['high'] < rates[i-2]['high'] and rates[i-1]['high'] < rates[i-2]['high']:
             index_of_pause_rates.append(i)
-        
+
     if index_of_pause_rates:
         i = index_of_pause_rates[-1] + 1
         # i = index + 1 is because the tick cannot PAUSE and break at the same time. (however, it can RETRACE and break at the same time)
@@ -1274,6 +1350,11 @@ def find_which_tick_breaks_after_pause_when_long(symbol="USDJPY", timeframe=mt5.
 
 def find_which_tick_breaks_after_pause_when_short(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=7):  
     rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+    # set these two as None. For a long time I didn't set it and it worked fine because we call this function when we are already breaking, meaning we are sure that these two are not None
+    # but now we want to use call this function for our special rule check right after our trading time starts
+    index_of_tick_that_breaks = None
+    ideal_entry_price = None
+
     index_of_pause_rates = []
 
     for i in range(2, tick_count):
@@ -1294,6 +1375,155 @@ def find_which_tick_breaks_after_pause_when_short(symbol="USDJPY", timeframe=mt5
     
     else:
         return None, None
+
+
+##################### for special morning check #####################3
+
+# if retracement true
+# !!! tick_count=7 instead of 5 !!!
+# maybe need to set tick_count to higher, such as 7, so that we know the recent ideal entry
+def find_which_tick_breaks_after_retracement_when_long_x(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=7):
+    # retracement = False
+    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+    # set these two as None. For a long time I didn't set it and it worked fine because we call this function when we are already breaking, meaning we are sure that these two are not None
+    # but now we want to use call this function for our special rule check right after our trading time starts
+    index_of_tick_that_breaks = None
+    ideal_entry_price = None
+
+    # a list of rates that forms retracement. so that we know the first and last rates that form retracement
+    index_of_retracement_rates = []
+
+    for i in range(2, tick_count):
+        # rates[i] #current_tick
+        if rates[i]['low'] < rates[i-1]['low'] and rates[i]['low'] < rates[i-2]['low']:
+            # rates[i] forms retracement
+            # retracement = True
+            # print(f"rates[{i}] forms retracement. rates[{i}]['low'] is {rates[i]['low']} func find_which_tick_breaks_after_retracement_when_long")
+            index_of_retracement_rates.append(i)
+    
+    if index_of_retracement_rates:
+        for index_of_retracement_rate in index_of_retracement_rates:
+            # if len(index_of_retracement_rates) == 1:
+            #     # rates[i] is the one that forms retracement
+            #     i = index_of_retracement_rates[0]
+
+            # else: # there are newer ticks form retracement
+            #     # assign i with the last element, which is the newest tick that forms retracement
+            #     i = index_of_retracement_rates[-1]
+            #     # rates[i] is the one that forms retracement
+
+            # no need to check length. just get the last element. if len is 1, it's the only one
+            i = index_of_retracement_rate   
+
+            while i < tick_count:
+                # check if the retracement rate "rates[i]"" breaks previous two high
+                if rates[i]['high'] > rates[i-1]['high'] and rates[i]['high'] > rates[i-2]['high']:
+                    index_of_tick_that_breaks = i
+                    ideal_entry_price = compare_two_and_get_higher(rates[i-1]['high'], rates[i-2]['high'])
+                    break
+                i += 1
+
+        return index_of_tick_that_breaks, ideal_entry_price
+    else:
+        # no retracement
+        return None, None
+        
+def find_which_tick_breaks_after_retracement_when_short_x(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=7):
+    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+    # set these two as None. For a long time I didn't set it and it worked fine because we call this function when we are already breaking, meaning we are sure that these two are not None
+    # but now we want to use call this function for our special rule check right after our trading time starts
+    index_of_tick_that_breaks = None
+    ideal_entry_price = None
+
+    # a list of rates that forms retracement. so that we know the first and last rates that form retracement
+    index_of_retracement_rates = []
+
+    for i in range(2, tick_count):
+        if rates[i]['high'] > rates[i-1]['high'] and rates[i]['high'] > rates[i-2]['high']:
+            # print(f"rates[{i}] forms retracement. rates[{i}]['high'] is {rates[i]['high']} func find_which_tick_breaks_after_retracement_when_short")      
+            index_of_retracement_rates.append(i)
+
+    if index_of_retracement_rates:
+        for index_of_retracement_rate in index_of_retracement_rates:
+            i = index_of_retracement_rate
+
+            while i < tick_count:
+                if rates[i]['low'] < rates[i-1]['low'] and rates[i]['low'] < rates[i-2]['low']:
+                    index_of_tick_that_breaks = i
+                    ideal_entry_price = compare_two_and_get_lower(rates[i-1]['low'], rates[i-2]['low'])
+                    break
+                i += 1
+
+        return index_of_tick_that_breaks, ideal_entry_price
+
+    else:
+        return None, None
+
+def find_which_tick_breaks_after_pause_when_long_x(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=7):
+    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+    # set these two as None. For a long time I didn't set it and it worked fine because we call this function when we are already breaking, meaning we are sure that these two are not None
+    # but now we want to use call this function for our special rule check right after our trading time starts
+    index_of_tick_that_breaks = None
+    ideal_entry_price = None
+
+    index_of_pause_rates = []
+
+    for i in range(2, tick_count):
+        if rates[i]['high'] < rates[i-2]['high'] and rates[i-1]['high'] < rates[i-2]['high']:
+            index_of_pause_rates.append(i)
+
+    print()    
+    print(index_of_pause_rates)
+    if index_of_pause_rates:
+        for index_of_pause_rate in index_of_pause_rates:
+            i = index_of_pause_rate + 1
+            # i = index + 1 is because the tick cannot PAUSE and break at the same time. (however, it can RETRACE and break at the same time)
+            while i < tick_count:
+                if rates[i]['high'] > rates[i-2]['high'] and rates[i]['high'] > rates[i-1]['high']:
+                    index_of_tick_that_breaks = i
+                    ideal_entry_price = max(rates[i-2]['high'], rates[i-1]['high'])
+                    break
+                i += 1
+        
+        # after this, I assume it will give us the LATEST pause break index
+        return index_of_tick_that_breaks, ideal_entry_price
+    
+    else:
+        return None, None
+
+def find_which_tick_breaks_after_pause_when_short_x(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=7):  
+    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+    # set these two as None. For a long time I didn't set it and it worked fine because we call this function when we are already breaking, meaning we are sure that these two are not None
+    # but now we want to use call this function for our special rule check right after our trading time starts
+    index_of_tick_that_breaks = None
+    ideal_entry_price = None
+
+    index_of_pause_rates = []
+
+    for i in range(2, tick_count):
+        if rates[i]['low'] > rates[i-2]['low'] and rates[i-1]['low'] > rates[i-2]['low']:
+            index_of_pause_rates.append(i)
+
+    if index_of_pause_rates:
+        for index_of_pause_rate in index_of_pause_rates:
+            i = index_of_pause_rate + 1
+            # i = index + 1 is because the tick cannot PAUSE and break at the same time. (however, it can RETRACE and break at the same time)
+            while i < tick_count:
+                if rates[i]['low'] < rates[i-1]['low'] and rates[i]['low'] < rates[i-2]['low']:
+                    index_of_tick_that_breaks = i
+                    ideal_entry_price = min(rates[i-1]['low'], rates[i-2]['low'])
+                    break
+                i += 1
+
+        return index_of_tick_that_breaks, ideal_entry_price
+    
+    else:
+        return None, None
+
+
+##################################################
+
+
 
 def check_retrace_when_long_old(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=5): 
     # 0 1 2 3 4 compare low of 2 and 3 with low of 0 and 1
@@ -1821,7 +2051,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                          check_timeframe_consistency, count_down_after_modifying_sl, check_above_or_below_sma, check_if_trading_time, check_sma_resistance,
                          pattern_list, pattern_index, added_points_to_sl, added_points_to_tp, fixed_tp, fixed_tp_in_points, hedge, 
                          adx_threshold, is_check_adx_threshold_enabled, is_check_adx_ascending_enabled,
-                         broker_time_offset_hours_from_utc, news_df, trade_state, consecutive_losing_trade_limit):
+                         broker_time_offset_hours_from_utc, news_df, trade_state, consecutive_losing_trade_limit, special_pending_order_check_log):
     """
     USDJPY
     [(1658511000, 136.061, 136.191, 135.883, 136.007, 3592, 0, 0)
@@ -2142,6 +2372,302 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
             # print sma and spinning bar in a single line, this helps resolve the flickering spnning bar.
             print(f"  {current_pattern}  M5: {above_or_below_sma_m5} {dip_m5:.0f}, M15: {above_or_below_sma_m15} {dip_m15:.0f}, M30: {above_or_below_sma_m30} {dip_m30:.0f}, H1: {above_or_below_sma_h1} {dip_h1:.0f}, H4: {above_or_below_sma_h4} {dip_h4:.0f}  {current_pattern}  *{symbol}|{timeframe}*", end="\r")#, flush=True)
             
+
+            ###################################                              SPECIAL PENDING ORDER RULE for 1 a.m. UTC time                           ########################################
+            # before we start our trading day, let's check the special rule scenario. only checked right after market open to see if we can amend entering a trade by doing a pending order.
+            # we also want to make sure that other rules apply
+            # price >= sma for buy
+            # price <= sma for sell
+            # and other conditions
+            # check that candles after the ideal entry price, that is, go left from now, to the entry price candle, check if each candle reaches the tp or the sl. this is really tricky.
+            # what if the below has multiple true values, meaning you have sell and buy opportinuties. maybe try the latest one (JUST make sure the tick count for the below 4 conditions are the same)
+
+            # don't forget to add a condition, only check this once right after our trading start time. and once it's check, just skip. maybe add a date with a boole value. so we know if it's checked each day?
+            dt_utc_now = datetime.now(timezone.utc)
+            current_utc_date = dt_utc_now.date()
+            current_date_str = current_utc_date.isoformat()
+            one_am_utc_today = datetime.combine(dt_utc_now.date(), dt_time(1, 0), tzinfo=timezone.utc)
+            delta_from_one_am = abs(dt_utc_now - one_am_utc_today)
+
+            # # TESTING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! CAUTION! this will keep opening THE SAME ORDERS
+            # if True:
+            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!below is the right conditions. don't foget to uncomment !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            if special_pending_order_check_log.get(current_date_str, False):
+                # if true, it means we get it from the log dict, that is, {'xxxx-xx-xx,' True} is in the log dict and it returns True. Otherwise, default, it returns false, meaning we don't get anything
+                # so if it's true, then for today we have checked the special order opportunities, and we will skip the check and go to the main four DT checks.
+                pass
+            elif delta_from_one_am <= timedelta(minutes=1): # just give it some space. If we don't have the check record yet, and if we are still one minute within one am utc, then we just check the trading opportunity
+                # no matter what, as we enter this loop, just update the special_pending_order_check_log dictionary
+                special_pending_order_check_log[current_date_str] = True
+            
+
+                # how many ticks to check # called this magic num, because I reckon 10 should be enough and not too much. 7 seems a bit less.
+                magic_num_ticks = 10
+                # buy
+                index_of_tick_that_breaks_retrace_buy, ideal_entry_price_retrace_buy = find_which_tick_breaks_after_retracement_when_long_x(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=magic_num_ticks)
+                index_of_tick_that_breaks_pause_buy, ideal_entry_price_pause_buy = find_which_tick_breaks_after_pause_when_long_x(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=magic_num_ticks)
+                # sell
+                index_of_tick_that_breaks_retrace_sell, ideal_entry_price_retrace_sell = find_which_tick_breaks_after_retracement_when_short_x(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=magic_num_ticks)
+                index_of_tick_that_breaks_pause_sell, ideal_entry_price_pause_sell = find_which_tick_breaks_after_pause_when_short_x(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=magic_num_ticks)
+
+                # Step 1: Build the structure manually from the individual variables
+                index_info = {
+                    "retrace_buy": {
+                        "index": index_of_tick_that_breaks_retrace_buy,
+                        "entry_price": ideal_entry_price_retrace_buy
+                    },
+                    "pause_buy": {
+                        "index": index_of_tick_that_breaks_pause_buy,
+                        "entry_price": ideal_entry_price_pause_buy
+                    },
+                    "retrace_sell": {
+                        "index": index_of_tick_that_breaks_retrace_sell,
+                        "entry_price": ideal_entry_price_retrace_sell
+                    },
+                    "pause_sell": {
+                        "index": index_of_tick_that_breaks_pause_sell,
+                        "entry_price": ideal_entry_price_pause_sell
+                    }
+                }
+
+                # Step 2: Filter out items where index is None
+                filtered = {k: v for k, v in index_info.items() if v["index"] is not None}
+
+                # Step 3: Sort by index descending
+                sorted_items = sorted(filtered.items(), key=lambda item: item[1]["index"], reverse=True)
+                # sorted_items is a list, not a dictionary. it is sorted. It is the already-sorted list of tuples
+                """
+                sorted_items = [
+                    ('pause_sell', {...}),
+                    ('retrace_buy', {...}),
+                    ...
+                ]
+                """
+
+                print()
+                print(f"index_info: {index_info}")
+                print(f"sorted_items: {sorted_items}")
+
+                special_order_action = "" # to determine if we want to skip the below 4 DT check if conditions
+                for label, info in sorted_items:
+                    if "buy" in label: # action can be "retrace_buy, pause_buy, retrace_sell, pause_sell" 
+                        # just check everything in buy
+                        # sma
+                        sma_list_temp = calculate_sma_of_latest_n_ticks(symbol=symbol, timeframe=timeframe, sma_length=24, sma_count=magic_num_ticks)
+                        # I imagine the index that breaks should be the same as that of the sma here, it should correspond, because we both called magic_num_ticks ticks
+                        breaking_tick_index = info['index']
+                        if info["entry_price"] >= sma_list_temp[breaking_tick_index]:
+                            print(f'info["entry_price"]: {info["entry_price"]}')
+                            print(">=")
+                            print(f"sma_list_temp[breaking_tick_index]: {sma_list_temp[breaking_tick_index]}")
+                            pass
+                        else:
+                            print("sma failed")
+                            print(f'info["entry_price"]: {info["entry_price"]}')
+                            print("<")
+                            print(f"sma_list_temp[breaking_tick_index]: {sma_list_temp[breaking_tick_index]}")
+                            continue
+                        
+                        # get the recent low
+                        dows_low = find_dows_low_conservative(symbol=symbol, timeframe=timeframe, tick_count=magic_num_ticks, breaking_tick_index=breaking_tick_index)
+                        if dows_low:
+                            sl = info["entry_price"] * multiply_digits - dows_low * multiply_digits
+                        else:
+                            print(f"didn't find dows_low in previous ticks, won't open order")
+                            continue
+                        # get sl and tp
+                        # make sl one pip larger. because we want the sl price to be one pip below or above dows high and low
+                        sl = sl + added_points_to_sl
+                        dows_low = (dows_low * multiply_digits - added_points_to_sl) / multiply_digits
+
+                        # check sl limit
+                        if sl > sl_limit:  # if sl > 300 points, or 30 pips
+                            print(f"sl is {sl} points. too large, > sl_limit {sl_limit}, aborted.")
+                            continue
+                        elif sl < sl_min:
+                            print(f"sl is {sl} points. too small, < sl_min {sl_min}, aborted.")
+                            continue
+
+                        # we do pending order, no need to check offset
+
+                        # check if the sl and tp has been reached after this entry. If it has, then abandon this trade. (if it's 3 pips from tp or 3 pips from sl then maybe it won't work, bc it'll just go there. so maybe we need to check sl-3 and tp-3,
+                        # or maybe it doesn't matter for the sl. bc if it goes to neeaby sl and it comes to the entry again, then that indicates it might still go to the disired direction. just maybe)
+                        last_magic_num_ticks = get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=magic_num_ticks) # ticks or rates, they are the same thing. I just seem to forget.
+                        # we want to start from the breaking tick (that one included, because it can finish in just one tick)
+                        relevant_ticks = last_magic_num_ticks[breaking_tick_index:]
+                        # we want to check the highest and lowest, and compare the highest with tp, and lowest with sl
+
+                        # # my classic way:
+                        # # assume first tick has the highest
+                        # relevant_tick_highest = relevant_ticks[0]['high']
+                        # for tick in relevant_ticks:
+                        #     if tick['high'] > relevant_tick_highest:
+                        #         relevant_tick_highest = tick['high']
+                        # NumPy’s way (faster, cleaner):
+                        relevant_tick_highest = np.max(relevant_ticks['high'])
+                        relevant_tick_lowest = np.min(relevant_ticks['low'])
+
+                        # print(f"relevant_tick_lowest: {relevant_tick_lowest}")
+
+                        sl_price = dows_low # just to make it more clear. 
+                        # check if stop loss is reached
+                        if relevant_tick_lowest <= sl_price:
+                            print("sl is hit already. skip this pending buy entry")
+                            continue
+
+                        # calc tp price
+                        if fixed_tp:
+                            tp = fixed_tp_in_points
+                        else:
+                            # in points
+                            tp = sl / risk_reward_ratio
+                            # make tp 75% of theo tp
+                            tp = int(tp * tp_percent)
+                        
+                        tp += added_points_to_tp
+                        tp_price = info["entry_price"] + tp * symbol_point
+                        # check if take profit is reached
+                        if relevant_tick_highest >= tp_price:
+                            print("tp is hit already. skip this pending buy entry")
+                            continue
+
+                        # check if there is news ahead or if we are after news
+                        news_exist = get_news_data.trades_blocker_to_avoid_news(60, news_df)
+                        if news_exist:
+                            print("news. abandoned")
+                            continue
+                        
+                        # special_order_action = ""
+                        # need to alter the info["entry_price"], add the spread (points) to it. need some conversion to calculate the price
+                        current_spread = mt5.symbol_info(symbol).spread # in points
+                        ideal_pending_price = (info["entry_price"] * multiply_digits + current_spread) / multiply_digits # this seems to be the same as price + current_spread * symbol_point
+                        if ask_price > ideal_pending_price:
+                            print(f'PLACE BUY LIMIT ORDER at {info["entry_price"]} + {current_spread} points of spread => {ideal_pending_price}, with sl at {sl_price} and tp at {tp_price}') # will need to add spread to the entry_price
+                            special_order_action = "buy_limit"
+                            # mt5.ORDER_BUY_LIMIT,  # or SELL_LIMIT / BUY_STOP / SELL_STOP
+                            pending_request(entry_price=ideal_pending_price, type=mt5.ORDER_TYPE_BUY_LIMIT, sl=sl, sl_price=sl_price, tp_price=tp_price, symbol=symbol, type_filling=mt5.ORDER_FILLING_IOC, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio)
+                        elif ask_price < ideal_pending_price:
+                            print(f'PLACE BUY STOP ORDER at {info["entry_price"]} + {current_spread} points of spread => {ideal_pending_price}, with sl at {sl_price} and tp at {tp_price}') # will need to add spread to the entry_price
+                            special_order_action = "buy_stop"
+                            pending_request(entry_price=ideal_pending_price, type=mt5.ORDER_TYPE_BUY_STOP, sl=sl, sl_price=sl_price, tp_price=tp_price, symbol=symbol, type_filling=mt5.ORDER_FILLING_IOC, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio)
+                        elif ask_price == ideal_pending_price:
+                            print(f'PLACE MARKET BUY at {info["entry_price"]} + {current_spread} points of spread => {ideal_pending_price}, with sl at {sl_price} and tp at {tp_price}') # will need to add spread to the entry_price
+                            special_order_action = "market_buy"
+                            # a bit redundant because we can directly pass in the already calculated entry price, tp price and sl price. but since the open_request() function was written in such a way that it helps us calculate these. so we just input what it needs
+                            open_request(sl_price=dows_low, type="buy", sl=sl, symbol=symbol, type_filling=type_filling, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, 
+                                         tp_percent=tp_percent, added_points_to_sl=added_points_to_sl, added_points_to_tp=added_points_to_tp, fixed_tp=fixed_tp, fixed_tp_in_points=fixed_tp_in_points)
+                        
+                        # has found the best order, just break, no need to go through the rest of the loop
+                        break
+                        # open_request(sl_price=dows_low, type="buy", sl=sl, symbol=symbol, type_filling=type_filling, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, 
+                                    # tp_percent=tp_percent, added_points_to_sl=added_points_to_sl, added_points_to_tp=added_points_to_tp, fixed_tp=fixed_tp, fixed_tp_in_points=fixed_tp_in_points)
+
+
+                    elif "sell" in label:
+                        # just check everything in sell
+                        # sma
+                        sma_list_temp = calculate_sma_of_latest_n_ticks(symbol=symbol, timeframe=timeframe, sma_length=24, sma_count=magic_num_ticks)
+                        # I imagine the index that breaks should be the same as that of the sma here, it should correspond, because we both called magic_num_ticks ticks
+                        breaking_tick_index = info['index']
+                        if info["entry_price"] <= sma_list_temp[breaking_tick_index]:
+                            print(f'info["entry_price"]: {info["entry_price"]}')
+                            print("<=")
+                            print(f"sma_list_temp[breaking_tick_index]: {sma_list_temp[breaking_tick_index]}")
+                            pass
+                        else:
+                            continue
+                        
+                        # get the recent high
+                        dows_high = find_dows_high_conservative(symbol=symbol, timeframe=timeframe, tick_count=magic_num_ticks, breaking_tick_index=breaking_tick_index)
+                        if dows_high:
+                            sl = dows_high * multiply_digits - info["entry_price"] * multiply_digits
+                            print(f"dows high {dows_high}, sl: {sl}")
+                        else:
+                            print(f"didn't find dows_high in previous ticks, won't open order")
+                            continue
+                        # get sl and tp
+                        # make sl one pip larger. because we want the sl price to be one pip below or above dows high and low
+                        sl = sl + added_points_to_sl
+                        dows_high = (dows_high * multiply_digits - added_points_to_sl) / multiply_digits
+                    
+
+                        # check sl limit
+                        if sl > sl_limit:  # if sl > 300 points, or 30 pips
+                            # print(f"sl is {sl} points. too large, > sl_limit {sl_limit}, aborted.")
+                            continue
+                        elif sl < sl_min:
+                            # print(f"sl is {sl} points. too small, < sl_min {sl_min}, aborted.")
+                            continue
+
+                        # we do pending order, no need to check offset
+
+                        #### check if sl and tp are hit already
+                        last_magic_num_ticks = get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=magic_num_ticks) # ticks or rates, they are the same thing. I just seem to forget.
+                        # we want to start from the breaking tick (that one included, because it can finish in just one tick)
+                        relevant_ticks = last_magic_num_ticks[breaking_tick_index:]
+                        # we want to check the highest and lowest, and compare the highest with tp, and lowest with sl
+                        relevant_tick_highest = np.max(relevant_ticks['high'])
+                        relevant_tick_lowest = np.min(relevant_ticks['low'])
+                        sl_price = dows_high # just to make it more clear. 
+                        # check if stop loss is reached
+                        if relevant_tick_highest >= sl_price:
+                            print("sl is hit already. skip this pending sell entry")
+                            continue
+                        # calc tp price
+                        if fixed_tp:
+                            tp = fixed_tp_in_points
+                        else:
+                            # in points
+                            tp = sl / risk_reward_ratio
+                            # make tp 75% of theo tp
+                            tp = int(tp * tp_percent)
+                        
+                        tp += added_points_to_tp
+                        tp_price = info["entry_price"] - tp * symbol_point
+                        if relevant_tick_lowest <= tp_price:
+                            print("tp is hit already. skip this pending sell entry")
+                            continue
+
+
+                        # check if there is news ahead or if we are after news
+                        news_exist = get_news_data.trades_blocker_to_avoid_news(60, news_df)
+                        if news_exist:
+                            continue
+                        
+                        # special_order_action = ""
+                        current_spread = mt5.symbol_info(symbol).spread # in points
+                        ideal_pending_price = (info["entry_price"] * multiply_digits - current_spread) / multiply_digits
+                        # current_price is bid price
+                        if current_price < ideal_pending_price:
+                            print(f'PLACE SELL LIMIT ORDER at {info["entry_price"]} - {current_spread} points of spread => {ideal_pending_price}, with sl at {sl_price} and tp at {tp_price}')
+                            special_order_action = "sell_limit" # SELL_LIMIT / BUY_STOP / SELL_STOP
+                            pending_request(entry_price=ideal_pending_price, type=mt5.ORDER_TYPE_SELL_LIMIT, sl=sl, sl_price=sl_price, tp_price=tp_price, symbol=symbol, type_filling=mt5.ORDER_FILLING_IOC, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio)
+                        elif current_price > ideal_pending_price:
+                            print(f'PLACE SELL STOP ORDER at {info["entry_price"]} - {current_spread} points of spread => {ideal_pending_price}, with sl at {sl_price} and tp at {tp_price}')
+                            special_order_action = "sell_stop"
+                            pending_request(entry_price=ideal_pending_price, type=mt5.ORDER_TYPE_SELL_STOP, sl=sl, sl_price=sl_price, tp_price=tp_price, symbol=symbol, type_filling=mt5.ORDER_FILLING_IOC, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio)
+                        elif current_price == ideal_pending_price:
+                            print(f'PLACE MARKET SELL ORDER at {info["entry_price"]} - {current_spread} points of spread => {ideal_pending_price}, with sl at {sl_price} and tp at {tp_price}')
+                            special_order_action = "market_sell"
+                            open_request(sl_price=dows_high, type="sell", sl=sl, symbol=symbol, type_filling=type_filling, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio,
+                                         tp_percent=tp_percent, added_points_to_sl=added_points_to_sl, added_points_to_tp=added_points_to_tp, fixed_tp=fixed_tp, fixed_tp_in_points=fixed_tp_in_points)
+
+                        # has found the best order, just break, no need to go through the rest of the loop
+                        break
+                        # open_request(sl_price=dows_low, type="buy", sl=sl, symbol=symbol, type_filling=type_filling, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, 
+                                    # tp_percent=tp_percent, added_points_to_sl=added_points_to_sl, added_points_to_tp=added_points_to_tp, fixed_tp=fixed_tp, fixed_tp_in_points=fixed_tp_in_points)
+
+                if special_order_action in {"market_buy", "market_sell"}:
+                    print("When we check this special pending order, the current price is exactly at the price we want to place the pending order. So we have placed a market order instead.")
+                    print("And we must skip the below checking, to avoid that another market order is placed when there is a new two-candle-break right at this price.")
+                    continue
+
+            # # debug
+            # print("we are here, and then exit. otherwise, since we are in the main loop, during debugging we will keep opening the same orders")
+            # exit()
+
+            ### THIS IS THE MAIN DOUBLE TICK STRATEGY. FOUR CONDITIONS. ###
+
             # if current_price > higher_price, and we are above the 24sma, and there's a retracement
             if current_price > higher_price:
                 # print("buy")
@@ -2352,7 +2878,8 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 if news_exist:
                     continue
                 
-
+                # cancel pending orders (set by morning special rule, if any)
+                cancel_pending_orders(symbol)
                 open_request(sl_price=dows_low, type="buy", sl=sl, symbol=symbol, type_filling=type_filling, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, 
                              tp_percent=tp_percent, added_points_to_sl=added_points_to_sl, added_points_to_tp=added_points_to_tp, fixed_tp=fixed_tp, fixed_tp_in_points=fixed_tp_in_points)
                 # continue # if we opened an order, we go back to the beginning of the loop, we don't sleep
@@ -2552,7 +3079,9 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 if news_exist:
                     continue
 
-
+                
+                # cancel pending orders (set by morning special rule, if any)
+                cancel_pending_orders(symbol)
                 open_request(sl_price=dows_high, type="sell", sl=sl, symbol=symbol, type_filling=type_filling, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, 
                              tp_percent=tp_percent, added_points_to_sl=added_points_to_sl, added_points_to_tp=added_points_to_tp, fixed_tp=fixed_tp, fixed_tp_in_points=fixed_tp_in_points)
                 # continue
@@ -2778,7 +3307,10 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 if news_exist:
                     continue
 
-
+                # we should also cancel here, because although we do not check sma crossing scnarios in special morning check, 
+                # we can still have sma crossing chances after trading time, and then we need to cancel pending orders (although they are the previous 2 scenarios)
+                # cancel pending orders (set by morning special rule, if any)
+                cancel_pending_orders(symbol)
                 open_request(sl_price=dows_low, type="buy", sl=sl, symbol=symbol, type_filling=type_filling, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, 
                              tp_percent=tp_percent, added_points_to_sl=added_points_to_sl, added_points_to_tp=added_points_to_tp, fixed_tp=fixed_tp, fixed_tp_in_points=fixed_tp_in_points)
                 # continue # if we opened an order, we go back to the beginning of the loop, we don't sleep
@@ -2986,7 +3518,10 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 if news_exist:
                     continue
 
-
+                # we should also cancel here, because although we do not check sma crossing scnarios in special morning check, 
+                # we can still have sma crossing chances after trading time, and then we need to cancel pending orders (although they are the previous 2 scenarios)
+                # cancel pending orders (set by morning special rule, if any)
+                cancel_pending_orders(symbol) 
                 # sl = higher_price * 100 - current_price * 100  # BTC
                 open_request(sl_price=dows_high, type="sell", sl=sl, symbol=symbol, type_filling=type_filling, commission_per_lot=commission_per_lot, risk_ratio=risk_ratio, risk_reward_ratio=risk_reward_ratio, 
                              tp_percent=tp_percent, added_points_to_sl=added_points_to_sl, added_points_to_tp=added_points_to_tp, fixed_tp=fixed_tp, fixed_tp_in_points=fixed_tp_in_points)
@@ -3484,6 +4019,33 @@ def find_dows_high(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, tick_count=30):
             if rates[i]['high'] >= compare_two_and_get_higher(rates[i+1]['high'], rates[i-1]['high']):
                 dows_high = rates[i]['high']
                 return dows_high
+    return None
+
+# the conservative is for the special rule. checking pending opportunities when trading time starts. find the low/high when it's lower/higher than *both* sides. So the latest candle scenario is not considered
+def find_dows_low_conservative(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, tick_count=30, breaking_tick_index=0):
+    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=tick_count)
+    rates = np.flipud(rates)
+
+    starter = tick_count - 1 - breaking_tick_index # because we flipud the rates, should we do the maths, if it's the 5th candle, from 0 1 2 3 4 5 6, then reversed, it's the 1st one, starting from 0th. to get that, 7 - 1 - 5
+    print(f"starter: {starter}")
+    for i in range(starter, len(rates)-1): # until the one before the last one, so that we have one tick on its left and one on its right
+        if rates[i]['low'] <= compare_two_and_get_lower(rates[i+1]['low'], rates[i-1]['low']):
+            dows_low = rates[i]['low']
+            return dows_low
+
+    return None
+
+def find_dows_high_conservative(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, tick_count=30, breaking_tick_index=0):
+    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=tick_count)
+    rates = np.flipud(rates)
+
+    starter = tick_count - 1 - breaking_tick_index # because we flipud the rates, should we do the maths, if it's the 5th candle, from 0 1 2 3 4 5 6, then reversed, it's the 1st one, starting from 0th. to get that, 7 - 1 - 5
+    print(f"starter: {starter}")
+    for i in range(starter, len(rates)-1):
+        if rates[i]['high'] >= compare_two_and_get_higher(rates[i+1]['high'], rates[i-1]['high']):
+            dows_high = rates[i]['high']
+            return dows_high
+    
     return None
 
 
@@ -4100,6 +4662,7 @@ def main():
     # timer = 0
 
     count_down_after_modifying_sl = False
+    # check_if_trading_time = False # there's a func called check_if_its_trading_time # do not use that same name or it will cause issues
     check_if_trading_time = True # there's a func called check_if_its_trading_time # do not use that same name or it will cause issues
     
     # enabled
@@ -4153,13 +4716,17 @@ def main():
     # A place to store per-trade state ---
     trade_state = {}   # key = ticket, value = dict(entry_price, stop_dist, mpe, start_time)
 
+    # Let's have a dict to check if we have done the special pending order check at the start of our trading day
+    # this is for the 1 a.m. UTC time pending entry
+    special_pending_order_check_log = {} # put the date as the key, and put the value as dict(checked)
+
 
     double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body_points_limit, points_gap_between_ideal_n_current_limit,
                          offset_limit, points_from_tp_limit, commission_per_lot, risk_ratio, risk_reward_ratio, tp_percent, 
                          check_timeframe_consistency, count_down_after_modifying_sl, check_above_or_below_sma, check_if_trading_time, check_sma_resistance,
                          pattern_list, pattern_index, added_points_to_sl, added_points_to_tp, fixed_tp, fixed_tp_in_points, hedge, 
                          adx_threshold, is_check_adx_threshold_enabled, is_check_adx_ascending_enabled,
-                         broker_time_offset_hours_from_utc, news_df, trade_state, consecutive_losing_trade_limit)
+                         broker_time_offset_hours_from_utc, news_df, trade_state, consecutive_losing_trade_limit, special_pending_order_check_log)
     # symbol="XAUUSD"
     # point = mt5.symbol_info(symbol).point
     # print(point)
