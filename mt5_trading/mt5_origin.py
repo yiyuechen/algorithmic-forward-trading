@@ -3789,29 +3789,30 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     timedelta(minutes=90): 1:30:00
                 """
 
-                # 0. check right after 5 minutes to see if we are in drawdown, if so, just close the trade and wait for some time, maybe 30 minutes
-                if time_diff >= timedelta(minutes=5) and not current_ticket_state['checked_5'] and current_ticket_state['primary_trading_idea']:
-                    current_ticket_state['checked_5'] = True
+                # this seems to be too radical, so let's not use it for now. because it closes the trade too early. it made me miss 2 could-be winning trades on Thu Jun 12 2025
+                # # 0. check right after 5 minutes to see if we are in drawdown, if so, just close the trade and wait for some time, maybe 30 minutes
+                # if time_diff >= timedelta(minutes=5) and not current_ticket_state['checked_5'] and current_ticket_state['primary_trading_idea']:
+                #     current_ticket_state['checked_5'] = True
                     
 
-                    if points_from_tp > points_full_tp:
-                        in_drawdown = True
-                    else:
-                        in_drawdown = False
+                #     if points_from_tp > points_full_tp:
+                #         in_drawdown = True
+                #     else:
+                #         in_drawdown = False
 
-                    if in_drawdown:
-                        order_type = position.type
-                        if order_type == 0:
-                            close_type = 1
-                        elif order_type == 1:
-                            close_type = 0
-                        print("Risk Management 0")
-                        close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)
-                        # After closing, we want to avoid it opening the same trade if it's wandering to the entry again
-                        seconds_to_sleep = 60 * 30
-                        print(f"To avoid opening the trade again when price goes to the entry in this same candle, we sleep {seconds_to_sleep} seconds, which is about {seconds_to_sleep // 3600} hours {(seconds_to_sleep / 3600 - seconds_to_sleep // 3600) * 60:.0f} minutes.")
-                        for _ in trange(seconds_to_sleep):
-                            time.sleep(1)
+                #     if in_drawdown:
+                #         order_type = position.type
+                #         if order_type == 0:
+                #             close_type = 1
+                #         elif order_type == 1:
+                #             close_type = 0
+                #         print("Risk Management 0")
+                #         close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)
+                #         # After closing, we want to avoid it opening the same trade if it's wandering to the entry again
+                #         seconds_to_sleep = 60 * 30
+                #         print(f"To avoid opening the trade again when price goes to the entry in this same candle, we sleep {seconds_to_sleep} seconds, which is about {seconds_to_sleep // 3600} hours {(seconds_to_sleep / 3600 - seconds_to_sleep // 3600) * 60:.0f} minutes.")
+                #         for _ in trange(seconds_to_sleep):
+                #             time.sleep(1)
 
 
                 # 1. SPIKE in 30 mins (previously the rule is 5 minutes)
