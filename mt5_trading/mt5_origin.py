@@ -756,6 +756,70 @@ def open_request(sl_price, type="buy", sl=100, symbol="USDJPY", type_filling=mt5
         print("2. order_send done, ", result)
         print("   opened position with POSITION_TICKET={}".format(result.order))
 
+def open_request_for_add_position(sl_price, tp_price, lot, type=mt5.ORDER_TYPE_BUY, symbol="USDJPY", type_filling=mt5.ORDER_FILLING_IOC):
+    
+    # point = mt5.symbol_info(symbol).point    #EURUSD point: 1e-05   #BTCUSD point: 0.01 
+    #####################
+    # attention: the point here is not stop_loss_in_pips * 10. Instead, it's a decimal, telling us how many digits there are.
+    #####################
+    deviation = 20
+
+    if type == mt5.ORDER_TYPE_BUY:
+        price = mt5.symbol_info_tick(symbol).ask
+    elif type == mt5.ORDER_TYPE_SELL:
+        price = mt5.symbol_info_tick(symbol).bid
+
+
+    request = {
+        "action": mt5.TRADE_ACTION_DEAL,
+        "symbol": symbol,
+        "volume": lot,
+        "type": type,
+        "price": price,
+        #"sl": price - sl * point, # "sl": price - 100 * point,  EURUSD 100 * 0.00001 => 0.001   1.02380-0.001 => 1.02280 => 10 pips
+        # try to directly use the price of the previous tick low
+        "sl": sl_price,
+        # "tp": price + sl * point,
+        "tp": tp_price,
+        "deviation": deviation,
+        "magic": 108081,
+        "comment": "add_request",
+        "type_time": mt5.ORDER_TIME_GTC,
+        # "type_filling": mt5.ORDER_FILLING_RETURN,
+        # "type_filling": mt5.ORDER_FILLING_FOK, # works for fxtm
+        # "type_filling": mt5.ORDER_FILLING_IOC, # works for ic markect btc
+        "type_filling": type_filling,
+
+    }
+    
+    # send a trading request
+    result = mt5.order_send(request)
+    # check the execution result
+    print("1. order_send(): by {} {} lots at {} with deviation={} points".format(symbol,lot,price,deviation));
+    if result.retcode != mt5.TRADE_RETCODE_DONE:
+        print("2. order_send failed, retcode={}".format(result.retcode))
+        print(mt5.ORDER_FILLING_RETURN)
+        # request the result as a dictionary and display it element by element
+        result_dict=result._asdict()
+        for field in result_dict.keys():
+            print("   {}={}".format(field,result_dict[field]))
+            # if this is a trading request structure, display it element by element as well
+            if field=="request":
+                traderequest_dict=result_dict[field]._asdict()
+                for tradereq_filed in traderequest_dict:
+                    print("       traderequest: {}={}".format(tradereq_filed,traderequest_dict[tradereq_filed]))
+        # print("shutdown() and quit")
+        # mt5.shutdown()
+        # quit()
+        print("\nError\n")
+        if result_dict["comment"] == "AutoTrading disabled by client":
+            print("AutoTrading disabled by client")
+            mt5.shutdown()
+            quit()
+        
+    else:
+        print("2. order_send done, ", result)
+        print("   opened position with POSITION_TICKET={}".format(result.order))
 
 
 def close_request(symbol, ticket, lot, type_filling, close_type):
@@ -780,7 +844,7 @@ def close_request(symbol, ticket, lot, type_filling, close_type):
         "price": price,
         "deviation": deviation,
         "magic": 234000,
-        "comment": "python script close",
+        "comment": "close_request",
         "type_time": mt5.ORDER_TIME_GTC,
         # "type_filling": mt5.ORDER_FILLING_RETURN,
         "type_filling": type_filling,
@@ -2130,83 +2194,87 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
             is_trading_time = True
 
 
-
+        # !!!! important, we only check this during the trading time, otherwise, we weill have this issue:
+        # during trading time, it checks normally, as it ALWAYS checks regardless of trading time. once it exceeds trading limit, then it counts down till the end of the current trading day. but now. issue happens
+        # outside the trading time, seconds_to_sleep = (target_utc_time_today - dt_utc_now).total_seconds() will be negative!!! and it will keep printing e.g. We will sleep -18184 seconds, which is about -6 hours 57 minutes until 2025-06-11 15:00:00+00:00.
+        # because we didn't make it to only check during trading time by adding "if is_trading_time == True:"
         ################### check today's order history and see if there are x lossing trades in a row ######################
         # if so, call it a day.
         # let's do it quick and dirty here and then write it as a function
-        dt_utc_now = datetime.now(timezone.utc)
-        server_time_now = convert_utc_to_mt5_time(dt_utc_now, broker_time_offset_hours_from_utc)
-        server_date = server_time_now.date()
-        start_of_day_server = datetime.combine(server_date, dt_time.min)
-        start_of_day_server = start_of_day_server.replace(tzinfo=timezone.utc)
+        if is_trading_time:
+            dt_utc_now = datetime.now(timezone.utc)
+            server_time_now = convert_utc_to_mt5_time(dt_utc_now, broker_time_offset_hours_from_utc)
+            server_date = server_time_now.date()
+            start_of_day_server = datetime.combine(server_date, dt_time.min)
+            start_of_day_server = start_of_day_server.replace(tzinfo=timezone.utc)
 
-        from_date = start_of_day_server
-        to_date = server_time_now
-        # debug
-        # to_date = datetime(year=2025, month=5, day=30, hour=14, minute=6, second=0)
-        # # debug
-        # print(f"from_date: {from_date}")
-        # print(f"to_date: {to_date}")
-        # print()
-
-        # get deals
-        deals = mt5.history_deals_get(from_date, to_date, group=symbol)
-        # debug
-        # # display these deals as a table using pandas.DataFrame
-        # df = pd.DataFrame(list(deals), columns=deals[0]._asdict().keys())
-        # df['time'] = pd.to_datetime(df['time'], unit='s')
-        # print(df)
-        
-        
-
-        # Just got the idea. you only need to check the last n trades to see if they are consecutive losses. if so, then call it a day, right?
-        # let's say n is 2
-        # I don't care if you have 2 trades, and the last 2 trades are losses. I don't care if you have 10 trades, and the 9th and 10th trades are losses.
-        # if n is 3.
-        # as len < 3, no worries. once len >= 3, just keep checking the last 3 trades.
-
-        consecutive_losing_deal_limit = consecutive_losing_trade_limit * 2 # deal count is 2 times of trade count
-        # # debug
-        # print(f"consecutive losing deal_limit: {consecutive_losing_deal_limit}")
-        # print(f"length of deals: {len(deals)}")
-        if len(deals) >= consecutive_losing_deal_limit:
+            from_date = start_of_day_server
+            to_date = server_time_now
+            # debug
+            # to_date = datetime(year=2025, month=5, day=30, hour=14, minute=6, second=0)
             # # debug
-            # print("we are in if len(deals) >= consecutive_losing_deal_limit:")
-            # get last {2 * consecutive_losing_trade_limit} deals
-            last_few_deals = deals[-consecutive_losing_deal_limit:]
+            # print(f"from_date: {from_date}")
+            # print(f"to_date: {to_date}")
+            # print()
 
-            # note that we are now looking at TRADE, not deals.
-            # we check the commission where it's 0, indicating it's a closing deal. We see this as a completion signal of a trade, counting it as a trade.
-            # we count how many trades are of negative profits (we do not look at commissions for simplicity for now)
-            consecutive_losing_trade_count = 0
-            for deal in last_few_deals:
-                if deal.commission == 0 and deal.profit < 0:
-                    consecutive_losing_trade_count += 1
+            # get deals
+            deals = mt5.history_deals_get(from_date, to_date, group=symbol)
+            # debug
+            # # display these deals as a table using pandas.DataFrame
+            # df = pd.DataFrame(list(deals), columns=deals[0]._asdict().keys())
+            # df['time'] = pd.to_datetime(df['time'], unit='s')
+            # print(df)
+            
+            
 
-            if consecutive_losing_trade_count == consecutive_losing_trade_limit:
-                print(f"We have {consecutive_losing_trade_limit} consecutive losses. Call it a day.")
-                print("The latest losing trades are:")
-                # display these deals as a table using pandas.DataFrame
-                df = pd.DataFrame(list(last_few_deals), columns=last_few_deals[0]._asdict().keys())
-                df['time'] = pd.to_datetime(df['time'], unit='s')
-                print(df)
+            # Just got the idea. you only need to check the last n trades to see if they are consecutive losses. if so, then call it a day, right?
+            # let's say n is 2
+            # I don't care if you have 2 trades, and the last 2 trades are losses. I don't care if you have 10 trades, and the 9th and 10th trades are losses.
+            # if n is 3.
+            # as len < 3, no worries. once len >= 3, just keep checking the last 3 trades.
 
-                # we have dt_utc_now, and we wnat to sleep until utc time 15:00, right? Note it's UTC !!! time
-                # let's wait until today's end, so as the time sleep stops, we should be out of trading time and the check_if_trading_time should be right at that time starting to counting down
-                # Define 15:00 UTC today
-                target_utc_time_today = datetime.combine(dt_utc_now.date(), dt_time(15, 0, 0), tzinfo=timezone.utc)
-                # Calculate seconds between now and 15:00 UTC
-                seconds_to_sleep = (target_utc_time_today - dt_utc_now).total_seconds()
-                # print(f"seconds_to_sleep: {seconds_to_sleep}, type: {type(seconds_to_sleep)}")
-                seconds_to_sleep = math.ceil(seconds_to_sleep) # convert it to an integer so that trange is happy
-                # we will use trange from module tqdm to print a progress bar
-                print(f"We will sleep {seconds_to_sleep} seconds, which is about {seconds_to_sleep // 3600} hours {(seconds_to_sleep / 3600 - seconds_to_sleep // 3600) * 60:.0f} minutes until {target_utc_time_today}.")
-                for _ in trange(seconds_to_sleep):
-                    time.sleep(1)
-                
-                # after sleeping completes, we continue, so that we do not run the below code, but go to the next loop. because we want to check if it's trading time next. 
-                # Otherwise, we will assume it's trading time, and probably will execute a trade if all conditions are met for opening a trade
-                continue
+            consecutive_losing_deal_limit = consecutive_losing_trade_limit * 2 # deal count is 2 times of trade count
+            # # debug
+            # print(f"consecutive losing deal_limit: {consecutive_losing_deal_limit}")
+            # print(f"length of deals: {len(deals)}")
+            if len(deals) >= consecutive_losing_deal_limit:
+                # # debug
+                # print("we are in if len(deals) >= consecutive_losing_deal_limit:")
+                # get last {2 * consecutive_losing_trade_limit} deals
+                last_few_deals = deals[-consecutive_losing_deal_limit:]
+
+                # note that we are now looking at TRADE, not deals.
+                # we check the commission where it's 0, indicating it's a closing deal. We see this as a completion signal of a trade, counting it as a trade.
+                # we count how many trades are of negative profits (we do not look at commissions for simplicity for now)
+                consecutive_losing_trade_count = 0
+                for deal in last_few_deals:
+                    if deal.commission == 0 and deal.profit < 0:
+                        consecutive_losing_trade_count += 1
+
+                if consecutive_losing_trade_count == consecutive_losing_trade_limit:
+                    print(f"We have {consecutive_losing_trade_limit} consecutive losses. Call it a day.")
+                    print("The latest losing trades are:")
+                    # display these deals as a table using pandas.DataFrame
+                    df = pd.DataFrame(list(last_few_deals), columns=last_few_deals[0]._asdict().keys())
+                    df['time'] = pd.to_datetime(df['time'], unit='s')
+                    print(df)
+
+                    # we have dt_utc_now, and we wnat to sleep until utc time 15:00, right? Note it's UTC !!! time
+                    # let's wait until today's end, so as the time sleep stops, we should be out of trading time and the check_if_trading_time should be right at that time starting to counting down
+                    # Define 15:00 UTC today
+                    target_utc_time_today = datetime.combine(dt_utc_now.date(), dt_time(15, 0, 0), tzinfo=timezone.utc)
+                    # Calculate seconds between now and 15:00 UTC
+                    seconds_to_sleep = (target_utc_time_today - dt_utc_now).total_seconds()
+                    # print(f"seconds_to_sleep: {seconds_to_sleep}, type: {type(seconds_to_sleep)}")
+                    seconds_to_sleep = math.ceil(seconds_to_sleep) # convert it to an integer so that trange is happy
+                    # we will use trange from module tqdm to print a progress bar
+                    print(f"We will sleep {seconds_to_sleep} seconds, which is about {seconds_to_sleep // 3600} hours {(seconds_to_sleep / 3600 - seconds_to_sleep // 3600) * 60:.0f} minutes until {target_utc_time_today}.")
+                    for _ in trange(seconds_to_sleep):
+                        time.sleep(1)
+                    
+                    # after sleeping completes, we continue, so that we do not run the below code, but go to the next loop. because we want to check if it's trading time next. 
+                    # Otherwise, we will assume it's trading time, and probably will execute a trade if all conditions are met for opening a trade
+                    continue
                 
 
         #########################################
@@ -3574,13 +3642,30 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 # definition: the highest floating points this trade has ever had
                 # this is the initialization of the trade with mpe information
                 if position.ticket not in trade_state:
-                    trade_state[position.ticket] = {
-                        'mpe': 0, # in points
-                        'be_moved'  : False,
-                        'checked_first_candle_close': False,
-                        'checked_60': False,
-                        'checked_90': False
-                    }
+                    if len(current_symbol_open_positions) == 1: # when the length is 1, it means there is only one position open, and that is the main trading idea
+                        trade_state[position.ticket] = {
+                            'mpe': 0, # in points
+                            'be_moved': False,
+                            'checked_5': False,
+                            'checked_first_candle_close': False,
+                            'checked_60': False,
+                            'checked_90': False,
+                            'position_has_been_added_based_on_the_trade': False,
+                            'primary_trading_idea': True # if true, it means this is the original trading idea that lets us open the trade
+                        }
+                    else: # elif len(current_symbol_open_positions) == 2: # when the length is 2, it means there are 2 positions open, which are the main trading idea and the added position
+                        # just use else instead of == 2 to make sure even (not likely) 3 trades are opened, the trade_state is properly created
+                        trade_state[position.ticket] = { # although some key value pairs are not used for added positions, we just assign them in case of future use
+                            'mpe': 0, # in points
+                            'be_moved': False,
+                            'checked_5': False,
+                            'checked_first_candle_close': False,
+                            'checked_60': False,
+                            'checked_90': False,
+                            'position_has_been_added_based_on_the_trade': False,
+                            'primary_trading_idea': False # if false, it means this is an added position based on the primary trading idea
+                        }
+
                 # with the initialization, we can say that we have this "position.ticket" in the trade_state dict
 
                 # now let's update the mpe information
@@ -3704,9 +3789,34 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     timedelta(minutes=90): 1:30:00
                 """
 
+                # 0. check right after 5 minutes to see if we are in drawdown, if so, just close the trade and wait for some time, maybe 30 minutes
+                if time_diff >= timedelta(minutes=5) and not current_ticket_state['checked_5'] and current_ticket_state['primary_trading_idea']:
+                    current_ticket_state['checked_5'] = True
+                    
+
+                    if points_from_tp > points_full_tp:
+                        in_drawdown = True
+                    else:
+                        in_drawdown = False
+
+                    if in_drawdown:
+                        order_type = position.type
+                        if order_type == 0:
+                            close_type = 1
+                        elif order_type == 1:
+                            close_type = 0
+                        print("Risk Management 0")
+                        close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)
+                        # After closing, we want to avoid it opening the same trade if it's wandering to the entry again
+                        seconds_to_sleep = 60 * 30
+                        print(f"To avoid opening the trade again when price goes to the entry in this same candle, we sleep {seconds_to_sleep} seconds, which is about {seconds_to_sleep // 3600} hours {(seconds_to_sleep / 3600 - seconds_to_sleep // 3600) * 60:.0f} minutes.")
+                        for _ in trange(seconds_to_sleep):
+                            time.sleep(1)
+
+
                 # 1. SPIKE in 30 mins (previously the rule is 5 minutes)
                 # check spike in drawndown >= 75% of full stop loss within 5 minutes CONTINUOUSLY
-                if time_diff <= timedelta(minutes=30): # instead of 5, let's do 30
+                if time_diff <= timedelta(minutes=30) and current_ticket_state['primary_trading_idea']: # instead of 5, let's do 30
                     if points_from_tp <= points_full_tp:
                         # the points between the current price and the take profit price is <= than the points of the full take profit
                         # this means we are in profits or BE
@@ -3737,7 +3847,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 first_full_bar_close = first_full_bar_start + timedelta(minutes=30)
 
                 # if the current time is later than the first bar close time and the first_candle_close is not checked
-                if now_utc >= first_full_bar_close and not current_ticket_state['checked_first_candle_close']: 
+                if now_utc >= first_full_bar_close and not current_ticket_state['checked_first_candle_close'] and current_ticket_state['primary_trading_idea']: 
                     current_ticket_state['checked_first_candle_close'] = True
                     if points_from_tp <= points_full_tp:
                         # in profits or BE
@@ -3755,7 +3865,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                             close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)    
 
                 # 3. 60 Min no-momentum check (runs ONCE at 60 minutes)
-                if time_diff >= timedelta(minutes=60) and not current_ticket_state['checked_60']:
+                if time_diff >= timedelta(minutes=60) and not current_ticket_state['checked_60'] and current_ticket_state['primary_trading_idea']:
                     current_ticket_state['checked_60'] = True
                     
                     mpe_proportion = current_ticket_state['mpe'] / points_full_tp
@@ -3793,7 +3903,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 #     print("✅ Trade was opened within the last 90 minutes.")
                 # else:
                 #     print("❌ Trade is older than 90 minutes.")
-                if time_diff > timedelta(minutes=90):
+                if time_diff > timedelta(minutes=90): # we didn't add " and current_ticket_state['primary_trading_idea']" to skip checking the added position, so we still check it, because for an "added position", if at 90 mintutes, it's still not working out. It is not going right
                     # check if the profits is at least 0.3 R
                     # points_from_tp = abs(position.price_current - position.tp) * position_symbol_multiply_digits
                     # points_full_tp = abs(position.price_open - position.tp) * position_symbol_multiply_digits
@@ -3836,6 +3946,15 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     print("Closing trades due to news within 1 minute...")
                     close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)
 
+
+                # ISSUE! It is likely that since this order has a new ticket, so during the next loop, it will be added into the new trade status. and so as it goes another 1/2 tp, another order will be opened.
+                # add position when price reached 1/2 tp
+                points_half_tp = 0.5 * points_full_tp
+                if points_from_entry >= points_half_tp and not current_ticket_state['position_has_been_added_based_on_the_trade'] and len(current_symbol_open_positions) <= 1:
+                    # must set current_ticket_state['position_has_been_added_based_on_the_trade'] as True, otherwise, if it got stopped (len goes from 2 to 1), and it goes the half of tp again (len is 1 at that moement), it will open again
+                    current_ticket_state['position_has_been_added_based_on_the_trade'] = True
+                    # open another postion with the same lot size, with sl at main position entry price - maybe 3 pips, and tp at main position tp price
+                    open_request_for_add_position(sl_price=position.price_open, tp_price=position.tp, lot=position.volume, type=position.type, symbol=position.symbol, type_filling=type_filling) # type is the direction, buy or sell
 
                 # points_from_tp_limit is static. here it's tried dynamic based on the 0.1 risk to get tp
                 dynamic_points_from_tp_limit = points_full_tp * 0.1
@@ -4661,7 +4780,7 @@ def main():
     # # also if the program freezes, the print output will not change, which draws us attention
     # timer = 0
 
-    count_down_after_modifying_sl = False
+    count_down_after_modifying_sl = True
     # check_if_trading_time = False # there's a func called check_if_its_trading_time # do not use that same name or it will cause issues
     check_if_trading_time = True # there's a func called check_if_its_trading_time # do not use that same name or it will cause issues
     
