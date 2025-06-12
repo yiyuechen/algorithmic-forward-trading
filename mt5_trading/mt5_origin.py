@@ -3951,7 +3951,9 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 # ISSUE! It is likely that since this order has a new ticket, so during the next loop, it will be added into the new trade status. and so as it goes another 1/2 tp, another order will be opened.
                 # add position when price reached 1/2 tp
                 points_half_tp = 0.5 * points_full_tp
-                if points_from_entry >= points_half_tp and not current_ticket_state['position_has_been_added_based_on_the_trade'] and len(current_symbol_open_positions) <= 1:
+                # note that points from entry is the ABSOLUTE distance. so if we are in half drawdown, we also attempt to add a trade, which will be a failed request.
+                # to fix this, we want to ensure: 1. distance to entry abs is half of tp profits 2. we are in profits. (by checking points_from_tp <= points_full_tp)
+                if points_from_entry >= points_half_tp and points_from_tp <= points_full_tp and not current_ticket_state['position_has_been_added_based_on_the_trade'] and len(current_symbol_open_positions) <= 1:
                     # must set current_ticket_state['position_has_been_added_based_on_the_trade'] as True, otherwise, if it got stopped (len goes from 2 to 1), and it goes the half of tp again (len is 1 at that moement), it will open again
                     current_ticket_state['position_has_been_added_based_on_the_trade'] = True
                     # open another postion with the same lot size, with sl at main position entry price - maybe 3 pips, and tp at main position tp price
