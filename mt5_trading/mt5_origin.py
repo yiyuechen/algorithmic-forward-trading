@@ -2579,8 +2579,8 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
 
                         sl_price = dows_low # just to make it more clear. 
                         # check if stop loss is reached
-                        if relevant_tick_lowest <= sl_price:
-                            print("sl is hit already. skip this pending buy entry")
+                        if relevant_tick_lowest < sl_price: # set it to <, NOT <=. bc if the breaking candle breaks pre candles' low and then breaks their high, then the relevant_tick_lowest is just the sl price
+                            print(f"sl is hit already. skip this pending buy entry. sl: {sl_price}. relevant_tick_lowest: {relevant_tick_lowest}")
                             continue
 
                         # calc tp price
@@ -2595,8 +2595,8 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                         tp += added_points_to_tp
                         tp_price = info["entry_price"] + tp * symbol_point
                         # check if take profit is reached
-                        if relevant_tick_highest >= tp_price:
-                            print("tp is hit already. skip this pending buy entry")
+                        if relevant_tick_highest >= tp_price: # should we set it to >, instead of >= ? maybe not. bc we want the bid price to reach tp_price
+                            print(f"tp is hit already. skip this pending buy entry. tp: {tp_price}. relevant_tick_highest: {relevant_tick_highest}")
                             continue
 
                         # check if there is news ahead or if we are after news
@@ -2678,8 +2678,8 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                         relevant_tick_lowest = np.min(relevant_ticks['low'])
                         sl_price = dows_high # just to make it more clear. 
                         # check if stop loss is reached
-                        if relevant_tick_highest >= sl_price:
-                            print("sl is hit already. skip this pending sell entry")
+                        if relevant_tick_highest > sl_price: # set it to >, NOT >=. bc if the breaking candle breaks pre candles' high and then breaks their low, then the relevant_tick_highest is just the sl price
+                            print(f"sl is hit already. skip this pending sell entry. sl: {sl_price}. relevant_tick_highest: {relevant_tick_highest}")
                             continue
                         # calc tp price
                         if fixed_tp:
@@ -2692,8 +2692,8 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                         
                         tp += added_points_to_tp
                         tp_price = info["entry_price"] - tp * symbol_point
-                        if relevant_tick_lowest <= tp_price:
-                            print("tp is hit already. skip this pending sell entry")
+                        if relevant_tick_lowest <= tp_price: # might be an issue. bc we want the ask price to be <= tp_price. but relevant_tick_lowest is the bid price. we didn't consider the spread
+                            print(f"tp is hit already. skip this pending sell entry. tp: {tp_price}. relevant_tick_lowest: {relevant_tick_lowest}")
                             continue
 
 
