@@ -3647,11 +3647,13 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                             'mpe': 0, # in points
                             'be_moved': False,
                             'checked_5': False,
+                            'checked_10': False,
                             'checked_first_candle_close': False,
                             'checked_60': False,
                             'checked_90': False,
                             'position_has_been_added_based_on_the_trade': False,
-                            'primary_trading_idea': True # if true, it means this is the original trading idea that lets us open the trade
+                            'primary_trading_idea': True, # if true, it means this is the original trading idea that lets us open the trade
+                            'primary_trade_initial_position': position.volume,
                         }
                     else: # elif len(current_symbol_open_positions) == 2: # when the length is 2, it means there are 2 positions open, which are the main trading idea and the added position
                         # just use else instead of == 2 to make sure even (not likely) 3 trades are opened, the trade_state is properly created
@@ -3659,11 +3661,12 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                             'mpe': 0, # in points
                             'be_moved': False,
                             'checked_5': False,
+                            'checked_10': False,
                             'checked_first_candle_close': False,
                             'checked_60': False,
                             'checked_90': False,
                             'position_has_been_added_based_on_the_trade': False,
-                            'primary_trading_idea': False # if false, it means this is an added position based on the primary trading idea
+                            'primary_trading_idea': False, # if false, it means this is an added position based on the primary trading idea
                         }
 
                 # with the initialization, we can say that we have this "position.ticket" in the trade_state dict
@@ -3814,8 +3817,52 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 #         for _ in trange(seconds_to_sleep):
                 #             time.sleep(1)
 
+                # 0. A milder first-few-minute risk management.
+                # check if after 5 minutes the mpe is less than 30 points 
+                # (maybe 10 minutes and  10 points to just cut the real bad entries and save the potential winners), 
+                # if so, then just cut the trade to avoid the false breakout
+                if time_diff >= timedelta(minutes=10) and not current_ticket_state['checked_10'] and current_ticket_state['primary_trading_idea']:
+                    current_ticket_state['checked_10'] = True
+                    if current_ticket_state['mpe'] < 10: # 10 points, namely 1 pips. to improve pricision, need to consider bid and ask. No, mt5 has taken it into consideration
+                        order_type = position.type
+                        if order_type == 0:
+                            close_type = 1
+                        elif order_type == 1:
+                            close_type = 0
+                        print(f"Risk Management: in first 10 minutes, mpe never goes >= 10 points. Close full")
+                        close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)
+                        
+                        # in one scenario, we want it to open another trade. and that is, it goes to the opposite way and breaks. it's a setup trade. 
+                        # false break and then reverse
+                        # so maybe just not sleep. besides, this is relatively hopeless for it to go back in profits again. if it really does, let's just open again.
+                        
+                        # # After closing, we want to avoid it opening the same trade if it's wandering to the entry again
+                        # seconds_to_sleep = 60 * 30
+                        # print(f"To avoid opening the trade again when price goes to the entry in this same candle, we sleep {seconds_to_sleep} seconds, which is about {seconds_to_sleep // 3600} hours {(seconds_to_sleep / 3600 - seconds_to_sleep // 3600) * 60:.0f} minutes.")
+                        # for _ in trange(seconds_to_sleep):
+                        #     time.sleep(1)
 
-                # 1. SPIKE in 30 mins (previously the rule is 5 minutes)
+                # 1. SPIKE in 5 mins
+                # check spike in drawndown >= 50% of full stop loss within 5 (or maybe 3?) minutes CONTINUOUSLY
+                if time_diff <= timedelta(minutes=5) and current_ticket_state['primary_trading_idea']:
+                    if points_from_tp <= points_full_tp:
+                        # the points between the current price and the take profit price is <= than the points of the full take profit
+                        # this means we are in profits or BE
+                        pass
+                    else:
+                        # we are in drawdown
+                        drawdown_proportion = points_from_entry / points_full_sl # e.g 150 / 200 points = 0.75
+                        if drawdown_proportion > 0.50:
+                            order_type = position.type
+                            if order_type == 0:
+                                close_type = 1
+                            elif order_type == 1:
+                                close_type = 0
+                            print(f"Risk Management: drawdown > 50 percentage in 5 minutes. Close full")
+                            close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)       
+
+
+                # 2. SPIKE in 30 mins (previously the rule is 5 minutes)
                 # check spike in drawndown >= 75% of full stop loss within 5 minutes CONTINUOUSLY
                 if time_diff <= timedelta(minutes=30) and current_ticket_state['primary_trading_idea']: # instead of 5, let's do 30
                     if points_from_tp <= points_full_tp:
@@ -3831,10 +3878,10 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                                 close_type = 1
                             elif order_type == 1:
                                 close_type = 0
-                            print("Risk Management 1")
+                            print("Risk Management: drawdown > 75 percentage in 30 minutes. Close full")
                             close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)                            
 
-                # 2. FIRST CANDLE CLOSE healthcheck
+                # 3. FIRST CANDLE CLOSE healthcheck
                 # check right when the first bar is closed, how can I do this? this is tricky
                 # I can write down the open time, and calculate how many minutes are left before the entry candle closes, calling it minutes_left_for_entry_close, and then minutes_left_for_entry_close += 30
                 
@@ -3862,10 +3909,15 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                                 close_type = 1
                             elif order_type == 1:
                                 close_type = 0
-                            print("Risk Management 2")
-                            close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)    
+                            print("Risk Management: when first full candle closes, drawdown is >= 30 percentage. Close half")
+                            half_volume = position.volume * 0.5
+                            if "." in str(half_volume):
+                                half_volume = float(str(half_volume).split(".")[0] + "." + str(half_volume).split(".")[1][:2])
+                            if half_volume < 0.01:
+                                half_volume = 0.01
+                            close_request(symbol=symbol, ticket=position.ticket, lot=half_volume, type_filling=type_filling, close_type=close_type)    
 
-                # 3. 60 Min no-momentum check (runs ONCE at 60 minutes)
+                # 4. 60 Min no-momentum check (runs ONCE at 60 minutes)
                 if time_diff >= timedelta(minutes=60) and not current_ticket_state['checked_60'] and current_ticket_state['primary_trading_idea']:
                     current_ticket_state['checked_60'] = True
                     
@@ -3890,21 +3942,28 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                             close_type = 1
                         elif order_type == 1:
                             close_type = 0
-                        print("Risk Management 3")
-                        close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)
+                        print("60 Min no-momentum check: right at minute 60, mpe_proportion is < 0.3 OR current drawdown is <=0.2. Close half")
+                        half_volume = position.volume * 0.5
+                        if "." in str(half_volume):
+                            half_volume = float(str(half_volume).split(".")[0] + "." + str(half_volume).split(".")[1][:2])
+                        if half_volume < 0.01:
+                            half_volume = 0.01
+                        close_request(symbol=symbol, ticket=position.ticket, lot=half_volume, type_filling=type_filling, close_type=close_type)
                     
 
                 # Check *AT* 90 minutes, if price has ever reached 30% profits, If so, then leave it. If not, close the trade.
                 # ... #
 
-                # 4. 90 minutes check
+                # 5. 90 minutes check (previously we always did CONTINUOUS check. but maybe we should just check once and close 50% ?)
                 # Check if within 90 minutes
                 # Check constantly if after 90 minutes, we are above 20% profits, if at any time price retraces below 20% proits, close IMMEDIATELY. So this is CONTINUOUS checking
                 # if time_diff <= timedelta(minutes=90):
                 #     print("✅ Trade was opened within the last 90 minutes.")
                 # else:
                 #     print("❌ Trade is older than 90 minutes.")
-                if time_diff > timedelta(minutes=90): # we didn't add " and current_ticket_state['primary_trading_idea']" to skip checking the added position, so we still check it, because for an "added position", if at 90 mintutes, it's still not working out. It is not going right
+                if time_diff > timedelta(minutes=90) and not current_ticket_state['checked_90']: # we didn't add " and current_ticket_state['primary_trading_idea']" to skip checking the added position, so we still check it, because for an "added position", if at 90 mintutes, it's still not working out. It is not going right
+                    # if we want to check ONLY once, ensure to make it true prior to any operations
+                    current_ticket_state['checked_90'] = True
                     # check if the profits is at least 0.3 R
                     # points_from_tp = abs(position.price_current - position.tp) * position_symbol_multiply_digits
                     # points_full_tp = abs(position.price_open - position.tp) * position_symbol_multiply_digits
@@ -3922,7 +3981,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     else:
                         # how come points_from_tp is greater than the full tp? that means we are in drawdown
                         points_earned_so_far = -abs(position.price_open - position.price_current) * position_symbol_multiply_digits
-                        print(f"in drawdown. closing now...")
+                        print(f"in drawdown. managing risk now...")
                         close_trade = True
 
                     if close_trade:
@@ -3932,8 +3991,32 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                         elif order_type == 1:
                             close_type = 0
 
-                        print("Risk Management 4")
-                        close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)
+                        print(f"90 minutes check: after 90 minutes, earned_proportion_threshold is < {earned_proportion_threshold}. Close half")
+                        half_volume = position.volume * 0.5
+                        if "." in str(half_volume):
+                            half_volume = float(str(half_volume).split(".")[0] + "." + str(half_volume).split(".")[1][:2])
+                        if half_volume < 0.01:
+                            half_volume = 0.01
+                        close_request(symbol=symbol, ticket=position.ticket, lot=half_volume, type_filling=type_filling, close_type=close_type)
+
+                # 6. after 90 minutes till the END of trade risk management. let's do the continuous check here. just more conservative
+                # the rule: if after 90minutes, the remaining trade goes below -50% in loss, close it
+                if time_diff > timedelta(minutes=90):
+                    if points_from_tp <= points_full_tp:
+                        # the points between the current price and the take profit price is <= than the points of the full take profit
+                        # this means we are in profits or BE
+                        pass
+                    else:
+                        # we are in drawdown
+                        drawdown_proportion = points_from_entry / points_full_sl # e.g 150 / 200 points = 0.75
+                        if drawdown_proportion > 0.50:
+                            order_type = position.type
+                            if order_type == 0:
+                                close_type = 1
+                            elif order_type == 1:
+                                close_type = 0
+                            print(f"after 90 minutes, drawdown > 50 percentage. close everything")
+                            close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type) 
 
 
                 # check if there is news in just 1 minute. This happens when we open a trade and it's be more than 60 minutes, and the trade is still open. Now the news is ahead. We should close it 1 minute before news
@@ -3957,7 +4040,8 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     # must set current_ticket_state['position_has_been_added_based_on_the_trade'] as True, otherwise, if it got stopped (len goes from 2 to 1), and it goes the half of tp again (len is 1 at that moement), it will open again
                     current_ticket_state['position_has_been_added_based_on_the_trade'] = True
                     # open another postion with the same lot size, with sl at main position entry price - maybe 3 pips, and tp at main position tp price
-                    open_request_for_add_position(sl_price=position.price_open, tp_price=position.tp, lot=position.volume, type=position.type, symbol=position.symbol, type_filling=type_filling) # type is the direction, buy or sell
+                    # the lot was previously set as 'lot=position.volume'. now we set it as current_ticket_state['primary_trade_initial_position'], bc after closing 50%, if it goes again to 1/2 tp, we add the initial full position
+                    open_request_for_add_position(sl_price=position.price_open, tp_price=position.tp, lot=current_ticket_state['primary_trade_initial_position'], type=position.type, symbol=position.symbol, type_filling=type_filling) # type is the direction, buy or sell
 
                 # points_from_tp_limit is static. here it's tried dynamic based on the 0.1 risk to get tp
                 dynamic_points_from_tp_limit = points_full_tp * 0.1
