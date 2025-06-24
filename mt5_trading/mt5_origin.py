@@ -2736,6 +2736,15 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
 
             ### THIS IS THE MAIN DOUBLE TICK STRATEGY. FOUR CONDITIONS. ###
 
+
+
+            # add a angle filter here
+            # if angle is flat, then we just WAIT, not even doing any comparison at all.
+            check_sma_slope_result = check_sma_slope_ok(timeframe, sma_list_m5, sma_list_m15, sma_list_m30, sma_list_h1, sma_list_h4, lookback=3, symbol=symbol, min_angle=8, max_angle=25)
+            # here if we have 0 in the returned value, we skip by "continue". otherwise, we run the below code
+            if check_sma_slope_result == 0:
+                continue
+
             # if current_price > higher_price, and we are above the 24sma, and there's a retracement
             if current_price > higher_price:
                 # print("buy")
@@ -2756,6 +2765,13 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 else:
                     continue
                 
+                # sma slope check
+                if check_sma_slope_result == 1:
+                    pass
+                else: # it's == -1, it's bearish. shouldn't take a buy here.
+                    continue
+
+
                 if check_above_or_below_sma:
                     if above_or_below_sma in {"above"}:
                         pass
@@ -2968,6 +2984,13 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     pass
                 else:
                     continue
+
+                # sma slope check
+                if check_sma_slope_result == -1:
+                    pass
+                else: # if it's not -1, and it's not 0, then it's 1, it's bullish. shouldn't take a buy here.
+                    continue
+
 
                 if check_above_or_below_sma:
                     if above_or_below_sma in {"below"}:
@@ -4734,6 +4757,53 @@ def get_broker_time_n_utc_time_offset(symbol):
 
     return hours_offset_int
 
+def check_sma_slope_ok(timeframe, sma_list_m5, sma_list_m15, sma_list_m30, sma_list_h1, sma_list_h4, lookback=3, symbol="USDJPY", min_angle=0, max_angle=0):
+    # lookback = 3
+    # pip_size = 0.01
+    pip_size = 10 ** (-mt5.symbol_info(symbol).digits + 1) # -3 + 1 -> 10 ^ (-2) -> 0.01
+    # min_angle=4
+    if timeframe == mt5.TIMEFRAME_M5:
+        sma_list = sma_list_m5
+    elif timeframe == mt5.TIMEFRAME_M15:
+        sma_list = sma_list_m15
+    elif timeframe == mt5.TIMEFRAME_M30:
+        sma_list = sma_list_m30
+    elif timeframe == mt5.TIMEFRAME_H1:
+        sma_list = sma_list_h1
+    elif timeframe == mt5.TIMEFRAME_H4:
+        sma_list = sma_list_h4
+
+    # sma_list is from earlier to latest
+    sma_now = sma_list[-1] # current sma
+    slice_num_sma_then = -1 - lookback # -1 is the last item in the list, so -1 minus lookback, you get that then sma
+    # sma_then = sma_list[-4]
+    sma_then = sma_list[slice_num_sma_then]
+
+    rise = sma_now - sma_then
+    bars = lookback
+    slope_per_bar = rise / bars # pips per bar
+
+    vertical_unit = pip_size * 10
+
+    # convert to degrees
+    angle_rad = math.atan( slope_per_bar / vertical_unit )
+    angle_deg = math.degrees(angle_rad)
+
+    print(f"sma_now: {sma_now}")
+    print(f"sma_then: {sma_then}")
+    print(f"rise: {rise}")
+    print(f"bars: {bars}")
+    print(f"slope_per_bar: {slope_per_bar}")
+    print(f"angle_rad: {angle_rad}")
+    print(f"angle_deg: {angle_deg}")
+
+    # --- step 5: threshold -------------------------------------------------
+    if min_angle <= angle_deg <= max_angle:
+        return  1      # bullish bias allowed
+    elif -max_angle <= angle_deg <= -min_angle:
+        return -1      # bearish bias allowed
+    else:
+        return  0        # too flat → skip
 
 def main():
     # # main mt5 path
@@ -4815,7 +4885,7 @@ def main():
     # sl_limit = 270
     # body_points_limit = 160
 
-    sl_limit = 300 #360 # for usdjpy previous setting was 650
+    sl_limit = 350 # 300 #360 # for usdjpy previous setting was 650
     # sl_limit = 800 #350 # setting to 500 for XAUUSD testing
     sl_min = 100
     # body points limit is used for crossing sma setups, where the crossing candle's body should be be too big.
