@@ -4057,17 +4057,37 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)
 
 
+                ##### ADDING POSITION CODE BLOCK --- start --- #####
+
                 # ISSUE! It is likely that since this order has a new ticket, so during the next loop, it will be added into the new trade status. and so as it goes another 1/2 tp, another order will be opened.
                 # add position when price reached 1/2 tp
                 points_half_tp = 0.5 * points_full_tp
                 # note that points from entry is the ABSOLUTE distance. so if we are in half drawdown, we also attempt to add a trade, which will be a failed request.
                 # to fix this, we want to ensure: 1. distance to entry abs is half of tp profits 2. we are in profits. (by checking points_from_tp <= points_full_tp)
+
+                # !!! !!! There is a exception here: !!! !!!
+
+                # currently, the rule only check if there is one positon open and if a trade has been added based on this position. It doesn't check if it's the MAIN idea.
+                # so the scenario can be, main idea opens, position 1 is added to main idea, main idea closes due to risk management, price goes in favor, position 2 is added based on position 1.
+                # so we added TWICE. If that's what we want then sure. But if you only want to add to the main trade, we need to add a condition to check if it's the MAIN trading idea.
                 if points_from_entry >= points_half_tp and points_from_tp <= points_full_tp and not current_ticket_state['position_has_been_added_based_on_the_trade'] and len(current_symbol_open_positions) <= 1:
                     # must set current_ticket_state['position_has_been_added_based_on_the_trade'] as True, otherwise, if it got stopped (len goes from 2 to 1), and it goes the half of tp again (len is 1 at that moement), it will open again
                     current_ticket_state['position_has_been_added_based_on_the_trade'] = True
                     # open another postion with the same lot size, with sl at main position entry price - maybe 3 pips, and tp at main position tp price
                     # the lot was previously set as 'lot=position.volume'. now we set it as current_ticket_state['primary_trade_initial_position'], bc after closing 50%, if it goes again to 1/2 tp, we add the initial full position
-                    open_request_for_add_position(sl_price=position.price_open, tp_price=position.tp, lot=current_ticket_state['primary_trade_initial_position'], type=position.type, symbol=position.symbol, type_filling=type_filling) # type is the direction, buy or sell
+                    
+                    # we want to set the sl_price a bit conservative, because it's typital that price revisits the entry and then goes to tp. so if the sl is right a the entry price, we are taken out of the trade losing the trade
+                    added_points_to_sl = 20 # 2 pips (20 points)
+                    order_type = position.type
+                    if order_type == 0: # buy
+                        conservative_sl_price = (position.price_open * position_symbol_multiply_digits - added_points_to_sl) / position_symbol_multiply_digits
+                    elif order_type == 1: # sell
+                        conservative_sl_price = (position.price_open * position_symbol_multiply_digits + added_points_to_sl) / position_symbol_multiply_digits
+                    
+                    open_request_for_add_position(sl_price=conservative_sl_price, tp_price=position.tp, lot=current_ticket_state['primary_trade_initial_position'], type=position.type, symbol=position.symbol, type_filling=type_filling) # type is the direction, buy or sell
+                    # open_request_for_add_position(sl_price=position.price_open, tp_price=position.tp, lot=current_ticket_state['primary_trade_initial_position'], type=position.type, symbol=position.symbol, type_filling=type_filling) # type is the direction, buy or sell
+
+                ##### ADDING POSITION CODE BLOCK --- end ---#####
 
                 # points_from_tp_limit is static. here it's tried dynamic based on the 0.1 risk to get tp
                 dynamic_points_from_tp_limit = points_full_tp * 0.1
