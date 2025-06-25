@@ -3990,21 +3990,24 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     # check if the profits is at least 0.3 R
                     # points_from_tp = abs(position.price_current - position.tp) * position_symbol_multiply_digits
                     # points_full_tp = abs(position.price_open - position.tp) * position_symbol_multiply_digits
+
+                    earned_proportion_threshold = 0.2 # set this to 0.3 (30% of total tp) or any proportion # I feel 30% might be too strict, which might close winners
                     if points_from_tp <= points_full_tp:
                         # at least in profits
                         points_earned_so_far = abs(position.price_open - position.price_current) * position_symbol_multiply_digits
                         earned_proportion = points_earned_so_far / points_full_tp
-                        earned_proportion_threshold = 0.2 # set this to 0.3 (30% of total tp) or any proportion # I feel 30% might be too strict, which might close winners
+                        
                         if earned_proportion >= earned_proportion_threshold: 
                             # print(f"still in profits: {points_earned_so_far} points")
                             close_trade = False
                         else:
-                            print(f"doesn't meet earned_proportion_threshold: {earned_proportion_threshold} of total tp. closing...") # if the "if condition is if earned_proportion >= 0" then this can never be run
+                            print(f"doesn't meet earned_proportion_threshold: {earned_proportion_threshold} of total tp. managing risk...") # if the "if condition is if earned_proportion >= 0" then this can never be run
                             close_trade = True
                     else:
                         # how come points_from_tp is greater than the full tp? that means we are in drawdown
                         points_earned_so_far = -abs(position.price_open - position.price_current) * position_symbol_multiply_digits
                         print(f"in drawdown. managing risk now...")
+                        earned_proportion = points_earned_so_far / points_full_tp # should be negative bc we're in drawdown
                         close_trade = True
 
                     if close_trade:
@@ -4014,7 +4017,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                         elif order_type == 1:
                             close_type = 0
 
-                        print(f"90 minutes check: after 90 minutes, earned_proportion_threshold is < {earned_proportion_threshold}. Close half")
+                        print(f"90 minutes check: after 90 minutes, earned_proportion {earned_proportion} is < earned_proportion_threshold {earned_proportion_threshold}. managing risk...")
                         half_volume = position.volume * 0.5
                         if "." in str(half_volume):
                             half_volume = float(str(half_volume).split(".")[0] + "." + str(half_volume).split(".")[1][:2])
