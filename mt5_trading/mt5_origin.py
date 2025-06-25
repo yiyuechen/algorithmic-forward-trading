@@ -3840,49 +3840,49 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 #         for _ in trange(seconds_to_sleep):
                 #             time.sleep(1)
 
-                # 0. A milder first-few-minute risk management.
-                # check if after 5 minutes the mpe is less than 30 points 
-                # (maybe 10 minutes and  10 points to just cut the real bad entries and save the potential winners), 
-                # if so, then just cut the trade to avoid the false breakout
-                if time_diff >= timedelta(minutes=10) and not current_ticket_state['checked_10'] and current_ticket_state['primary_trading_idea']:
-                    current_ticket_state['checked_10'] = True
-                    if current_ticket_state['mpe'] < 10: # 10 points, namely 1 pips. to improve pricision, need to consider bid and ask. No, mt5 has taken it into consideration
-                        order_type = position.type
-                        if order_type == 0:
-                            close_type = 1
-                        elif order_type == 1:
-                            close_type = 0
-                        print(f"Risk Management: in first 10 minutes, mpe never goes >= 10 points. Close full")
-                        close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)
+                # # 0. A milder first-few-minute risk management.
+                # # check if after 5 minutes the mpe is less than 30 points 
+                # # (maybe 10 minutes and  10 points to just cut the real bad entries and save the potential winners), 
+                # # if so, then just cut the trade to avoid the false breakout
+                # if time_diff >= timedelta(minutes=10) and not current_ticket_state['checked_10'] and current_ticket_state['primary_trading_idea']:
+                #     current_ticket_state['checked_10'] = True
+                #     if current_ticket_state['mpe'] < 10: # 10 points, namely 1 pips. to improve pricision, need to consider bid and ask. No, mt5 has taken it into consideration
+                #         order_type = position.type
+                #         if order_type == 0:
+                #             close_type = 1
+                #         elif order_type == 1:
+                #             close_type = 0
+                #         print(f"Risk Management: in first 10 minutes, mpe never goes >= 10 points. Close full")
+                #         close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)
                         
-                        # in one scenario, we want it to open another trade. and that is, it goes to the opposite way and breaks. it's a setup trade. 
-                        # false break and then reverse
-                        # so maybe just not sleep. besides, this is relatively hopeless for it to go back in profits again. if it really does, let's just open again.
+                #         # in one scenario, we want it to open another trade. and that is, it goes to the opposite way and breaks. it's a setup trade. 
+                #         # false break and then reverse
+                #         # so maybe just not sleep. besides, this is relatively hopeless for it to go back in profits again. if it really does, let's just open again.
                         
-                        # # After closing, we want to avoid it opening the same trade if it's wandering to the entry again
-                        # seconds_to_sleep = 60 * 30
-                        # print(f"To avoid opening the trade again when price goes to the entry in this same candle, we sleep {seconds_to_sleep} seconds, which is about {seconds_to_sleep // 3600} hours {(seconds_to_sleep / 3600 - seconds_to_sleep // 3600) * 60:.0f} minutes.")
-                        # for _ in trange(seconds_to_sleep):
-                        #     time.sleep(1)
+                #         # # After closing, we want to avoid it opening the same trade if it's wandering to the entry again
+                #         # seconds_to_sleep = 60 * 30
+                #         # print(f"To avoid opening the trade again when price goes to the entry in this same candle, we sleep {seconds_to_sleep} seconds, which is about {seconds_to_sleep // 3600} hours {(seconds_to_sleep / 3600 - seconds_to_sleep // 3600) * 60:.0f} minutes.")
+                #         # for _ in trange(seconds_to_sleep):
+                #         #     time.sleep(1)
 
-                # 1. SPIKE in 5 mins
-                # check spike in drawndown >= 50% of full stop loss within 5 (or maybe 3?) minutes CONTINUOUSLY
-                if time_diff <= timedelta(minutes=5) and current_ticket_state['primary_trading_idea']:
-                    if points_from_tp <= points_full_tp:
-                        # the points between the current price and the take profit price is <= than the points of the full take profit
-                        # this means we are in profits or BE
-                        pass
-                    else:
-                        # we are in drawdown
-                        drawdown_proportion = points_from_entry / points_full_sl # e.g 150 / 200 points = 0.75
-                        if drawdown_proportion > 0.50:
-                            order_type = position.type
-                            if order_type == 0:
-                                close_type = 1
-                            elif order_type == 1:
-                                close_type = 0
-                            print(f"Risk Management: drawdown > 50 percentage in 5 minutes. Close full")
-                            close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)       
+                # # 1. SPIKE in 5 mins
+                # # check spike in drawndown >= 50% of full stop loss within 5 (or maybe 3?) minutes CONTINUOUSLY
+                # if time_diff <= timedelta(minutes=5) and current_ticket_state['primary_trading_idea']:
+                #     if points_from_tp <= points_full_tp:
+                #         # the points between the current price and the take profit price is <= than the points of the full take profit
+                #         # this means we are in profits or BE
+                #         pass
+                #     else:
+                #         # we are in drawdown
+                #         drawdown_proportion = points_from_entry / points_full_sl # e.g 150 / 200 points = 0.75
+                #         if drawdown_proportion > 0.50:
+                #             order_type = position.type
+                #             if order_type == 0:
+                #                 close_type = 1
+                #             elif order_type == 1:
+                #                 close_type = 0
+                #             print(f"Risk Management: drawdown > 50 percentage in 5 minutes. Close full")
+                #             close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)       
 
 
                 # 2. SPIKE in 30 mins (previously the rule is 5 minutes)
@@ -4032,13 +4032,13 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     else:
                         # we are in drawdown
                         drawdown_proportion = points_from_entry / points_full_sl # e.g 150 / 200 points = 0.75
-                        if drawdown_proportion > 0.50:
+                        if drawdown_proportion > 0: # 0.50:
                             order_type = position.type
                             if order_type == 0:
                                 close_type = 1
                             elif order_type == 1:
                                 close_type = 0
-                            print(f"after 90 minutes, drawdown > 50 percentage. close everything")
+                            print(f"after 90 minutes, if it goes into drawdown. close everything") # previously it's goes into -50%. but it didn't work
                             close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type) 
 
 
@@ -4789,13 +4789,13 @@ def check_sma_slope_ok(timeframe, sma_list_m5, sma_list_m15, sma_list_m30, sma_l
     angle_rad = math.atan( slope_per_bar / vertical_unit )
     angle_deg = math.degrees(angle_rad)
 
-    print(f"sma_now: {sma_now}")
-    print(f"sma_then: {sma_then}")
-    print(f"rise: {rise}")
-    print(f"bars: {bars}")
-    print(f"slope_per_bar: {slope_per_bar}")
-    print(f"angle_rad: {angle_rad}")
-    print(f"angle_deg: {angle_deg}")
+    # print(f"sma_now: {sma_now}")
+    # print(f"sma_then: {sma_then}")
+    # print(f"rise: {rise}")
+    # print(f"bars: {bars}")
+    # print(f"slope_per_bar: {slope_per_bar}")
+    # print(f"angle_rad: {angle_rad}")
+    # print(f"angle_deg: {angle_deg}")
 
     # --- step 5: threshold -------------------------------------------------
     if min_angle <= angle_deg <= max_angle:
