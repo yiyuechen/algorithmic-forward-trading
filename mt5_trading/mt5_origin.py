@@ -4657,7 +4657,7 @@ def select_account(
     return account, password, server_to_connect
 
 def check_if_its_trading_time():
-    current_time = datetime.now()
+    current_time = datetime.now(timezone.utc)
     current_time_str = current_time.strftime("%H: %M: %S")
     splitted_current_time_str = current_time_str.split(":")
     current_hour = int(splitted_current_time_str[0])
@@ -4686,11 +4686,11 @@ def check_if_its_trading_time():
     # hour_to_end_trading = 23
 
     # normal time
-    # hour_to_start_trading = 1 # 1 (utc+0) = 9 (utc+8)
-    # hour_to_end_trading = 15 # 15(utc+0) = 23 (utc+8)
-    # summer time
-    hour_to_start_trading = 2 # 2am (utc+1) equal to 2+7=9am (utc+8)
-    hour_to_end_trading = 16 # utc+1 => 16+7 = 23 (utc+8)
+    hour_to_start_trading = 1 # 1 (utc+0) = 9 (utc+8)
+    hour_to_end_trading = 15 # 15(utc+0) = 23 (utc+8)
+    # # summer time
+    # hour_to_start_trading = 2 # 2am (utc+1) equal to 2+7=9am (utc+8)
+    # hour_to_end_trading = 16 # utc+1 => 16+7 = 23 (utc+8)
 
     # hour_to_start_trading = 7
     # hour_to_end_trading = 1
@@ -4736,7 +4736,7 @@ def check_if_its_trading_time():
         remaining_minutes = check_n_add_zero_b4_1_digit_natural_nums(remaining_minutes)
         remaining_seconds = check_n_add_zero_b4_1_digit_natural_nums(remaining_seconds)
 
-        print(f"                                                            It's {current_time_str}. \
+        print(f"                                                            It's {current_time_str} UTC. \
             Time remaining: {remaining_hours}: {remaining_minutes}: {remaining_seconds}          ", end="\r", flush=True)
         
         # At the beginning of the trading time, it will print "00: 00: 01", which is not pretty. Because when it's trading time, we don't have the chance to go into this condition to print.
@@ -4747,7 +4747,7 @@ def check_if_its_trading_time():
             # get current time again, now it should be sharp trading start time
             current_time = datetime.now()
             current_time_str = current_time.strftime("%H: %M: %S")
-            print(f"                                                            It's {current_time_str}. \
+            print(f"                                                            It's {current_time_str} UTC. \
                 Time remaining: {remaining_hours}: {remaining_minutes}: {remaining_seconds}          ", end="\n", flush=True) # with end="\n", we go to the next line, so that when we exit the checking trading func, we can print info in the next line
             print("Happy trading!")
 
