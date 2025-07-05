@@ -996,7 +996,7 @@ def historical_orders():
     from datetime import datetime
     # get the number of orders in history
     from_date=datetime(2022,7,21)
-    to_date=datetime.now()
+    to_date=datetime.now(timezone.utc)
     history_orders=mt5.history_orders_total(from_date, to_date)
     if history_orders>0:
         print("Total history orders=",history_orders)
@@ -1008,7 +1008,7 @@ def historical_deals():
 
     # get the number of deals in history
     from_date=datetime(2022,7,21)
-    to_date=datetime.now()
+    to_date=datetime.now(timezone.utc)
     deals=mt5.history_deals_total(from_date, to_date)
     if deals>0:
         print("Total deals=",deals)
@@ -4745,7 +4745,7 @@ def check_if_its_trading_time():
             time.sleep(1) # wait for 1 sec to simulate
             remaining_seconds = "00"
             # get current time again, now it should be sharp trading start time
-            current_time = datetime.now()
+            current_time = datetime.now(timezone.utc)
             current_time_str = current_time.strftime("%H: %M: %S")
             print(f"                                                            It's {current_time_str} UTC. \
                 Time remaining: {remaining_hours}: {remaining_minutes}: {remaining_seconds}          ", end="\n", flush=True) # with end="\n", we go to the next line, so that when we exit the checking trading func, we can print info in the next line
