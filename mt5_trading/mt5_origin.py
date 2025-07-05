@@ -2656,7 +2656,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                         # get sl and tp
                         # make sl one pip larger. because we want the sl price to be one pip below or above dows high and low
                         sl = sl + added_points_to_sl
-                        dows_high = (dows_high * multiply_digits - added_points_to_sl) / multiply_digits
+                        dows_high = (dows_high * multiply_digits + added_points_to_sl) / multiply_digits # it should be +, not -. because dows_high is a price. and we sell, so to extend sl, we want to make the sl price higher
                     
 
                         # check sl limit
