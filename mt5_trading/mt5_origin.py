@@ -4077,12 +4077,12 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     # the lot was previously set as 'lot=position.volume'. now we set it as current_ticket_state['primary_trade_initial_position'], bc after closing 50%, if it goes again to 1/2 tp, we add the initial full position
                     
                     # we want to set the sl_price a bit conservative, because it's typital that price revisits the entry and then goes to tp. so if the sl is right a the entry price, we are taken out of the trade losing the trade
-                    added_points_to_sl = 20 # 2 pips (20 points)
+                    temp_added_points_to_sl = 20 # 2 pips (20 points) # !!! PREVIOUSLY assigned 20 to added_points_to_sl. OVERRIDING DEFAULT PARAMETER, CAUSING a SIGNIFICANT bug in the special order
                     order_type = position.type
                     if order_type == 0: # buy
-                        conservative_sl_price = (position.price_open * position_symbol_multiply_digits - added_points_to_sl) / position_symbol_multiply_digits
+                        conservative_sl_price = (position.price_open * position_symbol_multiply_digits - temp_added_points_to_sl) / position_symbol_multiply_digits
                     elif order_type == 1: # sell
-                        conservative_sl_price = (position.price_open * position_symbol_multiply_digits + added_points_to_sl) / position_symbol_multiply_digits
+                        conservative_sl_price = (position.price_open * position_symbol_multiply_digits + temp_added_points_to_sl) / position_symbol_multiply_digits
                     
                     open_request_for_add_position(sl_price=conservative_sl_price, tp_price=position.tp, lot=current_ticket_state['primary_trade_initial_position'], type=position.type, symbol=position.symbol, type_filling=type_filling) # type is the direction, buy or sell
                     # open_request_for_add_position(sl_price=position.price_open, tp_price=position.tp, lot=current_ticket_state['primary_trade_initial_position'], type=position.type, symbol=position.symbol, type_filling=type_filling) # type is the direction, buy or sell
