@@ -1,90 +1,121 @@
-import investpy
+import requests
 import pandas as pd
 from datetime import datetime, timedelta, timezone
 
-def normalize_time(t):
-    if t == "All Day":
-        return "00:00:00"             # treat all-day as midnight
-    parts = t.split(":")
-    if len(parts) == 2:
-        return t + ":00"              # append seconds if you only have HH:MM
-    return t                          # already has HH:MM:SS
-
 def get_news_df():
-    # # 1. Define the window: now → next 24 hours
-    now_utc = datetime.now(timezone.utc)
-    from_date = now_utc.strftime("%d/%m/%Y")
-    to_date   = (now_utc + timedelta(days=7)).strftime("%d/%m/%Y")
-    print(f"now_utc: {now_utc}")
-    print(f"from_date: {from_date}")
-    print(f"to_date: {to_date}")
+    # 1) Fetch the calendar JSON
+    url = 'https://nfs.faireconomy.media/ff_calendar_thisweek.json'
+    resp = requests.get(url)
+    resp.raise_for_status()                # blow up if we get a bad status
+    events = resp.json()                  # list of dicts
 
-    # 2. Fetch calendar for your country (e.g. 'united kingdom') and only HIGH impact
-    df = investpy.economic_calendar(importances=["high"],
-                                    from_date=from_date,
-                                    to_date=to_date,
-                                    # time_zone="GMT +8:00",
-                                    # time_zone="GMT +1:00",
-                                    # time_zone="GMT",
-                                    )
+    # 2) Turn into a DataFrame
+    df = pd.json_normalize(events)
 
-    # print(df)
+    # 3) Rename for clarity
+    df = df.rename(columns={
+        'date':       'raw_date',
+        'title':      'event',
+        'impact':     'importance'
+    })
 
-    if df.empty:
-        print("The dataframe is empty")
-        exit()
+    # 4) Parse the ISO8601 timestamp into a timezone‐aware datetime
+    #    pandas automatically reads the "-04:00" offset.
+    df['datetime'] = pd.to_datetime(df['raw_date'])
 
-    # 3) drop any rows where importance isn't “high”
-    #    (this will get rid of all those None/holiday entries)
-    df = df[df["importance"].str.lower() == "high"]
+    # 5) (Optional) Convert to UTC or your local zone, e.g. Dublin:
+    df['dt_utc']        = df['datetime'].dt.tz_convert('UTC')
+    df['dt_dublin']     = df['datetime'].dt.tz_convert('Europe/Dublin')
 
-    print("drop events whose importance isn't high")
-    # print(df)
-
-    # # 3. Parse the datetime of each event
-
-
-    # 1. Create a cleaned-up time column
-    df["time_clean"] = df["time"].apply(normalize_time)
-
-    # 2. Parse into a datetime
-    df["event_date_plus_time"] = pd.to_datetime(
-        df["date"] + " " + df["time_clean"],
-        format="%d/%m/%Y %H:%M:%S",
-        dayfirst=True,
-        # utc=True,
-    )
+    # 6) Pick just the columns you need
+    df = df[[
+        'datetime',    # original, tz-aware
+        'dt_utc',      # in UTC
+        'dt_dublin',   # in Europe/Dublin
+        'event',
+        'country',
+        'importance',
+        'forecast',
+        'previous'
+    ]]
 
     # print(df)
     return df
 
-
 def trades_blocker_to_avoid_news(minutes, df):
-    now = datetime.now()
-    # 4. Filter upcoming high-impact events in the next X minutes
+    # do not do the current time. might introduce bugs when moving around regions # now = datetime.now()
+    now = datetime.now(timezone.utc) # get utc time now
+    # now = get_debug_datetime()
+    # Filter upcoming high-impact events in the next X minutes
     window_before = timedelta(minutes=minutes)
     window_after  = timedelta(minutes=minutes)
     start_block   = now - window_before
     end_block     = now + window_after
 
-    print(start_block)
-    print(end_block)
+    # print(start_block)
+    # print(end_block)
 
-    blockers = df[(df["event_date_plus_time"] >= start_block) & (df["event_date_plus_time"] <= end_block)]
+    blockers = df[
+        (df["dt_utc"]   >= start_block) &
+        (df["dt_utc"]   <= end_block)  &
+        (df["importance"].isin(["High"])) & # (df["importance"].isin(["High", "Medium"]))
+        (df["country"].isin(["USD", "JPY"]))
+    ]
 
     if not blockers.empty: # if blockers is not empty # if there is news nearby
-        print("🚫 High-impact news — avoid trading!")
-        print(blockers[["event_date_plus_time","event","currency","actual","forecast","previous"]])
+        # print(f"start_block_UTC_time: {start_block}")
+        # print(f"curent_UTC_time: {now}")
+        # print(f"end_block_UTC_time: {end_block}")
+        # print(f"High-impact news — avoid trading!")
+        # print(blockers[["dt_utc", "dt_dublin", "event", "country", "importance", "forecast", "previous"]])
+        # so we have the now utc time, and we check 60minutes (or 1min) before and after this utc now time, so we have a start_block and end_block.
+        # we want to see during this time window, if we have any news. if so, blockers has something, NOT empty.
+        # so at this NOW moment, if we know, ok, we have news at this window, but should we wait until 60min after the time the news happens, or we wait unitl the end_block?
         return True
     else:
-        print("✅ No major news right now.")
+        # do not print, no info is good info
+        # print("No major news right now.") 
         return False
 
-    
+
+def get_debug_datetime():
+    # say you want 2025-05-15 at 13:30:45 UTC
+    # debug_dt = datetime(
+    #     year=2025,
+    #     month=5,
+    #     day=15,
+    #     hour=13,
+    #     minute=30,
+    #     second=45,
+    #     tzinfo=timezone.utc
+    # )
+    debug_dt = datetime(
+        year=2025,
+        month=5,
+        day=8,
+        hour=15,
+        minute=0,
+        second=45,
+        tzinfo=timezone.utc
+    )
+    print("debugging datetime...")
+    return debug_dt
+
 
 def main():
     df = get_news_df()
+
+    # print complete
     print(df)
+
+    # print only high impact and USD JPY related
+    print(df[
+        (df["importance"].isin(["High"])) &
+        (df["country"].isin(["USD", "JPY"]))
+    ])
+
+    blocker_result = trades_blocker_to_avoid_news(60, df)
+    print(f"blocker_result: {blocker_result}")
 
 if __name__ == "__main__":
     main()
