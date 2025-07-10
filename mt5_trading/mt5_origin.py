@@ -600,6 +600,21 @@ def calculate_lot_size(sl, symbol, risk_ratio, commission_per_lot): #sl is in po
     
     return lot_size
 
+def check_if_pending_order_exists(symbol):
+    # Get all pending orders
+    pending_orders = mt5.orders_get(symbol=symbol)
+
+    # Check and print them
+    if pending_orders is None:
+        # print("No orders found or error:", mt5.last_error())
+        return False
+    elif len(pending_orders) == 0:
+        # print("No pending orders found.")
+        return False
+    else:
+        # print(f"Found {len(pending_orders)} pending orders")
+        return pending_orders
+
 def cancel_pending_orders(symbol):
     # Get all pending orders
     pending_orders = mt5.orders_get()
@@ -630,6 +645,20 @@ def cancel_pending_orders(symbol):
                 else:
                     print(f"Successfully cancelled order #{order.ticket}")
 
+def cancel_pending_order(order, comment, info):
+    request = {
+        "action": mt5.TRADE_ACTION_REMOVE,
+        "order": order.ticket,
+        "symbol": order.symbol,
+        "comment": comment,
+    }
+
+    result = mt5.order_send(request)
+    
+    if result.retcode != mt5.TRADE_RETCODE_DONE:
+        print(f"Failed to cancel order #{order.ticket}: {result.retcode}")
+    else:
+        print(f"Successfully cancelled order #{order.ticket}: {info}")
 
 def pending_request(entry_price=0, type="buy", sl=100, sl_price=0, tp_price=0, symbol="USDJPY", type_filling=mt5.ORDER_FILLING_IOC, commission_per_lot=0, risk_ratio=0.05):
     
@@ -2729,6 +2758,55 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     print("When we check this special pending order, the current price is exactly at the price we want to place the pending order. So we have placed a market order instead.")
                     print("And we must skip the below checking, to avoid that another market order is placed when there is a new two-candle-break right at this price.")
                     continue
+            
+            # we want to cancel this special pending order if price hits the tp or the sl after we place it
+            pending_orders = check_if_pending_order_exists(symbol) # if error, return False; if len(pending_orders) is 0, return False; if len() > 0, return pending_orders
+            if special_pending_order_check_log.get(current_date_str, False) and pending_orders:
+                # if check for today is true and there is a pending order, this means we have checked the special condition and ACTUALLY have placed an order
+                # then we just take a look at the current price and compare sl/tp
+                # conditions:  buy limit 2, sell limit 3, buy stop 4, sell stop 5,
+                for order in pending_orders:
+                    if order.type == 2:
+                        # buy limit. we have this pending order because ideal_entry < price < tp
+                        # we monitor if bid price is > tp. if so, that means tp is already taken, and we cancel the order
+                        if current_price >= order.tp: # working, except that if no tp is set (which won't happen here but only in manual testing), the order gets canceled immediately
+                            # current price is bid price, if bid price is >= tp, tp is triggered.
+                            # cancel this order
+                            comment = "cancel buy limit"
+                            info = f"Buy limit got canceled bc ideal tp {order.tp} has been triggered by bid price {current_price}"
+                            cancel_pending_order(order, comment, info)
+                            pass
+                    elif order.type == 3: # tested, working
+                        # sell limit. we have it bc: ideal_entry > price > tp
+                        # so if ask price is <= tp, tp is triggered. so we cancel this order
+                        if ask_price <= order.tp:
+                            comment = "cancel sell limit"
+                            info = f"Sell limit got canceled bc ideal tp {order.tp} has been triggered by ask price {ask_price}"
+                            cancel_pending_order(order, comment, info)
+                            pass
+                    elif order.type == 4: # tested, working
+                        # buy stop
+                        # so the current price is < ideal entry.
+                        # if the current price (bid price) goes to sl, then we cancel this order
+                        if current_price <= order.sl:
+                            comment = "cancel buy stop"
+                            info = f"Buy stop got canceled bc ideal sl {order.sl} has been triggered by bid price {current_price}"
+                            cancel_pending_order(order, comment, info)
+                            pass
+                    elif order.type == 5:
+                        # sell stop
+                        # that means the current price is > ideal_entry
+                        # so we watch if it goes to the sl. as it's a sell, we watch the ask price
+                        if ask_price >= order.sl: # working, except that if no sl is set (which won't happen here but only in manual testing), the order gets canceled immediately
+                            comment = "cancel sell stop"
+                            info = f"Sell stop got canceled bc ideal sl {order.sl} has been triggered by ask price {ask_price}"
+                            cancel_pending_order(order, comment, info)
+                            pass
+                    # the reason that buy limit and sell stop are immediately canceled is bc the sl and tp are both 0 if not set, as follow:
+                    # TradeOrder(ticket=2314201, time_setup=1752171318, time_setup_msc=1752171318581, time_done=0, time_done_msc=0, 
+                    # time_expiration=0, type=4, type_time=0, type_filling=2, state=1, magic=0, position_id=0, position_by_id=0, reason=0, volume_initial=0.01, 
+                    # volume_current=0.01, price_open=146.626, sl=0.0, tp=0.0, price_current=146.463, price_stoplimit=0.0, symbol='USDJPY.p', comment='', external_id='')
+                
 
             # # debug
             # print("we are here, and then exit. otherwise, since we are in the main loop, during debugging we will keep opening the same orders")
