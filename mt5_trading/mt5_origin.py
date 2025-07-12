@@ -4013,6 +4013,21 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                         print("Risk Management 4")
                         close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)
 
+                # protect the main position if the added position gets stopped out
+                # close the main trade at breakeven if the added trade fails. because we have counted the odds. 10 out of 11 such trades benefit from being closed at BE. Otherwise, we'll lose more, even the whole main position
+                if current_ticket_state['primary_trading_idea'] and current_ticket_state['position_has_been_added_based_on_the_trade']:
+                    # if the price (bid or ask) is right at breakeven (considering spread. i.e, if the profit is exactly 0), or if the profit is negative, then we close
+                    if points_from_tp >= points_full_tp:
+                        order_type = position.type
+                        if order_type == 0:
+                            close_type = 1
+                        elif order_type == 1:
+                            close_type = 0
+
+                        print("Risk Management 5: Close the main position as the added position gets stopped out")
+                        close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)
+
+
 
                 # check if there is news in just 1 minute. This happens when we open a trade and it's be more than 60 minutes, and the trade is still open. Now the news is ahead. We should close it 1 minute before news
                 news_exist = get_news_data.trades_blocker_to_avoid_news(1, news_df)
@@ -4031,7 +4046,9 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 points_half_tp = 0.5 * points_full_tp
                 # note that points from entry is the ABSOLUTE distance. so if we are in half drawdown, we also attempt to add a trade, which will be a failed request.
                 # to fix this, we want to ensure: 1. distance to entry abs is half of tp profits 2. we are in profits. (by checking points_from_tp <= points_full_tp)
-                if points_from_entry >= points_half_tp and points_from_tp <= points_full_tp and not current_ticket_state['position_has_been_added_based_on_the_trade'] and len(current_symbol_open_positions) <= 1:
+                # add current_ticket_state['primary_trading_idea'] below to make sure that we only add position based on the main trade, 
+                # and avoid adding a 2nd position on a 1st added position when the main trade is closed by risk management but the 1st added trade is still open
+                if points_from_entry >= points_half_tp and points_from_tp <= points_full_tp and not current_ticket_state['position_has_been_added_based_on_the_trade'] and current_ticket_state['primary_trading_idea'] and len(current_symbol_open_positions) <= 1:
                     # must set current_ticket_state['position_has_been_added_based_on_the_trade'] as True, otherwise, if it got stopped (len goes from 2 to 1), and it goes the half of tp again (len is 1 at that moement), it will open again
                     current_ticket_state['position_has_been_added_based_on_the_trade'] = True
                     # open another postion with the same lot size, with sl at main position entry price - maybe 3 pips, and tp at main position tp price
