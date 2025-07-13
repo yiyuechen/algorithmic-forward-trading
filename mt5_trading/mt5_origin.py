@@ -4622,7 +4622,9 @@ def select_account(
     return account, password, server_to_connect
 
 def check_if_its_trading_time():
-    current_time = datetime.now()
+    current_time = datetime.now(timezone.utc)
+    current_weekday = current_time.weekday()   # 0=Mon … 6=Sun
+    current_weekday_text = current_time.strftime("%A")   # full name, e.g. "Tuesday"
     current_time_str = current_time.strftime("%H: %M: %S")
     splitted_current_time_str = current_time_str.split(":")
     current_hour = int(splitted_current_time_str[0])
@@ -4634,6 +4636,18 @@ def check_if_its_trading_time():
 
     current_minute = int(splitted_current_time_str[1])
     current_second = int(splitted_current_time_str[2])
+
+    # a minor asthetic issue, after checking, it won't print the exact midnight time, only the 23:59:59-ish, but it does not affect the functionality
+    if current_weekday > 4: # namely weekday is 5 or 6 (Sat, Sun)
+        # we want to wait until 0, Mon, how about right when weekday is 0? and then the check program will still count for an hour
+        print(f"Time: {current_time} --- Weekday: {current_weekday_text} --- Enjoy your weekend! ", end="\r", flush=True)
+        if current_weekday == 6 and current_hour == 23 and current_minute == 59 and current_second == 59:
+            time.sleep(1)
+            print(f"Time: Midnight UTC --- Weekday: Monday --- New trading week! ", end="\n", flush=True)
+        time.sleep(1)
+        return False
+    
+
     # print(f"current_hour: {current_hour}")
     # print(f"current_minute: {current_minute}")
     # print(f"current_second: {current_second}")
@@ -4650,12 +4664,12 @@ def check_if_its_trading_time():
     # hour_to_start_trading = 9
     # hour_to_end_trading = 23
 
-    # normal time
-    # hour_to_start_trading = 1 # 1 (utc+0) = 9 (utc+8)
-    # hour_to_end_trading = 15 # 15(utc+0) = 23 (utc+8)
-    # summer time
-    hour_to_start_trading = 2 # 2am (utc+1) equal to 2+7=9am (utc+8)
-    hour_to_end_trading = 16 # utc+1 => 16+7 = 23 (utc+8)
+    # normal utc time
+    hour_to_start_trading = 1 # 1 (utc+0) = 9 (utc+8)
+    hour_to_end_trading = 15 # 15(utc+0) = 23 (utc+8)
+    # # summer time, daylight-saving time
+    # hour_to_start_trading = 2 # 2am (utc+1) equal to 2+7=9am (utc+8)
+    # hour_to_end_trading = 16 # utc+1 => 16+7 = 23 (utc+8)
 
     # hour_to_start_trading = 7
     # hour_to_end_trading = 1
@@ -4701,7 +4715,7 @@ def check_if_its_trading_time():
         remaining_minutes = check_n_add_zero_b4_1_digit_natural_nums(remaining_minutes)
         remaining_seconds = check_n_add_zero_b4_1_digit_natural_nums(remaining_seconds)
 
-        print(f"                                                            It's {current_time_str}. \
+        print(f"                                                            UTC: {current_time_str}. \
             Time remaining: {remaining_hours}: {remaining_minutes}: {remaining_seconds}          ", end="\r", flush=True)
         
         # At the beginning of the trading time, it will print "00: 00: 01", which is not pretty. Because when it's trading time, we don't have the chance to go into this condition to print.
@@ -4710,9 +4724,9 @@ def check_if_its_trading_time():
             time.sleep(1) # wait for 1 sec to simulate
             remaining_seconds = "00"
             # get current time again, now it should be sharp trading start time
-            current_time = datetime.now()
+            current_time = datetime.now(timezone.utc)
             current_time_str = current_time.strftime("%H: %M: %S")
-            print(f"                                                            It's {current_time_str}. \
+            print(f"                                                            UTC: {current_time_str}. \
                 Time remaining: {remaining_hours}: {remaining_minutes}: {remaining_seconds}          ", end="\n", flush=True) # with end="\n", we go to the next line, so that when we exit the checking trading func, we can print info in the next line
             print("Happy trading!")
 
