@@ -2313,7 +2313,9 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 # we count how many trades are of negative profits (we do not look at commissions for simplicity for now)
                 consecutive_losing_trade_count = 0
                 for deal in last_few_deals:
-                    if deal.commission == 0 and deal.profit < 0:
+                    # if deal.commission == 0 and deal.profit < 0: # this the one we've always been using
+                    # safer, now includes risk managed trades (partial loss, slight win) and losing trades (full sl hit)
+                    if deal.entry == mt5.DEAL_ENTRY_OUT and deal.reason in (mt5.DEAL_REASON_SL, mt5.DEAL_REASON_EXPERT):
                         consecutive_losing_trade_count += 1
 
                 if consecutive_losing_trade_count == consecutive_losing_trade_limit:
