@@ -2144,7 +2144,8 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                          check_timeframe_consistency, count_down_after_modifying_sl, check_above_or_below_sma, check_if_trading_time, check_sma_resistance,
                          pattern_list, pattern_index, added_points_to_sl, added_points_to_tp, fixed_tp, fixed_tp_in_points, hedge, 
                          adx_threshold, is_check_adx_threshold_enabled, is_check_adx_ascending_enabled,
-                         broker_time_offset_hours_from_utc, news_df, trade_state, consecutive_losing_trade_limit, special_pending_order_check_log):
+                         broker_time_offset_hours_from_utc, time_of_calculating_time_offset, news_df, time_of_retrieval_news_df, 
+                         trade_state, consecutive_losing_trade_limit, special_pending_order_check_log):
     """
     USDJPY
     [(1658511000, 136.061, 136.191, 135.883, 136.007, 3592, 0, 0)
@@ -2165,7 +2166,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
     (1660399500, 24496.82, 24500.09, 24494.09, 24494.09,  10, 632, 0)]
     """
 
-    
+
 
 
     # flag for dragging the sl for only once, otherwise it will divide by two and divide again 
@@ -2221,6 +2222,41 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
             is_trading_time = check_if_its_trading_time()
         else:
             is_trading_time = True
+
+        # let's update the news_df and time offset outside of trading time at ~UTC 12:30am
+        if not is_trading_time: # if it's not trading time 
+            # update news_df here first of all
+            now_utc_for_news_df_n_time_offset_update = datetime.now(timezone.utc)
+            current_weekday_for_news_df_check = now_utc_for_news_df_n_time_offset_update.weekday()
+            last_time_retrieval_news_df = time_of_retrieval_news_df.weekday()
+
+            # we do the conservative 0 - 30 second check just to be safer, to avoid freezing. not sure if it's a good idea
+            if current_weekday_for_news_df_check == 0 and now_utc_for_news_df_n_time_offset_update.hour == 0 and now_utc_for_news_df_n_time_offset_update.minute == 30 and 0 <= now_utc_for_news_df_n_time_offset_update.second <= 30:
+                # if right now it's monday utc around midnight, we will just update the news_df no matter what
+                # get news dataframe
+                news_df = get_news_data.get_news_df()
+                print()
+                print(f"last_time_retrieval_news_df: {last_time_retrieval_news_df}")
+                # update the last_time_retrieval_news_df with this one
+                last_time_retrieval_news_df = now_utc_for_news_df_n_time_offset_update
+                print(f"news_df updated at {now_utc_for_news_df_n_time_offset_update}... sleep 60 seconds to avoid repeatedly retrieving...")
+                print("Important news related to USDJPY:")
+                # print only high impact and USD JPY related
+                print(news_df[
+                    (news_df["importance"].isin(["High"])) &
+                    (news_df["country"].isin(["USD", "JPY"]))
+                ])
+
+                # update utc and mt5 server time offset
+                print()
+                print(f"last broker_time_offset_hours_from_utc: {broker_time_offset_hours_from_utc}, calculated at {time_of_calculating_time_offset}")
+                # update the time_of_calculating_time_offset with this one
+                time_of_calculating_time_offset = now_utc_for_news_df_n_time_offset_update
+                broker_time_offset_hours_from_utc = get_broker_time_n_utc_time_offset(symbol)
+                print(f"updated broker_time_offset_hours_from_utc: {broker_time_offset_hours_from_utc}, updated at {now_utc_for_news_df_n_time_offset_update}")
+                print()
+                time.sleep(60)
+
 
 
         # !!!! important, we only check this during the trading time, otherwise, we weill have this issue:
@@ -4836,6 +4872,7 @@ def main():
     broker_time_offset_hours_from_utc = get_broker_time_n_utc_time_offset(symbol)
     print(f"broker_time_offset_hours_from_utc: {broker_time_offset_hours_from_utc}")
     print()
+    time_of_calculating_time_offset = datetime.now(timezone.utc)
 
     # set a limit to avoid bad days. if x losing trades in a row, call it day
     consecutive_losing_trade_limit = 3
@@ -4937,6 +4974,8 @@ def main():
 
     # get news dataframe
     news_df = get_news_data.get_news_df()
+    # store the time, date info of news_df retrieval
+    time_of_retrieval_news_df = datetime.now(timezone.utc)
     # print all news_df
     print("All news this week:")
     print(news_df)
@@ -4961,7 +5000,8 @@ def main():
                          check_timeframe_consistency, count_down_after_modifying_sl, check_above_or_below_sma, check_if_trading_time, check_sma_resistance,
                          pattern_list, pattern_index, added_points_to_sl, added_points_to_tp, fixed_tp, fixed_tp_in_points, hedge, 
                          adx_threshold, is_check_adx_threshold_enabled, is_check_adx_ascending_enabled,
-                         broker_time_offset_hours_from_utc, news_df, trade_state, consecutive_losing_trade_limit, special_pending_order_check_log)
+                         broker_time_offset_hours_from_utc, time_of_calculating_time_offset, news_df, time_of_retrieval_news_df, 
+                         trade_state, consecutive_losing_trade_limit, special_pending_order_check_log)
     # symbol="XAUUSD"
     # point = mt5.symbol_info(symbol).point
     # print(point)
