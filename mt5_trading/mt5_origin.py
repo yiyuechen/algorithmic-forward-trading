@@ -2290,8 +2290,65 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
             # df['time'] = pd.to_datetime(df['time'], unit='s')
             # print(df)
             
+
+            # !!!! extra protection from MAX DAILY LOSS LIMIT !!!
+            ################ we check all deals of today, and calculate the total PnL today. ###############
+            # If current_daily_PnL >=0 then no worries
+            # If acurrent_daily_PnL < 0, then check the below to see if one more trade (consider the worse scenario, with added postion but both take a whole loss)
+            # abs(current_daily_PnL) + balance * risk_per_trade + balance * risk_per_trade / 2 + recent_max_conmission * 2 >= MAX_DAILY_LOSS:
+            # note: balance * risk_per_trade/2 is the risk of the added position
+            # in this case, we just start sleeping just like below 3-losses-call-it-a-day
+            commission_total_today = 0
+            PnL_total_today = 0
+            # largest_commission_today = 0
+            # WARNING! deal.commission is the actual commission deducted. it's NEGATIVE, like -117.67
+
+            for deal in deals:
+                commission_total_today += abs(deal.commission)
+                PnL_total_today += deal.profit
+                # if abs(deal.commission) > largest_commission_today:
+                #     largest_commission_today = abs(deal.commission)
+
+            # net_PnL_today = PnL_total_today + commission_total_today # as comission is minus, so it's PnL - an amount
+            net_PnL_today = PnL_total_today - commission_total_today # we have used abs, so it's positive, just use PnL - commission, such as +250-50, -250-50
+            # print()
+            # print(f"commission_total_today: {commission_total_today}")
+            # print(f"largest_commission_today: {largest_commission_today}")
+            # print(f"Net PnL today: {net_PnL_today}")
+
+            if net_PnL_today >= 0:
+                pass
+            elif net_PnL_today < 0: 
+                # seems incorrect calculation for avg # avg_commission_today = commission_total_today / len(deals) / 2
+                potential_loss_if_one_more_trading_idea = abs(net_PnL_today) + mt5.account_info().balance * (risk_ratio + risk_ratio / 2) # + largest_commission_today * 2 # seems we don't need to include commission here, as it's already in the risk
+                if potential_loss_if_one_more_trading_idea >= 1200: # HARDCODED NOW, we can set it as global or parameter, 1250
+                    print()
+                    print(f"commission_total_today: {commission_total_today}")
+                    # print(f"largest_commission_today: {largest_commission_today}")
+                    print(f"Net PnL today: {net_PnL_today}")
+                    print(f"One more trading idea has a potential loss of today of {potential_loss_if_one_more_trading_idea} and exceeds max daily loss limit 1200.")
+                    
+                    # let's sleep
+                    # we have dt_utc_now, and we wnat to sleep until utc time 15:00, right? Note it's UTC !!! time
+                    # let's wait until today's end, so as the time sleep stops, we should be out of trading time and the check_if_trading_time should be right at that time starting to counting down
+                    # Define 15:00 UTC today
+                    target_utc_time_today = datetime.combine(dt_utc_now.date(), dt_time(15, 0, 0), tzinfo=timezone.utc)
+                    # Calculate seconds between now and 15:00 UTC
+                    seconds_to_sleep = (target_utc_time_today - dt_utc_now).total_seconds()
+                    # print(f"seconds_to_sleep: {seconds_to_sleep}, type: {type(seconds_to_sleep)}")
+                    seconds_to_sleep = math.ceil(seconds_to_sleep) # convert it to an integer so that trange is happy
+                    # we will use trange from module tqdm to print a progress bar
+                    print(f"We will sleep {seconds_to_sleep} seconds, which is about {seconds_to_sleep // 3600} hours {(seconds_to_sleep / 3600 - seconds_to_sleep // 3600) * 60:.0f} minutes until {target_utc_time_today}.")
+                    for _ in trange(seconds_to_sleep):
+                        time.sleep(1)
+                    
+                    # after sleeping completes, we continue, so that we do not run the below code, but go to the next loop. because we want to check if it's trading time next. 
+                    # Otherwise, we will assume it's trading time, and probably will execute a trade if all conditions are met for opening a trade
+                    continue
+            ###############
             
 
+            # 3 losses and call it a day
             # Just got the idea. you only need to check the last n trades to see if they are consecutive losses. if so, then call it a day, right?
             # let's say n is 2
             # I don't care if you have 2 trades, and the last 2 trades are losses. I don't care if you have 10 trades, and the 9th and 10th trades are losses.
