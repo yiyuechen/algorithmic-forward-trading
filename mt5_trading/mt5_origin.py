@@ -2319,6 +2319,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
             if net_PnL_today >= 0:
                 pass
             elif net_PnL_today < 0: 
+                # WARNING! if deals is empty, len(deals) is 0, and dividing will raise an error
                 # seems incorrect calculation for avg # avg_commission_today = commission_total_today / len(deals) / 2
                 potential_loss_if_one_more_trading_idea = abs(net_PnL_today) + mt5.account_info().balance * (risk_ratio + risk_ratio / 2) # + largest_commission_today * 2 # seems we don't need to include commission here, as it's already in the risk
                 if potential_loss_if_one_more_trading_idea >= 1200: # HARDCODED NOW, we can set it as global or parameter, 1250
