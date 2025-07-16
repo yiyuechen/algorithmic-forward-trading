@@ -144,7 +144,7 @@ everytime we count down 10s and close an order, after we close it, we count down
 it's like we are taking a break from the market
 
 """
-
+MAX_DAILY_LOSS_LIMIT = 1200
 
 from getpass import getpass
 import time
@@ -2322,12 +2322,12 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 # WARNING! if deals is empty, len(deals) is 0, and dividing will raise an error
                 # seems incorrect calculation for avg # avg_commission_today = commission_total_today / len(deals) / 2
                 potential_loss_if_one_more_trading_idea = abs(net_PnL_today) + mt5.account_info().balance * (risk_ratio + risk_ratio / 2) # + largest_commission_today * 2 # seems we don't need to include commission here, as it's already in the risk
-                if potential_loss_if_one_more_trading_idea >= 1200: # HARDCODED NOW, we can set it as global or parameter, 1250
+                if potential_loss_if_one_more_trading_idea >= MAX_DAILY_LOSS_LIMIT: # HARDCODED NOW, we can set it as global or parameter, 1250
                     print()
                     print(f"commission_total_today: {commission_total_today}")
                     # print(f"largest_commission_today: {largest_commission_today}")
                     print(f"Net PnL today: {net_PnL_today}")
-                    print(f"One more trading idea has a potential loss of today of {potential_loss_if_one_more_trading_idea} and exceeds max daily loss limit 1200.")
+                    print(f"One more trading idea has a potential loss of today of {potential_loss_if_one_more_trading_idea} and exceeds max daily loss limit {MAX_DAILY_LOSS_LIMIT}.")
                     
                     # let's sleep
                     # we have dt_utc_now, and we wnat to sleep until utc time 15:00, right? Note it's UTC !!! time
@@ -3988,10 +3988,13 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 #         for _ in trange(seconds_to_sleep):
                 #             time.sleep(1)
 
+                # get the time_unit for risk management. by default, previously we used hard-coded 30, bc we have been trading m30.
+                # now we want to trade on H1, H4, M15, etc. so we want to adjust the time here.
+                time_unit = get_current_timeframe_in_minutes(timeframe) # previously, time_unit is 30 hard-coded
 
                 # 1. SPIKE in 30 mins (previously the rule is 5 minutes)
                 # check spike in drawndown >= 75% of full stop loss within 5 minutes CONTINUOUSLY
-                if time_diff <= timedelta(minutes=30) and current_ticket_state['primary_trading_idea']: # instead of 5, let's do 30
+                if time_diff <= timedelta(minutes=time_unit) and current_ticket_state['primary_trading_idea']: # instead of 5, let's do 30
                     if points_from_tp <= points_full_tp:
                         # the points between the current price and the take profit price is <= than the points of the full take profit
                         # this means we are in profits or BE
@@ -4012,14 +4015,59 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 # check right when the first bar is closed, how can I do this? this is tricky
                 # I can write down the open time, and calculate how many minutes are left before the entry candle closes, calling it minutes_left_for_entry_close, and then minutes_left_for_entry_close += 30
                 
-                if 0 <= open_time_utc.minute < 30:
+                if timeframe == mt5.TIMEFRAME_M30:
+                    if 0 <= open_time_utc.minute < 30:
+                        entry_bar_start_time = open_time_utc.replace(minute=0, second=0, microsecond=0)
+                    else:
+                        # minute has to be 30 to 59 in this condition
+                        entry_bar_start_time = open_time_utc.replace(minute=30, second=0, microsecond=0)
+                    
+                    first_full_bar_start = entry_bar_start_time + timedelta(minutes=30)
+                    first_full_bar_close = first_full_bar_start + timedelta(minutes=30)
+                elif timeframe == mt5.TIMEFRAME_H1:
                     entry_bar_start_time = open_time_utc.replace(minute=0, second=0, microsecond=0)
-                else:
-                    # minute has to be 30 to 59 in this condition
-                    entry_bar_start_time = open_time_utc.replace(minute=30, second=0, microsecond=0)
-                
-                first_full_bar_start = entry_bar_start_time + timedelta(minutes=30)
-                first_full_bar_close = first_full_bar_start + timedelta(minutes=30)
+                    first_full_bar_start = entry_bar_start_time + timedelta(minutes=time_unit)
+                    first_full_bar_close = first_full_bar_start + timedelta(minutes=time_unit)
+                elif timeframe == mt5.TIMEFRAME_M15:
+                    if 0 <= open_time_utc.minute < 15:
+                        entry_bar_start_time = open_time_utc.replace(minute=0, second=0, microsecond=0)
+                    elif 15 <= open_time_utc.minute < 30:
+                        entry_bar_start_time = open_time_utc.replace(minute=15, second=0, microsecond=0)
+                    elif 30 <= open_time_utc.minute < 45:
+                        entry_bar_start_time = open_time_utc.replace(minute=30, second=0, microsecond=0)
+                    else:
+                        entry_bar_start_time = open_time_utc.replace(minute=45, second=0, microsecond=0)    
+
+                    first_full_bar_start = entry_bar_start_time + timedelta(minutes=time_unit)
+                    first_full_bar_close = first_full_bar_start + timedelta(minutes=time_unit)
+                elif timeframe == mt5.TIMEFRAME_M5:
+                    if 0 <= open_time_utc.minute < 5:
+                        entry_bar_start_time = open_time_utc.replace(minute=0, second=0, microsecond=0)
+                    elif 5 <= open_time_utc.minute < 10:
+                        entry_bar_start_time = open_time_utc.replace(minute=5, second=0, microsecond=0)
+                    elif 10 <= open_time_utc.minute < 15:
+                        entry_bar_start_time = open_time_utc.replace(minute=10, second=0, microsecond=0)
+                    elif 15 <= open_time_utc.minute < 20:
+                        entry_bar_start_time = open_time_utc.replace(minute=15, second=0, microsecond=0)
+                    elif 20 <= open_time_utc.minute < 25:
+                        entry_bar_start_time = open_time_utc.replace(minute=20, second=0, microsecond=0)
+                    elif 25 <= open_time_utc.minute < 30:
+                        entry_bar_start_time = open_time_utc.replace(minute=25, second=0, microsecond=0)
+                    elif 30 <= open_time_utc.minute < 35:
+                        entry_bar_start_time = open_time_utc.replace(minute=30, second=0, microsecond=0)
+                    elif 35 <= open_time_utc.minute < 40:
+                        entry_bar_start_time = open_time_utc.replace(minute=35, second=0, microsecond=0)
+                    elif 40 <= open_time_utc.minute < 45:
+                        entry_bar_start_time = open_time_utc.replace(minute=40, second=0, microsecond=0)
+                    elif 45 <= open_time_utc.minute < 50:
+                        entry_bar_start_time = open_time_utc.replace(minute=45, second=0, microsecond=0)
+                    elif 50 <= open_time_utc.minute < 55:
+                        entry_bar_start_time = open_time_utc.replace(minute=50, second=0, microsecond=0)
+                    else:
+                        entry_bar_start_time = open_time_utc.replace(minute=55, second=0, microsecond=0)    
+
+                    first_full_bar_start = entry_bar_start_time + timedelta(minutes=time_unit)
+                    first_full_bar_close = first_full_bar_start + timedelta(minutes=time_unit)
 
                 # if the current time is later than the first bar close time and the first_candle_close is not checked
                 if now_utc >= first_full_bar_close and not current_ticket_state['checked_first_candle_close'] and current_ticket_state['primary_trading_idea']: 
@@ -4040,7 +4088,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                             close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)    
 
                 # 3. 60 Min no-momentum check (runs ONCE at 60 minutes)
-                if time_diff >= timedelta(minutes=60) and not current_ticket_state['checked_60'] and current_ticket_state['primary_trading_idea']:
+                if time_diff >= timedelta(minutes=time_unit*2) and not current_ticket_state['checked_60'] and current_ticket_state['primary_trading_idea']:
                     current_ticket_state['checked_60'] = True
                     
                     mpe_proportion = current_ticket_state['mpe'] / points_full_tp
@@ -4078,7 +4126,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 #     print("✅ Trade was opened within the last 90 minutes.")
                 # else:
                 #     print("❌ Trade is older than 90 minutes.")
-                if time_diff > timedelta(minutes=90): # we didn't add " and current_ticket_state['primary_trading_idea']" to skip checking the added position, so we still check it, because for an "added position", if at 90 mintutes, it's still not working out. It is not going right
+                if time_diff > timedelta(minutes=time_unit*3): # we didn't add " and current_ticket_state['primary_trading_idea']" to skip checking the added position, so we still check it, because for an "added position", if at 90 mintutes, it's still not working out. It is not going right
                     # check if the profits is at least 0.3 R
                     # points_from_tp = abs(position.price_current - position.tp) * position_symbol_multiply_digits
                     # points_full_tp = abs(position.price_open - position.tp) * position_symbol_multiply_digits
@@ -4201,6 +4249,8 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                                 pause_time = 2 * 30 * 60
                             elif timeframe == mt5.TIMEFRAME_H1:
                                 pause_time = 2 * 60 * 60
+                            elif timeframe == mt5.TIMEFRAME_H4:
+                                pause_time = 2 * 240 * 60
 
                             # this is used to reset pause_time
                             # default_pause_time = pause_time
@@ -4250,6 +4300,22 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
     #     # open_request("sell", sl)
 
 
+# get the time unit we use for risk management
+def get_current_timeframe_in_minutes(timeframe):
+    # returns a int, indicating the timeframe minutes
+    if timeframe == mt5.TIMEFRAME_M1:
+        time_unit = 1
+    elif timeframe == mt5.TIMEFRAME_M5:
+        time_unit = 5
+    elif timeframe == mt5.TIMEFRAME_M15:
+        time_unit = 15
+    elif timeframe == mt5.TIMEFRAME_M30:
+        time_unit = 30
+    elif timeframe == mt5.TIMEFRAME_H1:
+        time_unit = 60
+    elif timeframe == mt5.TIMEFRAME_H4:
+        time_unit = 240
+    return time_unit
 
 # this function is functioning WRONG and is not used
 def get_mt5_server_offset_hours():
@@ -4941,12 +5007,28 @@ def main():
     # sl_limit = 270
     # body_points_limit = 160
 
-    sl_limit = 300 #360 # for usdjpy previous setting was 650
-    # sl_limit = 800 #350 # setting to 500 for XAUUSD testing
-    sl_min = 100
-    # body points limit is used for crossing sma setups, where the crossing candle's body should be be too big.
-    body_points_limit = 300 # setting it to 400 points for XAUUSD testing 
-    # for usdjpy I set it to 200
+    if timeframe == mt5.mt5.TIMEFRAME_M30:
+        sl_limit = 300 #360 # for usdjpy previous setting was 650
+        # sl_limit = 800 #350 # setting to 500 for XAUUSD testing
+        sl_min = 100
+        # body points limit is used for crossing sma setups, where the crossing candle's body should be be too big.
+        body_points_limit = 300 # setting it to 400 points for XAUUSD testing 
+        # for usdjpy I set it to 200
+    elif timeframe == mt5.mt5.TIMEFRAME_H1:
+        sl_limit = 600 #360 # for usdjpy previous setting was 650
+        # sl_limit = 800 #350 # setting to 500 for XAUUSD testing
+        sl_min = 100
+        # body points limit is used for crossing sma setups, where the crossing candle's body should be be too big.
+        body_points_limit = 600 # setting it to 400 points for XAUUSD testing 
+        # for usdjpy I set it to 200
+    else:
+        # default
+        sl_limit = 300 #360 # for usdjpy previous setting was 650
+        # sl_limit = 800 #350 # setting to 500 for XAUUSD testing
+        sl_min = 100
+        # body points limit is used for crossing sma setups, where the crossing candle's body should be be too big.
+        body_points_limit = 300 # setting it to 400 points for XAUUSD testing 
+        # for usdjpy I set it to 200
     
     points_gap_between_ideal_n_current_limit = 30 # setting it to 15points is TOO TIGHT. might not open order on gold as the spread is already 15-20 points
 
