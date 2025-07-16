@@ -5007,14 +5007,14 @@ def main():
     # sl_limit = 270
     # body_points_limit = 160
 
-    if timeframe == mt5.mt5.TIMEFRAME_M30:
+    if timeframe == mt5.TIMEFRAME_M30:
         sl_limit = 300 #360 # for usdjpy previous setting was 650
         # sl_limit = 800 #350 # setting to 500 for XAUUSD testing
         sl_min = 100
         # body points limit is used for crossing sma setups, where the crossing candle's body should be be too big.
         body_points_limit = 300 # setting it to 400 points for XAUUSD testing 
         # for usdjpy I set it to 200
-    elif timeframe == mt5.mt5.TIMEFRAME_H1:
+    elif timeframe == mt5.TIMEFRAME_H1:
         sl_limit = 600 #360 # for usdjpy previous setting was 650
         # sl_limit = 800 #350 # setting to 500 for XAUUSD testing
         sl_min = 100
