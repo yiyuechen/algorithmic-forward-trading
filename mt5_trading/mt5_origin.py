@@ -144,7 +144,7 @@ everytime we count down 10s and close an order, after we close it, we count down
 it's like we are taking a break from the market
 
 """
-MAX_DAILY_LOSS_LIMIT = 1200
+MAX_DAILY_LOSS_LIMIT = 100      # (23414 * 0.002) * 2 -> 93.656 -> ~ 100
 
 from getpass import getpass
 import time
@@ -5053,7 +5053,7 @@ def main():
     commission_per_lot = 5 # set to 5 for fnext #7 #4
 
     # risk_ratio = 0.015 # 0.05 # 0.01 # 2% 5%
-    risk_ratio = 0.001 # 0.05 # 0.01 # 2% 5%
+    risk_ratio = 0.002 # 0.05 # 0.01 # 2% 5%
 
     risk_reward_ratio = 1 #1:3 risk:reward 2:1
     # risk_reward_ratio = 0.33 #1:3 risk:reward 2:1
