@@ -3988,188 +3988,188 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 #         for _ in trange(seconds_to_sleep):
                 #             time.sleep(1)
 
-                # get the time_unit for risk management. by default, previously we used hard-coded 30, bc we have been trading m30.
-                # now we want to trade on H1, H4, M15, etc. so we want to adjust the time here.
-                time_unit = get_current_timeframe_in_minutes(timeframe) # previously, time_unit is 30 hard-coded
+                # # get the time_unit for risk management. by default, previously we used hard-coded 30, bc we have been trading m30.
+                # # now we want to trade on H1, H4, M15, etc. so we want to adjust the time here.
+                # time_unit = get_current_timeframe_in_minutes(timeframe) # previously, time_unit is 30 hard-coded
 
-                # 1. SPIKE in 30 mins (previously the rule is 5 minutes)
-                # check spike in drawndown >= 75% of full stop loss within 5 minutes CONTINUOUSLY
-                if time_diff <= timedelta(minutes=time_unit) and current_ticket_state['primary_trading_idea']: # instead of 5, let's do 30
-                    if points_from_tp <= points_full_tp:
-                        # the points between the current price and the take profit price is <= than the points of the full take profit
-                        # this means we are in profits or BE
-                        pass
-                    else:
-                        # we are in drawdown
-                        drawdown_proportion = points_from_entry / points_full_sl # e.g 150 / 200 points = 0.75
-                        if drawdown_proportion >= 0.75:
-                            order_type = position.type
-                            if order_type == 0:
-                                close_type = 1
-                            elif order_type == 1:
-                                close_type = 0
-                            print("Risk Management 1")
-                            close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)                            
+                # # 1. SPIKE in 30 mins (previously the rule is 5 minutes)
+                # # check spike in drawndown >= 75% of full stop loss within 5 minutes CONTINUOUSLY
+                # if time_diff <= timedelta(minutes=time_unit) and current_ticket_state['primary_trading_idea']: # instead of 5, let's do 30
+                #     if points_from_tp <= points_full_tp:
+                #         # the points between the current price and the take profit price is <= than the points of the full take profit
+                #         # this means we are in profits or BE
+                #         pass
+                #     else:
+                #         # we are in drawdown
+                #         drawdown_proportion = points_from_entry / points_full_sl # e.g 150 / 200 points = 0.75
+                #         if drawdown_proportion >= 0.75:
+                #             order_type = position.type
+                #             if order_type == 0:
+                #                 close_type = 1
+                #             elif order_type == 1:
+                #                 close_type = 0
+                #             print("Risk Management 1")
+                #             close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)                            
 
-                # 2. FIRST CANDLE CLOSE healthcheck
-                # check right when the first bar is closed, how can I do this? this is tricky
-                # I can write down the open time, and calculate how many minutes are left before the entry candle closes, calling it minutes_left_for_entry_close, and then minutes_left_for_entry_close += 30
+                # # 2. FIRST CANDLE CLOSE healthcheck
+                # # check right when the first bar is closed, how can I do this? this is tricky
+                # # I can write down the open time, and calculate how many minutes are left before the entry candle closes, calling it minutes_left_for_entry_close, and then minutes_left_for_entry_close += 30
                 
-                if timeframe == mt5.TIMEFRAME_M30:
-                    if 0 <= open_time_utc.minute < 30:
-                        entry_bar_start_time = open_time_utc.replace(minute=0, second=0, microsecond=0)
-                    else:
-                        # minute has to be 30 to 59 in this condition
-                        entry_bar_start_time = open_time_utc.replace(minute=30, second=0, microsecond=0)
+                # if timeframe == mt5.TIMEFRAME_M30:
+                #     if 0 <= open_time_utc.minute < 30:
+                #         entry_bar_start_time = open_time_utc.replace(minute=0, second=0, microsecond=0)
+                #     else:
+                #         # minute has to be 30 to 59 in this condition
+                #         entry_bar_start_time = open_time_utc.replace(minute=30, second=0, microsecond=0)
                     
-                    first_full_bar_start = entry_bar_start_time + timedelta(minutes=30)
-                    first_full_bar_close = first_full_bar_start + timedelta(minutes=30)
-                elif timeframe == mt5.TIMEFRAME_H1:
-                    entry_bar_start_time = open_time_utc.replace(minute=0, second=0, microsecond=0)
-                    first_full_bar_start = entry_bar_start_time + timedelta(minutes=time_unit)
-                    first_full_bar_close = first_full_bar_start + timedelta(minutes=time_unit)
-                elif timeframe == mt5.TIMEFRAME_M15:
-                    if 0 <= open_time_utc.minute < 15:
-                        entry_bar_start_time = open_time_utc.replace(minute=0, second=0, microsecond=0)
-                    elif 15 <= open_time_utc.minute < 30:
-                        entry_bar_start_time = open_time_utc.replace(minute=15, second=0, microsecond=0)
-                    elif 30 <= open_time_utc.minute < 45:
-                        entry_bar_start_time = open_time_utc.replace(minute=30, second=0, microsecond=0)
-                    else:
-                        entry_bar_start_time = open_time_utc.replace(minute=45, second=0, microsecond=0)    
+                #     first_full_bar_start = entry_bar_start_time + timedelta(minutes=30)
+                #     first_full_bar_close = first_full_bar_start + timedelta(minutes=30)
+                # elif timeframe == mt5.TIMEFRAME_H1:
+                #     entry_bar_start_time = open_time_utc.replace(minute=0, second=0, microsecond=0)
+                #     first_full_bar_start = entry_bar_start_time + timedelta(minutes=time_unit)
+                #     first_full_bar_close = first_full_bar_start + timedelta(minutes=time_unit)
+                # elif timeframe == mt5.TIMEFRAME_M15:
+                #     if 0 <= open_time_utc.minute < 15:
+                #         entry_bar_start_time = open_time_utc.replace(minute=0, second=0, microsecond=0)
+                #     elif 15 <= open_time_utc.minute < 30:
+                #         entry_bar_start_time = open_time_utc.replace(minute=15, second=0, microsecond=0)
+                #     elif 30 <= open_time_utc.minute < 45:
+                #         entry_bar_start_time = open_time_utc.replace(minute=30, second=0, microsecond=0)
+                #     else:
+                #         entry_bar_start_time = open_time_utc.replace(minute=45, second=0, microsecond=0)    
 
-                    first_full_bar_start = entry_bar_start_time + timedelta(minutes=time_unit)
-                    first_full_bar_close = first_full_bar_start + timedelta(minutes=time_unit)
-                elif timeframe == mt5.TIMEFRAME_M5:
-                    if 0 <= open_time_utc.minute < 5:
-                        entry_bar_start_time = open_time_utc.replace(minute=0, second=0, microsecond=0)
-                    elif 5 <= open_time_utc.minute < 10:
-                        entry_bar_start_time = open_time_utc.replace(minute=5, second=0, microsecond=0)
-                    elif 10 <= open_time_utc.minute < 15:
-                        entry_bar_start_time = open_time_utc.replace(minute=10, second=0, microsecond=0)
-                    elif 15 <= open_time_utc.minute < 20:
-                        entry_bar_start_time = open_time_utc.replace(minute=15, second=0, microsecond=0)
-                    elif 20 <= open_time_utc.minute < 25:
-                        entry_bar_start_time = open_time_utc.replace(minute=20, second=0, microsecond=0)
-                    elif 25 <= open_time_utc.minute < 30:
-                        entry_bar_start_time = open_time_utc.replace(minute=25, second=0, microsecond=0)
-                    elif 30 <= open_time_utc.minute < 35:
-                        entry_bar_start_time = open_time_utc.replace(minute=30, second=0, microsecond=0)
-                    elif 35 <= open_time_utc.minute < 40:
-                        entry_bar_start_time = open_time_utc.replace(minute=35, second=0, microsecond=0)
-                    elif 40 <= open_time_utc.minute < 45:
-                        entry_bar_start_time = open_time_utc.replace(minute=40, second=0, microsecond=0)
-                    elif 45 <= open_time_utc.minute < 50:
-                        entry_bar_start_time = open_time_utc.replace(minute=45, second=0, microsecond=0)
-                    elif 50 <= open_time_utc.minute < 55:
-                        entry_bar_start_time = open_time_utc.replace(minute=50, second=0, microsecond=0)
-                    else:
-                        entry_bar_start_time = open_time_utc.replace(minute=55, second=0, microsecond=0)    
+                #     first_full_bar_start = entry_bar_start_time + timedelta(minutes=time_unit)
+                #     first_full_bar_close = first_full_bar_start + timedelta(minutes=time_unit)
+                # elif timeframe == mt5.TIMEFRAME_M5:
+                #     if 0 <= open_time_utc.minute < 5:
+                #         entry_bar_start_time = open_time_utc.replace(minute=0, second=0, microsecond=0)
+                #     elif 5 <= open_time_utc.minute < 10:
+                #         entry_bar_start_time = open_time_utc.replace(minute=5, second=0, microsecond=0)
+                #     elif 10 <= open_time_utc.minute < 15:
+                #         entry_bar_start_time = open_time_utc.replace(minute=10, second=0, microsecond=0)
+                #     elif 15 <= open_time_utc.minute < 20:
+                #         entry_bar_start_time = open_time_utc.replace(minute=15, second=0, microsecond=0)
+                #     elif 20 <= open_time_utc.minute < 25:
+                #         entry_bar_start_time = open_time_utc.replace(minute=20, second=0, microsecond=0)
+                #     elif 25 <= open_time_utc.minute < 30:
+                #         entry_bar_start_time = open_time_utc.replace(minute=25, second=0, microsecond=0)
+                #     elif 30 <= open_time_utc.minute < 35:
+                #         entry_bar_start_time = open_time_utc.replace(minute=30, second=0, microsecond=0)
+                #     elif 35 <= open_time_utc.minute < 40:
+                #         entry_bar_start_time = open_time_utc.replace(minute=35, second=0, microsecond=0)
+                #     elif 40 <= open_time_utc.minute < 45:
+                #         entry_bar_start_time = open_time_utc.replace(minute=40, second=0, microsecond=0)
+                #     elif 45 <= open_time_utc.minute < 50:
+                #         entry_bar_start_time = open_time_utc.replace(minute=45, second=0, microsecond=0)
+                #     elif 50 <= open_time_utc.minute < 55:
+                #         entry_bar_start_time = open_time_utc.replace(minute=50, second=0, microsecond=0)
+                #     else:
+                #         entry_bar_start_time = open_time_utc.replace(minute=55, second=0, microsecond=0)    
 
-                    first_full_bar_start = entry_bar_start_time + timedelta(minutes=time_unit)
-                    first_full_bar_close = first_full_bar_start + timedelta(minutes=time_unit)
+                #     first_full_bar_start = entry_bar_start_time + timedelta(minutes=time_unit)
+                #     first_full_bar_close = first_full_bar_start + timedelta(minutes=time_unit)
 
-                # if the current time is later than the first bar close time and the first_candle_close is not checked
-                if now_utc >= first_full_bar_close and not current_ticket_state['checked_first_candle_close'] and current_ticket_state['primary_trading_idea']: 
-                    current_ticket_state['checked_first_candle_close'] = True
-                    if points_from_tp <= points_full_tp:
-                        # in profits or BE
-                        # do nothing
-                        pass
-                    else:
-                        drawdown_proportion = points_from_entry / points_full_sl
-                        if drawdown_proportion >= 0.3:
-                            order_type = position.type
-                            if order_type == 0:
-                                close_type = 1
-                            elif order_type == 1:
-                                close_type = 0
-                            print("Risk Management 2")
-                            close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)    
+                # # if the current time is later than the first bar close time and the first_candle_close is not checked
+                # if now_utc >= first_full_bar_close and not current_ticket_state['checked_first_candle_close'] and current_ticket_state['primary_trading_idea']: 
+                #     current_ticket_state['checked_first_candle_close'] = True
+                #     if points_from_tp <= points_full_tp:
+                #         # in profits or BE
+                #         # do nothing
+                #         pass
+                #     else:
+                #         drawdown_proportion = points_from_entry / points_full_sl
+                #         if drawdown_proportion >= 0.3:
+                #             order_type = position.type
+                #             if order_type == 0:
+                #                 close_type = 1
+                #             elif order_type == 1:
+                #                 close_type = 0
+                #             print("Risk Management 2")
+                #             close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)    
 
-                # 3. 60 Min no-momentum check (runs ONCE at 60 minutes)
-                if time_diff >= timedelta(minutes=time_unit*2) and not current_ticket_state['checked_60'] and current_ticket_state['primary_trading_idea']:
-                    current_ticket_state['checked_60'] = True
+                # # 3. 60 Min no-momentum check (runs ONCE at 60 minutes)
+                # if time_diff >= timedelta(minutes=time_unit*2) and not current_ticket_state['checked_60'] and current_ticket_state['primary_trading_idea']:
+                #     current_ticket_state['checked_60'] = True
                     
-                    mpe_proportion = current_ticket_state['mpe'] / points_full_tp
+                #     mpe_proportion = current_ticket_state['mpe'] / points_full_tp
 
-                    if points_from_tp <= points_full_tp:
-                        current_risk_exceeds_limit = False
-                    else:
-                        drawdown_proportion = points_from_entry / points_full_sl
-                        if drawdown_proportion >= 0.2:
-                            current_risk_exceeds_limit = True
-                        else:
-                            current_risk_exceeds_limit = False
+                #     if points_from_tp <= points_full_tp:
+                #         current_risk_exceeds_limit = False
+                #     else:
+                #         drawdown_proportion = points_from_entry / points_full_sl
+                #         if drawdown_proportion >= 0.2:
+                #             current_risk_exceeds_limit = True
+                #         else:
+                #             current_risk_exceeds_limit = False
 
 
-                    # if BOTH are met, that is, mpe_proportion smaller than 30% AND current floating loss is greater than 20% of the stop loss
-                    # initially we wanted both to be true, later I think "or" might be better
-                    # if mpe_proportion < 0.3 and current_risk_exceeds_limit:
-                    if mpe_proportion < 0.3 or current_risk_exceeds_limit:
-                        order_type = position.type
-                        if order_type == 0:
-                            close_type = 1
-                        elif order_type == 1:
-                            close_type = 0
-                        print("Risk Management 3")
-                        close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)
+                #     # if BOTH are met, that is, mpe_proportion smaller than 30% AND current floating loss is greater than 20% of the stop loss
+                #     # initially we wanted both to be true, later I think "or" might be better
+                #     # if mpe_proportion < 0.3 and current_risk_exceeds_limit:
+                #     if mpe_proportion < 0.3 or current_risk_exceeds_limit:
+                #         order_type = position.type
+                #         if order_type == 0:
+                #             close_type = 1
+                #         elif order_type == 1:
+                #             close_type = 0
+                #         print("Risk Management 3")
+                #         close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)
                     
 
-                # Check *AT* 90 minutes, if price has ever reached 30% profits, If so, then leave it. If not, close the trade.
-                # ... #
+                # # Check *AT* 90 minutes, if price has ever reached 30% profits, If so, then leave it. If not, close the trade.
+                # # ... #
 
-                # 4. 90 minutes check
-                # Check if within 90 minutes
-                # Check constantly if after 90 minutes, we are above 20% profits, if at any time price retraces below 20% proits, close IMMEDIATELY. So this is CONTINUOUS checking
-                # if time_diff <= timedelta(minutes=90):
-                #     print("✅ Trade was opened within the last 90 minutes.")
-                # else:
-                #     print("❌ Trade is older than 90 minutes.")
-                if time_diff > timedelta(minutes=time_unit*3): # we didn't add " and current_ticket_state['primary_trading_idea']" to skip checking the added position, so we still check it, because for an "added position", if at 90 mintutes, it's still not working out. It is not going right
-                    # check if the profits is at least 0.3 R
-                    # points_from_tp = abs(position.price_current - position.tp) * position_symbol_multiply_digits
-                    # points_full_tp = abs(position.price_open - position.tp) * position_symbol_multiply_digits
-                    if points_from_tp <= points_full_tp:
-                        # at least in profits
-                        points_earned_so_far = abs(position.price_open - position.price_current) * position_symbol_multiply_digits
-                        earned_proportion = points_earned_so_far / points_full_tp
-                        earned_proportion_threshold = 0.2 # set this to 0.3 (30% of total tp) or any proportion # I feel 30% might be too strict, which might close winners
-                        if earned_proportion >= earned_proportion_threshold: 
-                            # print(f"still in profits: {points_earned_so_far} points")
-                            close_trade = False
-                        else:
-                            print(f"doesn't meet earned_proportion_threshold: {earned_proportion_threshold} of total tp. closing...") # if the "if condition is if earned_proportion >= 0" then this can never be run
-                            close_trade = True
-                    else:
-                        # how come points_from_tp is greater than the full tp? that means we are in drawdown
-                        points_earned_so_far = -abs(position.price_open - position.price_current) * position_symbol_multiply_digits
-                        print(f"in drawdown. closing now...")
-                        close_trade = True
+                # # 4. 90 minutes check
+                # # Check if within 90 minutes
+                # # Check constantly if after 90 minutes, we are above 20% profits, if at any time price retraces below 20% proits, close IMMEDIATELY. So this is CONTINUOUS checking
+                # # if time_diff <= timedelta(minutes=90):
+                # #     print("✅ Trade was opened within the last 90 minutes.")
+                # # else:
+                # #     print("❌ Trade is older than 90 minutes.")
+                # if time_diff > timedelta(minutes=time_unit*3): # we didn't add " and current_ticket_state['primary_trading_idea']" to skip checking the added position, so we still check it, because for an "added position", if at 90 mintutes, it's still not working out. It is not going right
+                #     # check if the profits is at least 0.3 R
+                #     # points_from_tp = abs(position.price_current - position.tp) * position_symbol_multiply_digits
+                #     # points_full_tp = abs(position.price_open - position.tp) * position_symbol_multiply_digits
+                #     if points_from_tp <= points_full_tp:
+                #         # at least in profits
+                #         points_earned_so_far = abs(position.price_open - position.price_current) * position_symbol_multiply_digits
+                #         earned_proportion = points_earned_so_far / points_full_tp
+                #         earned_proportion_threshold = 0.2 # set this to 0.3 (30% of total tp) or any proportion # I feel 30% might be too strict, which might close winners
+                #         if earned_proportion >= earned_proportion_threshold: 
+                #             # print(f"still in profits: {points_earned_so_far} points")
+                #             close_trade = False
+                #         else:
+                #             print(f"doesn't meet earned_proportion_threshold: {earned_proportion_threshold} of total tp. closing...") # if the "if condition is if earned_proportion >= 0" then this can never be run
+                #             close_trade = True
+                #     else:
+                #         # how come points_from_tp is greater than the full tp? that means we are in drawdown
+                #         points_earned_so_far = -abs(position.price_open - position.price_current) * position_symbol_multiply_digits
+                #         print(f"in drawdown. closing now...")
+                #         close_trade = True
 
-                    if close_trade:
-                        order_type = position.type
-                        if order_type == 0:
-                            close_type = 1
-                        elif order_type == 1:
-                            close_type = 0
+                #     if close_trade:
+                #         order_type = position.type
+                #         if order_type == 0:
+                #             close_type = 1
+                #         elif order_type == 1:
+                #             close_type = 0
 
-                        print("Risk Management 4")
-                        close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)
+                #         print("Risk Management 4")
+                #         close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)
 
-                # protect the main position if the added position gets stopped out
-                # close the main trade at breakeven if the added trade fails. because we have counted the odds. 10 out of 11 such trades benefit from being closed at BE. Otherwise, we'll lose more, even the whole main position
-                if current_ticket_state['primary_trading_idea'] and current_ticket_state['position_has_been_added_based_on_the_trade']:
-                    # if the price (bid or ask) is right at breakeven (considering spread. i.e, if the profit is exactly 0), or if the profit is negative, then we close
-                    if points_from_tp >= points_full_tp:
-                        order_type = position.type
-                        if order_type == 0:
-                            close_type = 1
-                        elif order_type == 1:
-                            close_type = 0
+                # # protect the main position if the added position gets stopped out
+                # # close the main trade at breakeven if the added trade fails. because we have counted the odds. 10 out of 11 such trades benefit from being closed at BE. Otherwise, we'll lose more, even the whole main position
+                # if current_ticket_state['primary_trading_idea'] and current_ticket_state['position_has_been_added_based_on_the_trade']:
+                #     # if the price (bid or ask) is right at breakeven (considering spread. i.e, if the profit is exactly 0), or if the profit is negative, then we close
+                #     if points_from_tp >= points_full_tp:
+                #         order_type = position.type
+                #         if order_type == 0:
+                #             close_type = 1
+                #         elif order_type == 1:
+                #             close_type = 0
 
-                        print("Risk Management 5: Close the main position as the added position gets stopped out")
-                        close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)
+                #         print("Risk Management 5: Close the main position as the added position gets stopped out")
+                #         close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)
 
 
 
@@ -4185,18 +4185,18 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     close_request(symbol=symbol, ticket=position.ticket, lot=position.volume, type_filling=type_filling, close_type=close_type)
 
 
-                # ISSUE! It is likely that since this order has a new ticket, so during the next loop, it will be added into the new trade status. and so as it goes another 1/2 tp, another order will be opened.
-                # add position when price reached 1/2 tp
-                points_half_tp = 0.5 * points_full_tp
-                # note that points from entry is the ABSOLUTE distance. so if we are in half drawdown, we also attempt to add a trade, which will be a failed request.
-                # to fix this, we want to ensure: 1. distance to entry abs is half of tp profits 2. we are in profits. (by checking points_from_tp <= points_full_tp)
-                # add current_ticket_state['primary_trading_idea'] below to make sure that we only add position based on the main trade, 
-                # and avoid adding a 2nd position on a 1st added position when the main trade is closed by risk management but the 1st added trade is still open
-                if points_from_entry >= points_half_tp and points_from_tp <= points_full_tp and not current_ticket_state['position_has_been_added_based_on_the_trade'] and current_ticket_state['primary_trading_idea'] and len(current_symbol_open_positions) <= 1:
-                    # must set current_ticket_state['position_has_been_added_based_on_the_trade'] as True, otherwise, if it got stopped (len goes from 2 to 1), and it goes the half of tp again (len is 1 at that moement), it will open again
-                    current_ticket_state['position_has_been_added_based_on_the_trade'] = True
-                    # open another postion with the same lot size, with sl at main position entry price - maybe 3 pips, and tp at main position tp price
-                    open_request_for_add_position(sl_price=position.price_open, tp_price=position.tp, lot=position.volume, type=position.type, symbol=position.symbol, type_filling=type_filling) # type is the direction, buy or sell
+                # # ISSUE! It is likely that since this order has a new ticket, so during the next loop, it will be added into the new trade status. and so as it goes another 1/2 tp, another order will be opened.
+                # # add position when price reached 1/2 tp
+                # points_half_tp = 0.5 * points_full_tp
+                # # note that points from entry is the ABSOLUTE distance. so if we are in half drawdown, we also attempt to add a trade, which will be a failed request.
+                # # to fix this, we want to ensure: 1. distance to entry abs is half of tp profits 2. we are in profits. (by checking points_from_tp <= points_full_tp)
+                # # add current_ticket_state['primary_trading_idea'] below to make sure that we only add position based on the main trade, 
+                # # and avoid adding a 2nd position on a 1st added position when the main trade is closed by risk management but the 1st added trade is still open
+                # if points_from_entry >= points_half_tp and points_from_tp <= points_full_tp and not current_ticket_state['position_has_been_added_based_on_the_trade'] and current_ticket_state['primary_trading_idea'] and len(current_symbol_open_positions) <= 1:
+                #     # must set current_ticket_state['position_has_been_added_based_on_the_trade'] as True, otherwise, if it got stopped (len goes from 2 to 1), and it goes the half of tp again (len is 1 at that moement), it will open again
+                #     current_ticket_state['position_has_been_added_based_on_the_trade'] = True
+                #     # open another postion with the same lot size, with sl at main position entry price - maybe 3 pips, and tp at main position tp price
+                #     open_request_for_add_position(sl_price=position.price_open, tp_price=position.tp, lot=position.volume, type=position.type, symbol=position.symbol, type_filling=type_filling) # type is the direction, buy or sell
 
                 # points_from_tp_limit is static. here it's tried dynamic based on the 0.1 risk to get tp
                 dynamic_points_from_tp_limit = points_full_tp * 0.1
