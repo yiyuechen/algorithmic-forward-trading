@@ -5108,7 +5108,7 @@ def main():
         pass
     else:
         risk_ratio = float(risk_ratio_confirm)
-    print(f"confirmed risk_ratio is {risk_ratio}, or {risk_ratio * 100}%")
+    print(f"confirmed risk_ratio is {risk_ratio}, namely {risk_ratio * 100}%, ~{mt5.account_info().balance * risk_ratio} per trade")
 
     # confirm sl_limit, sl_min, body_points_limit
     print(f"sl_limit: {sl_limit}")
@@ -5134,8 +5134,9 @@ def main():
     print("------------------------")
     print(f"symbol: {symbol}")
     print(f"timeframe: {timeframe}")
-    print(f"risk_ratio is {risk_ratio}, namely {risk_ratio * 100}%")
+    print(f"risk_ratio is {risk_ratio}, namely {risk_ratio * 100}%, ~{mt5.account_info().balance * risk_ratio} per trade")
     print(f"consecutive_losing_trade_limit: {consecutive_losing_trade_limit}")
+    print(f"MAX_DAILY_LOSS_LIMIT: {MAX_DAILY_LOSS_LIMIT}")
     print(f"sl_limit: {sl_limit}")
     print(f"sl_min: {sl_min}")
     print(f"body_points_limit: {body_points_limit}")
