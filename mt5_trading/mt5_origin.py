@@ -4992,8 +4992,8 @@ def main():
     # timeframe = mt5.TIMEFRAME_M1
     # timeframe = mt5.TIMEFRAME_M5
     # timeframe = mt5.TIMEFRAME_M15
-    timeframe = mt5.TIMEFRAME_M30
-    # timeframe = mt5.TIMEFRAME_H1
+    # timeframe = mt5.TIMEFRAME_M30
+    timeframe = mt5.TIMEFRAME_H1
 
     broker_time_offset_hours_from_utc = get_broker_time_n_utc_time_offset(symbol)
     print(f"broker_time_offset_hours_from_utc: {broker_time_offset_hours_from_utc}")
@@ -5001,7 +5001,7 @@ def main():
     time_of_calculating_time_offset = datetime.now(timezone.utc)
 
     # set a limit to avoid bad days. if x losing trades in a row, call it day
-    consecutive_losing_trade_limit = 3
+    consecutive_losing_trade_limit = 2          # 3 previous setting
 
     # sl_limit = 600 #520 #320 #200 # points for USDJPY # 300
     # sl_limit = 270
@@ -5043,7 +5043,8 @@ def main():
     points_from_tp_limit = 30 #20 # points
     # points_from_tp_limit = 0 # disable
 
-    added_points_to_sl = 0 # don't add any pips. set to 10 to add 1 pip # add 1 pips to sl, so that the sl is 1 pip below the dow's low, but I find it usually not beneficial, because if it is a winner then usually price won't go that back
+    # added_points_to_sl = 0 # don't add any pips. set to 10 to add 1 pip # add 1 pips to sl, so that the sl is 1 pip below the dow's low, but I find it usually not beneficial, because if it is a winner then usually price won't go that back
+    added_points_to_sl = 10
 
     added_points_to_tp = 10 # add 1 pip to tp, so that the tp can cover the fees including commission and spreads, making the risk reward ratio to be 1 to 1
 
@@ -5051,7 +5052,8 @@ def main():
     # currently it is not included in the parameters
     commission_per_lot = 5 # set to 5 for fnext #7 #4
 
-    risk_ratio = 0.015 # 0.05 # 0.01 # 2% 5%
+    # risk_ratio = 0.015 # 0.05 # 0.01 # 2% 5%
+    risk_ratio = 0.001 # 0.05 # 0.01 # 2% 5%
 
     risk_reward_ratio = 1 #1:3 risk:reward 2:1
     # risk_reward_ratio = 0.33 #1:3 risk:reward 2:1
@@ -5127,6 +5129,21 @@ def main():
         (news_df["importance"].isin(["High"])) &
         (news_df["country"].isin(["USD", "JPY"]))
     ])
+    
+    # print overall info
+    print("------------------------")
+    print(f"symbol: {symbol}")
+    print(f"timeframe: {timeframe}")
+    print(f"risk_ratio is {risk_ratio}, namely {risk_ratio * 100}%")
+    print(f"consecutive_losing_trade_limit: {consecutive_losing_trade_limit}")
+    print(f"sl_limit: {sl_limit}")
+    print(f"sl_min: {sl_min}")
+    print(f"body_points_limit: {body_points_limit}")
+    print(f"commission_per_lot: {commission_per_lot}")
+    print(f"added_points_to_sl: {added_points_to_sl}")
+    print(f"added_points_to_tp: {added_points_to_tp}")
+    print(f"broker_time_offset_hours_from_utc: {broker_time_offset_hours_from_utc}")
+    print("------------------------")
     
 
     # A place to store per-trade state ---
