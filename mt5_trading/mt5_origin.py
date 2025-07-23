@@ -145,6 +145,7 @@ it's like we are taking a break from the market
 
 """
 MAX_DAILY_LOSS_LIMIT = 100      # (23414 * 0.002) * 2 -> 93.656 -> ~ 100
+ADD_POSITION_ENABLED = False    # WARNING! This is only for risk management calculation for the above line, not for actually adding positions
 
 from getpass import getpass
 import time
@@ -2321,7 +2322,11 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
             elif net_PnL_today < 0: 
                 # WARNING! if deals is empty, len(deals) is 0, and dividing will raise an error
                 # seems incorrect calculation for avg # avg_commission_today = commission_total_today / len(deals) / 2
-                potential_loss_if_one_more_trading_idea = abs(net_PnL_today) + mt5.account_info().balance * (risk_ratio + risk_ratio / 2) # + largest_commission_today * 2 # seems we don't need to include commission here, as it's already in the risk
+                if ADD_POSITION_ENABLED:
+                    potential_loss_if_one_more_trading_idea = abs(net_PnL_today) + mt5.account_info().balance * (risk_ratio + risk_ratio / 2) # + largest_commission_today * 2 # seems we don't need to include commission here, as it's already in the risk
+                else:
+                    potential_loss_if_one_more_trading_idea = abs(net_PnL_today) + mt5.account_info().balance * risk_ratio
+
                 if potential_loss_if_one_more_trading_idea >= MAX_DAILY_LOSS_LIMIT: # HARDCODED NOW, we can set it as global or parameter, 1250
                     print()
                     print(f"commission_total_today: {commission_total_today}")
