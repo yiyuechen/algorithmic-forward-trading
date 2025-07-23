@@ -2729,6 +2729,16 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                             print("tp is hit already. skip this pending buy entry")
                             continue
 
+                        # check if we've been only three pips away from the tp (depending on the stop loss size the pip size varies)
+                        points_from_tp = abs(relevant_tick_highest - tp_price) * multiply_digits
+                        points_full_tp = abs(info["entry_price"] - tp_price) * multiply_digits
+                        # points_from_tp_limit is static. here it's tried dynamic based on the 0.1 risk to get tp
+                        dynamic_points_from_tp_limit = points_full_tp * 0.1
+                        if points_from_tp <= dynamic_points_from_tp_limit:
+                            print(f"relevant_tick_highest {relevant_tick_highest} is within {dynamic_points_from_tp_limit} points away from tp {tp_price}. skip this pending buy entry")
+                            continue
+
+
                         # check if there is news ahead or if we are after news
                         news_exist = get_news_data.trades_blocker_to_avoid_news(60, news_df)
                         if news_exist:
@@ -2824,6 +2834,15 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                         tp_price = info["entry_price"] - tp * symbol_point
                         if relevant_tick_lowest <= tp_price:
                             print("tp is hit already. skip this pending sell entry")
+                            continue
+
+                        # check if we've been only three pips away from the tp (depending on the stop loss size the pip size varies)
+                        points_from_tp = abs(relevant_tick_lowest - tp_price) * multiply_digits
+                        points_full_tp = abs(info["entry_price"] - tp_price) * multiply_digits
+                        # points_from_tp_limit is static. here it's tried dynamic based on the 0.1 risk to get tp
+                        dynamic_points_from_tp_limit = points_full_tp * 0.1
+                        if points_from_tp <= dynamic_points_from_tp_limit:
+                            print(f"relevant_tick_lowest {relevant_tick_lowest} is within {dynamic_points_from_tp_limit} points away from tp {tp_price}. skip this pending sell entry")
                             continue
 
 
