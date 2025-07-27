@@ -2738,6 +2738,9 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                             print(f"relevant_tick_highest {relevant_tick_highest} is within {dynamic_points_from_tp_limit} points away from tp {tp_price}. skip this pending buy entry")
                             continue
 
+                        is_risky_pattern = check_if_risky_pattern(symbol, timeframe)
+                        if is_risky_pattern:
+                            continue
 
                         # check if there is news ahead or if we are after news
                         news_exist = get_news_data.trades_blocker_to_avoid_news(60, news_df)
@@ -2845,6 +2848,9 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                             print(f"relevant_tick_lowest {relevant_tick_lowest} is within {dynamic_points_from_tp_limit} points away from tp {tp_price}. skip this pending sell entry")
                             continue
 
+                        is_risky_pattern = check_if_risky_pattern(symbol, timeframe)
+                        if is_risky_pattern:
+                            continue
 
                         # check if there is news ahead or if we are after news
                         news_exist = get_news_data.trades_blocker_to_avoid_news(60, news_df)
@@ -3137,6 +3143,9 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     if check_adx_ascending_res == False:
                         continue
 
+                is_risky_pattern = check_if_risky_pattern(symbol, timeframe)
+                if is_risky_pattern:
+                    continue   
                 
 
                 # check if there is news ahead or if we are after news
@@ -3339,6 +3348,9 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     if check_adx_ascending_res == False:
                         continue
 
+                is_risky_pattern = check_if_risky_pattern(symbol, timeframe)
+                if is_risky_pattern:
+                    continue   
 
                 # check if there is news ahead or if we are after news
                 news_exist = get_news_data.trades_blocker_to_avoid_news(60, news_df)
@@ -3566,7 +3578,10 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     check_adx_ascending_res = check_adx_ascending(symbol=symbol, timeframe=timeframe, n=2) # previously working setting was that n was set to 3
                     if check_adx_ascending_res == False:
                         continue
-                
+
+                is_risky_pattern = check_if_risky_pattern(symbol, timeframe)
+                if is_risky_pattern:
+                    continue                   
                 
                 # check if there is news ahead or if we are after news
                 news_exist = get_news_data.trades_blocker_to_avoid_news(60, news_df)
@@ -3778,6 +3793,9 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                     if check_adx_ascending_res == False:
                         continue
 
+                is_risky_pattern = check_if_risky_pattern(symbol, timeframe)
+                if is_risky_pattern:
+                    continue   
 
                 # check if there is news ahead or if we are after news
                 news_exist = get_news_data.trades_blocker_to_avoid_news(60, news_df)
@@ -4944,6 +4962,148 @@ def get_broker_time_n_utc_time_offset(symbol):
     print(f"hours_offset_int: {hours_offset_int}")
 
     return hours_offset_int
+
+# add a function to filter risky patterns, including:
+# 1. price has moved a lot, and right after the move, it breaks the counter direction and breaks again. It's likely just consolidation
+# 2. 
+# 3. 
+def check_if_risky_pattern(symbol, timeframe):
+    digits = mt5.symbol_info(symbol).digits
+    multiply_digits = 10 ** digits
+
+    # essentially the same idea: price has trended strongly. 
+    # for pattern 1, it trends strongly via 2 big candles. for pattern 2, even more strongly in just 1 bigger candle.
+    is_risky_pattern_1 = False
+    is_risky_pattern_2 = False
+
+    pattern1_big_candle_threshold = 300 # points
+    pattern2_big_candle_threshold = 600 # points
+    
+    # relatively_small_candle_threshold = 250 # 150 # does this even matter? # seems we should not limit this. 
+    # because even it's bigger, say 30-50 pips. we still shouldn't enter
+    # so the key in this pattern here is, price breaks pre lows and then breaks highs 
+    # at one candle RIGHT AFTER big candles
+    
+
+    ########## pattern 1 ###########
+    
+    # filter this one type pattern. 14:00 UTC+3 25 July 2025 H1 USDJPY
+    candles = get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=5)
+    # we have 4 candles. 
+    # the 1st candle is a big candle, which moved a lot
+    # the 2nd candle is a big candle, which moved a lot
+    # the 3nd is a small candle. 
+    # the 4rd is also a small candle.
+    # the 5th, which is the current candle, breaks pre 2 candles' low/high and breaks high again
+    # !!! remember to also fit the bearish pattern
+    # 1st candle
+    candle_1_body_size_in_points = (candles[0]['close'] - candles[0]['open']) * multiply_digits
+    candle_2_body_size_in_points = (candles[1]['close'] - candles[1]['open']) * multiply_digits
+    # candle_3_body_size_in_points = (candles[2]['close'] - candles[2]['open']) * multiply_digits
+    # candle_4_body_size_in_points = (candles[3]['close'] - candles[3]['open']) * multiply_digits
+    # we want to compare it with a limit to determine if it's a big candle
+    if candle_1_body_size_in_points > pattern1_big_candle_threshold and candle_2_body_size_in_points > pattern1_big_candle_threshold:
+        is_consecutive_2_big_candles = True
+    else:
+        is_consecutive_2_big_candles = False
+    
+    # if candle_3_body_size_in_points < relatively_small_candle_threshold and candle_4_body_size_in_points < relatively_small_candle_threshold:
+    #     is_consecutive_2_small_candles = True
+    # else:
+    #     is_consecutive_2_small_candles = False
+
+    # if we have candle 1 and candle 2 as big candles, we continue to check further
+    # to see if it's this risky pattern 1
+
+    # higher high and higher low
+    if candles[0]['low'] <= candles[1]['low'] <= candles[2]['low'] <= candles[3]['low'] \
+        and candles[0]['high'] <= candles[1]['high'] <= candles[2]['high'] <= candles[3]['high'] \
+        and candles[0]['open'] < candles[0]['close'] and candles[1]['open'] < candles[1]['close']:
+        higher_high_n_higher_low = True
+    else:
+        higher_high_n_higher_low = False
+
+    # lower high and lower low
+    if candles[0]['low'] >= candles[1]['low'] >= candles[2]['low'] >= candles[3]['low'] \
+        and candles[0]['high'] >= candles[1]['high'] >= candles[2]['high'] >= candles[3]['high'] \
+        and candles[0]['open'] > candles[0]['close'] and candles[1]['open'] > candles[1]['close']:
+        lower_high_n_lower_low = True
+    else:
+        lower_high_n_lower_low = False
+
+    if higher_high_n_higher_low or lower_high_n_lower_low:
+        market_structure_ok = True
+    else:
+        market_structure_ok = False
+
+    # if is_consecutive_2_big_candles and is_consecutive_2_small_candles and market_structure_ok:
+    if is_consecutive_2_big_candles and market_structure_ok:
+        # okay, seems this is the risky pattern.
+        # just let's check, is it possible that there are any other "okay" patterns that 
+        # also fit the above conditions?
+        is_risky_pattern_1 = True
+        # debug
+        print(f"++++++++++++++++++++ risky_pattern 1 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ risky pattern 1 at {datetime.now(timezone.utc)} ------", end="\r", flush=True)
+    else:
+        is_risky_pattern_1 = False
+    
+
+    ########## pattern 2 ###########
+
+    # check pattern 2 18:00 UTC+3 3 Jul USDJPY H1
+    # 1st candle - huge candle +60 pips (600 points)
+    # 2nd and 3rd candle form a pause (for bullish, it's 2nd and 3rd candles' highs are not higher than 1st candle)
+    # (or. for bullish, 2nd and 3rd candles actually break the highs of 1st candle, but the 4th (current) candle breaks 2nd and 3rd candles' lows and then 
+    # breaks their highs, so the current candle is a volatile candle)
+    # 4th candle break
+    # this is very "fragile" not a healthy pattern
+    candles = get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=4)
+    # candles 0 1 2 3 
+    candle_1_body_size_in_points = (candles[0]['close'] - candles[0]['open']) * multiply_digits
+    if candle_1_body_size_in_points > pattern2_big_candle_threshold:
+        is_1st_big_candle = True
+    else:
+        is_1st_big_candle = False
+
+    # check market_structure_when_long_ok
+    # make sure 1. candle 1 is bullish. 2. candle 1 low is lower than both candle 2 and 3 lows. 3. candle 1 high is not broken by candle 2 and 3
+    if candles[0]['open'] < candles[0]['close'] \
+        and candles[0]['low'] <= min(candles[1]['low'], candles[2]['low']) \
+        and candles[0]['high'] >= max(candles[1]['high'], candles[2]['high']):
+        market_structure_when_long_ok = True
+    else:
+        market_structure_when_long_ok = False
+
+    # check market_structure_when_short_ok
+    # make sure 1. candle 0 is bearish 2. candle 1 high is higher than both candle 2 and 3 highs 3. candle 1 low is not broken by candle 2 and 3
+    if candles[0]['open'] > candles[0]['close'] \
+        and candles[0]['high'] >= max(candles[1]['high'], candles[2]['high']) \
+        and candles[0]['low'] <= min(candles[1]['low'], candles[2]['low']):
+        market_structure_when_short_ok = True
+    else:
+        market_structure_when_short_ok = False
+
+    if market_structure_when_long_ok or market_structure_when_short_ok:
+        market_structure_ok = True
+    else:
+        market_structure_ok = False
+
+    # if we have the 1st candle as a big 60-pip candle, and then two in-bar candles, we identify this pattern
+    # we do not care if the 2 in-bar candles are small candles or big rangy candles, or if the breaking candle retraces to break pre 2 candles' lowor just breaks
+    if is_1st_big_candle and market_structure_ok:
+        is_risky_pattern_2 = True
+        print(f"++++++++++++++++++++ risky_pattern 2 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ risky pattern 2 at {datetime.now(timezone.utc)} +++++", end="\r", flush=True)
+    else:
+        is_risky_pattern_2 = False
+
+    # it seems we don't need to care about the 2nd, 3rd, and 4th (current) candle
+
+    if is_risky_pattern_1 or is_risky_pattern_2:
+        is_risky_pattern = True
+    else:
+        is_risky_pattern = False
+
+    return is_risky_pattern
 
 
 def main():
