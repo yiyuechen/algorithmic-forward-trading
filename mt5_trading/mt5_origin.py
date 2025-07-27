@@ -2146,7 +2146,7 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                          pattern_list, pattern_index, added_points_to_sl, added_points_to_tp, fixed_tp, fixed_tp_in_points, hedge, 
                          adx_threshold, is_check_adx_threshold_enabled, is_check_adx_ascending_enabled,
                          broker_time_offset_hours_from_utc, time_of_calculating_time_offset, news_df, time_of_retrieval_news_df, 
-                         trade_state, consecutive_losing_trade_limit, special_pending_order_check_log):
+                         trade_state, consecutive_losing_trade_limit, special_pending_order_check_log, is_dynamic_points_from_tp_limit):
     """
     USDJPY
     [(1658511000, 136.061, 136.191, 135.883, 136.007, 3592, 0, 0)
@@ -2732,8 +2732,12 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                         # check if we've been only three pips away from the tp (depending on the stop loss size the pip size varies)
                         points_from_tp = abs(relevant_tick_highest - tp_price) * multiply_digits
                         points_full_tp = abs(info["entry_price"] - tp_price) * multiply_digits
-                        # points_from_tp_limit is static. here it's tried dynamic based on the 0.1 risk to get tp
-                        dynamic_points_from_tp_limit = points_full_tp * 0.1
+                        # points_from_tp_limit is static. here it's tried dynamic based on the 0.1 risk to get tp, depending on is_dynamic_points_from_tp_limit
+                        if is_dynamic_points_from_tp_limit:
+                            dynamic_points_from_tp_limit = points_full_tp * 0.1
+                        else:
+                            dynamic_points_from_tp_limit = points_from_tp_limit # set dynamic limit as fixed limit
+
                         if points_from_tp <= dynamic_points_from_tp_limit:
                             print(f"relevant_tick_highest {relevant_tick_highest} is within {dynamic_points_from_tp_limit} points away from tp {tp_price}. skip this pending buy entry")
                             continue
@@ -2842,8 +2846,12 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                         # check if we've been only three pips away from the tp (depending on the stop loss size the pip size varies)
                         points_from_tp = abs(relevant_tick_lowest - tp_price) * multiply_digits
                         points_full_tp = abs(info["entry_price"] - tp_price) * multiply_digits
-                        # points_from_tp_limit is static. here it's tried dynamic based on the 0.1 risk to get tp
-                        dynamic_points_from_tp_limit = points_full_tp * 0.1
+                        # points_from_tp_limit is static. here it's tried dynamic based on the 0.1 risk to get tp, depending on is_dynamic_points_from_tp_limit
+                        if is_dynamic_points_from_tp_limit:
+                            dynamic_points_from_tp_limit = points_full_tp * 0.1
+                        else:
+                            dynamic_points_from_tp_limit = points_from_tp_limit
+
                         if points_from_tp <= dynamic_points_from_tp_limit:
                             print(f"relevant_tick_lowest {relevant_tick_lowest} is within {dynamic_points_from_tp_limit} points away from tp {tp_price}. skip this pending sell entry")
                             continue
@@ -4241,7 +4249,10 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 #     open_request_for_add_position(sl_price=position.price_open, tp_price=position.tp, lot=position.volume, type=position.type, symbol=position.symbol, type_filling=type_filling) # type is the direction, buy or sell
 
                 # points_from_tp_limit is static. here it's tried dynamic based on the 0.1 risk to get tp
-                dynamic_points_from_tp_limit = points_full_tp * 0.1
+                if is_dynamic_points_from_tp_limit:
+                    dynamic_points_from_tp_limit = points_full_tp * 0.1
+                else:
+                    dynamic_points_from_tp_limit = points_from_tp_limit
 
                 # set sl to price_open, this should work for higher timeframes
                 if points_from_tp <= dynamic_points_from_tp_limit: # points_from_tp_limit
@@ -5227,6 +5238,8 @@ def main():
     points_from_tp_limit = 30 #20 # points
     # points_from_tp_limit = 0 # disable
 
+    is_dynamic_points_from_tp_limit = True
+
     # added_points_to_sl = 0 # don't add any pips. set to 10 to add 1 pip # add 1 pips to sl, so that the sl is 1 pip below the dow's low, but I find it usually not beneficial, because if it is a winner then usually price won't go that back
     added_points_to_sl = 10
 
@@ -5345,7 +5358,7 @@ def main():
                          pattern_list, pattern_index, added_points_to_sl, added_points_to_tp, fixed_tp, fixed_tp_in_points, hedge, 
                          adx_threshold, is_check_adx_threshold_enabled, is_check_adx_ascending_enabled,
                          broker_time_offset_hours_from_utc, time_of_calculating_time_offset, news_df, time_of_retrieval_news_df, 
-                         trade_state, consecutive_losing_trade_limit, special_pending_order_check_log)
+                         trade_state, consecutive_losing_trade_limit, special_pending_order_check_log, is_dynamic_points_from_tp_limit)
     # symbol="XAUUSD"
     # point = mt5.symbol_info(symbol).point
     # print(point)
