@@ -3014,11 +3014,11 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 # dows_low = find_dows_low(symbol=symbol, timeframe=timeframe, tick_count=12)
                 dows_low = find_dows_low(symbol=symbol, timeframe=timeframe, tick_count=4)
                 if dows_low:
-                    sl = current_price * multiply_digits - dows_low * multiply_digits
+                    sl = ask_price * multiply_digits - dows_low * multiply_digits # should use ask_price to be precise, not current_price, Jul 28 2025
                 else:
                     # print(f"didn't find dows_low in previous 4 ticks, will get last 3 ticks and use the first tick's low as dow's low")
                     dows_low = tick_one_low
-                    sl = current_price * multiply_digits - dows_low * multiply_digits
+                    sl = ask_price * multiply_digits - dows_low * multiply_digits
                 # else:
                 #     print(f"didn't find dows_low in previous ticks, won't open order")
                 #     continue
@@ -3233,11 +3233,11 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 # dows_high = find_dows_high(symbol=symbol, timeframe=timeframe, tick_count=12)
                 dows_high = find_dows_high(symbol=symbol, timeframe=timeframe, tick_count=4)
                 if dows_high:
-                    sl = dows_high * multiply_digits - ask_price * multiply_digits
+                    sl = dows_high * multiply_digits - current_price * multiply_digits # when selling, the sl should be bid_price and sl_price gap, not ask_price
                 else:
                     # print(f"didn't find dows_high in previous 4 ticks, will get last 3 ticks and use the first tick's high as dow's high")
                     dows_high = tick_one_high
-                    sl = dows_high * multiply_digits - ask_price * multiply_digits
+                    sl = dows_high * multiply_digits - current_price * multiply_digits
                     
                 # sl = higher_price * 100 - current_price * 100  # BTC
                 ##### ##### #####
@@ -3454,11 +3454,11 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
 
                 dows_low = find_dows_low(symbol=symbol, timeframe=timeframe, tick_count=5) # as crossing sma we are opening order on a new candle. so it's 5 ticks
                 if dows_low:
-                    sl = current_price * multiply_digits - dows_low * multiply_digits
+                    sl = ask_price * multiply_digits - dows_low * multiply_digits
                 else:
                     # print(f"didn't find dows_low in previous 5 ticks, will get last 3 ticks and use the first tick's low as dow's low")
                     dows_low = tick_one_low
-                    sl = current_price * multiply_digits - dows_low * multiply_digits
+                    sl = ask_price * multiply_digits - dows_low * multiply_digits
                 # sl = current_price * 100 - lower_price * 100  # BTC
                 ##################
 
@@ -3674,11 +3674,11 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                 #     continue
                 dows_high = find_dows_high(symbol=symbol, timeframe=timeframe, tick_count=5)
                 if dows_high:
-                    sl = dows_high * multiply_digits - ask_price * multiply_digits
+                    sl = dows_high * multiply_digits - current_price * multiply_digits
                 else:
                     # print(f"didn't find dows_high in previous 5 ticks, will get last 3 ticks and use the first tick's high as dow's high")
                     dows_high = tick_one_high
-                    sl = dows_high * multiply_digits - ask_price * multiply_digits
+                    sl = dows_high * multiply_digits - current_price * multiply_digits
                 ##### ###### ######
                 
                 # make sl one pip larger. because we want the sl price to be one pip below or above dows high and low
