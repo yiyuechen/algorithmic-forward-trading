@@ -5241,9 +5241,9 @@ def main():
     is_dynamic_points_from_tp_limit = True
 
     # added_points_to_sl = 0 # don't add any pips. set to 10 to add 1 pip # add 1 pips to sl, so that the sl is 1 pip below the dow's low, but I find it usually not beneficial, because if it is a winner then usually price won't go that back
-    added_points_to_sl = 10
+    added_points_to_sl = 0      # 10
 
-    added_points_to_tp = 10 # add 1 pip to tp, so that the tp can cover the fees including commission and spreads, making the risk reward ratio to be 1 to 1
+    added_points_to_tp = 20     # 10 # add 1 pip to tp, so that the tp can cover the fees including commission and spreads, making the risk reward ratio to be 1 to 1
 
     # specify the commision for each lot here and make sure to pass it in the following open_request() functions
     # currently it is not included in the parameters
