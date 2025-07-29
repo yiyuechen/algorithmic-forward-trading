@@ -2275,7 +2275,14 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
             start_of_day_server = start_of_day_server.replace(tzinfo=timezone.utc)
 
             from_date = start_of_day_server
-            to_date = server_time_now
+            # to_date = server_time_now 
+            # this is a bit strict (setting to_date to server_time_now). in border line scenarios, this can lead to bugs. for instance:
+            # 1. if a trade is stopped out, the exiting time is, say, 11:28:35, and the now time is 11:28:35. then this trade is not retrieved, 
+            # because trade contains two deals, enry and exit. the exit is at borderline. so consider the error/deviation in time, it may not be seen.
+            # so the program will immediately open another trade (if the limit is set to 2 trade, then the 3rd one!) and after just a moment (maybe 1 sec), realizes
+            # that if we have another trade, the daily loss limit will be exceeded. but this should have been done before the 3rd trade is opened.
+            # 2. if the time gap got calculated WRONG, it leads to that bug I won't forget.
+            to_date = datetime.combine(server_date, dt_time(23, 59, 59), tzinfo=timezone.utc) # end of day (server). setting it to 23:59:59 should be sufficient. after all, we sleep at 15:00 UTC
             # debug
             # to_date = datetime(year=2025, month=5, day=30, hour=14, minute=6, second=0)
             # # debug
