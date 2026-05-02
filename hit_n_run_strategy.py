@@ -439,13 +439,20 @@ enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_
     # constant should be outside of the loop
     # commision_per_lot = 4 
 
-    http = urllib3.PoolManager()
-    r = http.request('GET', 'https://www.mataf.net/en/forex/tools/pip-value')
-    soup = BeautifulSoup(r.data, features="html.parser")
-    pip_value = soup.find("th", text=symbol).find_next_sibling("td").text
-    # pip_value = Decimal(pip_value)
-    pip_value = float(pip_value)
-    print(f"{symbol} pip value {pip_value}")
+    # # this seems not to working now #
+    # http = urllib3.PoolManager()
+    # r = http.request('GET', 'https://www.mataf.net/en/forex/tools/pip-value')
+    # soup = BeautifulSoup(r.data, features="html.parser")
+    # pip_value = soup.find("th", text=symbol).find_next_sibling("td").text
+    # # pip_value = Decimal(pip_value)
+    # pip_value = float(pip_value)
+    # print(f"{symbol} pip value {pip_value}")
+    # #######################
+    # instead, do this as a temporary workaround
+    if symbol == "USDJPY":
+        pip_value = 6.25 # 100000*0.01*1/160 (contract size * pip def * (JPY/USD)) 
+    else:
+        pip_value = 10
 
     # note:
     # pip_value is how much a pip is (usually in USD, could also be pound or eur) with one lot (or 100,000 volume)
@@ -494,8 +501,13 @@ enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_
         if lot_size > max_lot_limit:
             lot_size = max_lot_limit
         elif lot_size < min_lot_limit:
-            print(f"calculated lot_size {lot_size} is less than min_lot_limit {min_lot_limit}")
-            break
+            # # 1. stop the program
+            # print(f"calculated lot_size {lot_size} is less than min_lot_limit {min_lot_limit}")
+            # break
+            
+            # 2. set lot_size to min_lot_limit
+            print(f"calculated lot_size {lot_size} is less than min_lot_limit {min_lot_limit}. \nsetting it to {min_lot_limit}.")
+            lot_size = min_lot_limit
         
 
         # if theo lot size is 0.1, then it is equal to the actual lot size.
@@ -792,10 +804,10 @@ def draw_plotly_chart(trades):
     fig.show()
 
 # 149376$   # 4257 for legion
-def main(initial=141, target_capital=1000, risk_per_trade_ratio=0.05, win_rate=0.6, break_even_rate=0.06, hit_and_run_rate=0.7, symbol="USDJPY", is_limit_consecutive_wins=True, 
-is_limit_consecutive_losses=True, cut_loss_min_rate=0, cut_loss_max_rate=80, cut_profit_min_rate=0, cut_profit_max_rate=80, enable_actual_mode=False, stop_loss_min=10, 
-stop_loss_max=30, spread_max=20, actual_capital_in_risk_rate=0.65, actual_potential_profit_rate=0.7, max_lot_limit=100, min_lot_limit=0.01, average_trades_per_day=18, enable_hit_n_run=0, 
-ideal_trade_count_for_generating_rand=100000, limit_consecutive_win_to=10, limit_consecutive_loss_to=4, bankruptcy_threshold=50, commision_per_lot=4): 
+def main(initial=5000, target_capital=10000, risk_per_trade_ratio=0.01, win_rate=0.64, break_even_rate=0.06, hit_and_run_rate=0.9, symbol="XAUUSD", is_limit_consecutive_wins=1, 
+is_limit_consecutive_losses=1, cut_loss_min_rate=50, cut_loss_max_rate=65, cut_profit_min_rate=0, cut_profit_max_rate=50, enable_actual_mode=False, stop_loss_min=10, 
+stop_loss_max=30, spread_max=20, actual_capital_in_risk_rate=0.65, actual_potential_profit_rate=0.7, max_lot_limit=100, min_lot_limit=0.01, average_trades_per_day=10, enable_hit_n_run=0, 
+ideal_trade_count_for_generating_rand=100000, limit_consecutive_win_to=8, limit_consecutive_loss_to=6, bankruptcy_threshold=20, commision_per_lot=4): 
     """
     actual_mode -> sl is 60% of theo sl, tp is 75% of theo tp.  hit_n_run -> cut loss quick, take profit quick
     average_trades_per_day, if timeframe is m5, then around (16+21+15+21+20+20)/6 = 18.83 trades per day
