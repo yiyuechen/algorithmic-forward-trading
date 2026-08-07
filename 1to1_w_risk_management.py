@@ -85,6 +85,30 @@ def generate_rand_trading_results_with_hit_and_run_strategy(ideal_trade_count, w
     
     return rand
 
+def generate_rand_trading_results_with_let_trades_run(ideal_trade_count, win_rate, break_even_rate, let_trade_run_rate):
+    rand = numpy.zeros(ideal_trade_count, dtype=int)
+    win_rate = convert_to_decimal(win_rate)
+    win_trade_count = int(ideal_trade_count * win_rate) # need to convert to int for list slicing
+    # print(win_trade_count)
+    # 把前百分之多少的改为win
+    rand[:win_trade_count] = 1
+
+    # 把胜利的里面的百分之多少改为let trade run的
+    let_trade_run_rate = convert_to_decimal(let_trade_run_rate)
+    let_trade_run_win_trade_count = int(win_trade_count*let_trade_run_rate)
+    rand[:let_trade_run_win_trade_count] = 2 # 因为rand的dtype=int是int其实让dtype=float
+
+    # 把最后百分之多少的改为breakeven
+    break_even_rate = convert_to_decimal(break_even_rate)
+    break_even_trade_count = int(ideal_trade_count*break_even_rate)
+    rand[-break_even_trade_count:] = -1
+
+    # 随机摇匀
+    numpy.random.shuffle(rand)
+
+    return rand
+    
+
 def calculate_width_for_tabling_in_print_beautifully(trade_count, final_capital, theoretical_capital_in_risk, actual_capital_in_risk, actual_potential_profit, commission, spread_fee, total_fee):
     # calc the witdh for aligning number to the right
     
@@ -162,10 +186,17 @@ def print_beautifully(trade_count, current_initial, capital_in_risk, actual_capi
 
 
 
-def print_total_info(win_trade_count, loss_trade_count, break_even_trade_count, trade_count, initial, average_trades_per_day, is_limit_consecutive_wins, is_limit_consecutive_losses):
+def print_total_info(win_trade_count, loss_trade_count, break_even_trade_count, let_trade_run_count, trade_count, initial, average_trades_per_day, is_limit_consecutive_wins, is_limit_consecutive_losses,
+                     total_profits, total_losses):
     actual_win_rate = win_trade_count / trade_count
     actual_loss_rate = loss_trade_count / trade_count
     actual_break_even_rate = break_even_trade_count / trade_count
+    actual_let_trade_run_rate = let_trade_run_count / trade_count
+    profit_factor = abs(total_profits) / abs(total_losses)
+    avg_win = abs(total_profits) / win_trade_count
+    avg_loss = abs(total_losses) / loss_trade_count
+    avg_risk_to_reward = avg_win / avg_loss
+    expectancy = actual_win_rate * avg_win - actual_loss_rate * avg_loss
 
     # average_trades_per_day = int((8+15+9+7+5)/5)     # 从这几天统计 (4/18-4/22)
     
@@ -187,6 +218,10 @@ def print_total_info(win_trade_count, loss_trade_count, break_even_trade_count, 
     print(f"actual win rate: {actual_win_rate*100:.4f}%")
     print(f"actual loss rate: {actual_loss_rate*100:.4f}%")
     print(f"actual break even rate: {actual_break_even_rate*100:.4f}%")
+    print(f"actual let trade run rate: {actual_let_trade_run_rate*100:.4f}%")
+    # profit factor
+    print(f"profit factor: {profit_factor}, total profits: {total_profits}, total losses: {total_losses}")
+    print(f"expectancy: {expectancy}, avg_win: {avg_win}, avg_loss: {avg_loss}, avg_risk_to_reward: {avg_risk_to_reward}")
     print(f"time spent:\n \
     by day: {days_to_complete:.2f}\n \
     by week: {weeks_to_complete:.2f}\n \
@@ -422,7 +457,7 @@ def limit_consecutive_wins_and_losses(current_result, recent_six_trades_rand_val
  
 
 def do_the_trades(initial, symbol, commision_per_lot, risk_per_trade_ratio, rand, target_capital, is_limit_consecutive_wins, is_limit_consecutive_losses, cut_loss_min_rate, cut_loss_max_rate, cut_profit_min_rate, cut_profit_max_rate, 
-enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_risk_rate, actual_potential_profit_rate, max_lot_limit, min_lot_limit, enable_hit_n_run, limit_consecutive_win_to, limit_consecutive_loss_to, bankruptcy_threshold):
+enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_risk_rate, actual_potential_profit_rate, max_lot_limit, min_lot_limit, enable_hit_n_run, enable_let_trade_run, limit_consecutive_win_to, limit_consecutive_loss_to, bankruptcy_threshold):
     
     # print(f"win limit: {is_limit_consecutive_wins}")   
     # print(f"loss limit: {is_limit_consecutive_losses}")
@@ -431,6 +466,11 @@ enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_
     win_trade_count = 0
     loss_trade_count = 0
     break_even_trade_count = 0
+    let_trade_run_count = 0
+
+    # calculate total profits and losses
+    total_profits = 0
+    total_losses = 0
     
     trades = []
     recent_six_trades_rand_values = []
@@ -527,8 +567,15 @@ enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_
             # this is the profit without fee
             actual_potential_profit = lot_size * stop_loss * pip_value
         else:
-            actual_capital_in_risk = capital_in_risk * actual_capital_in_risk_rate # 如果情况不妙就手动止损，8/12=0.66
+
+            # make it dynamic, say the actual risk is 50% to 80% of the planned risk
+            random_rate = numpy.random.randint(cut_loss_min_rate, cut_loss_max_rate)
+            random_rate = random_rate/100
+            actual_capital_in_risk = capital_in_risk * random_rate
             actual_potential_profit = lot_size * stop_loss * pip_value * actual_potential_profit_rate # 假设手动止盈，在tp为12$的时候，在10手动tp, 10/12=0.83
+
+            # actual_capital_in_risk = capital_in_risk * actual_capital_in_risk_rate # 如果情况不妙就手动止损，8/12=0.66
+            # actual_potential_profit = lot_size * stop_loss * pip_value * actual_potential_profit_rate # 假设手动止盈，在tp为12$的时候，在10手动tp, 10/12=0.83
             
 
         # # recalculate capital in risk and 
@@ -551,7 +598,9 @@ enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_
         commission = lot_size * commision_per_lot
 
         # spread fee
-        spread_fee = spread / 10 * pip_value * lot_size #　spread / 10 * pip_value * lot_size #　因为eurusd的pip_value正好是10，所以相当于*10/10
+        # spread_fee = spread / 10 * pip_value * lot_size #　spread / 10 * pip_value * lot_size #　因为eurusd的pip_value正好是10，所以相当于*10/10
+        # it seems there isn't such spread fee ???
+        spread_fee = 0
         
         #total fee
         total_fee = commission + spread_fee
@@ -581,6 +630,7 @@ enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_
                 initial = initial + profit_change
                 win_trade_count += 1
                 trade_count += 1
+                total_profits += profit_change
             elif current_result == 0:
 
                 # 每一次输的时候都是见机行事cut loss而不是等着被止损
@@ -596,6 +646,7 @@ enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_
                 initial = initial + profit_change
                 loss_trade_count += 1
                 trade_count += 1
+                total_losses += profit_change
             elif current_result == 2:
                 # 小赚
                 # random_rate：实际赚得的是70%的理论盈利的百分之多少
@@ -610,6 +661,48 @@ enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_
                 initial = initial + profit_change
                 win_trade_count += 1
                 trade_count += 1
+                total_profits += profit_change
+        elif enable_let_trade_run:
+            if current_result == 1:
+                profit_change = actual_potential_profit - total_fee
+                # initial = initial + actual_potential_profit - total_fee
+                initial = initial + profit_change
+                win_trade_count += 1
+                trade_count += 1
+                total_profits += profit_change
+            elif current_result == 0:
+
+                profit_change = - actual_capital_in_risk - total_fee
+                # initial = initial - actual_capital_in_risk - total_fee
+                initial = initial + profit_change
+                loss_trade_count += 1
+                trade_count += 1
+                total_losses += profit_change
+
+            elif current_result == 2:
+                # let trade run
+                # random_rate：实际赚得的是70%的理论盈利的百分之多少
+                # cut_profit_min_rate = 20 # 注意这里是不带百分比的数字，下面要除以100
+                # cut_profit_max_rate = 66
+                random_rate = numpy.random.randint(cut_profit_min_rate, cut_profit_max_rate)
+                random_rate = random_rate/100
+                actual_potential_profit = actual_potential_profit * random_rate
+
+                profit_change = actual_potential_profit - total_fee
+                # initial = initial + actual_potential_profit - total_fee
+                initial = initial + profit_change
+                win_trade_count += 1
+                let_trade_run_count += 1
+                trade_count += 1
+                total_profits += profit_change
+
+            elif current_result == -1:
+                # break even
+                profit_change = - total_fee
+                initial = initial + profit_change
+                break_even_trade_count += 1
+                trade_count += 1
+                total_losses += profit_change
         
         # serious 1 vs 1 risk reward ratio, no hit and run trick
         else:
@@ -619,6 +712,7 @@ enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_
                 initial = initial + profit_change
                 win_trade_count += 1
                 trade_count += 1
+                total_profits += profit_change
             elif current_result == 0:
 
                 # # 每一次输的时候都是见机行事cut loss而不是等着被止损
@@ -634,6 +728,7 @@ enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_
                 initial = initial + profit_change
                 loss_trade_count += 1
                 trade_count += 1
+                total_losses += profit_change
 
             elif current_result == -1:
                 # break even
@@ -641,6 +736,7 @@ enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_
                 initial = initial + profit_change
                 break_even_trade_count += 1
                 trade_count += 1
+                total_losses += profit_change
 
         
         this_trade = {
@@ -684,7 +780,10 @@ enable_actual_mode, stop_loss_min, stop_loss_max, spread_max, actual_capital_in_
         "win_trade_count": win_trade_count,
         "loss_trade_count": loss_trade_count,
         "break_even_trade_count": break_even_trade_count,
-        "initial": initial
+        "let_trade_run_count": let_trade_run_count,
+        "initial": initial,
+        "total_profits": total_profits,
+        "total_losses": total_losses,
     }
     # print(trades_info)
         
@@ -804,14 +903,17 @@ def draw_plotly_chart(trades):
     fig.show()
 
 # 149376$   # 4257 for legion
-def main(initial=5000, target_capital=10000, risk_per_trade_ratio=0.01, win_rate=0.64, break_even_rate=0.06, hit_and_run_rate=0.9, symbol="XAUUSD", is_limit_consecutive_wins=1, 
-is_limit_consecutive_losses=1, cut_loss_min_rate=50, cut_loss_max_rate=65, cut_profit_min_rate=0, cut_profit_max_rate=50, enable_actual_mode=False, stop_loss_min=10, 
-stop_loss_max=30, spread_max=20, actual_capital_in_risk_rate=0.65, actual_potential_profit_rate=0.7, max_lot_limit=100, min_lot_limit=0.01, average_trades_per_day=10, enable_hit_n_run=0, 
-ideal_trade_count_for_generating_rand=100000, limit_consecutive_win_to=8, limit_consecutive_loss_to=6, bankruptcy_threshold=20, commision_per_lot=4): 
+def main(initial=4_500, target_capital=8_500, risk_per_trade_ratio=0.01, win_rate=0.60, break_even_rate=0.08, hit_and_run_rate=0.9, let_trade_run_rate=0.04, symbol="XAUUSD", is_limit_consecutive_wins=0, 
+is_limit_consecutive_losses=0, cut_loss_min_rate=40, cut_loss_max_rate=80, cut_profit_min_rate=200, cut_profit_max_rate=500, enable_actual_mode=True, stop_loss_min=45, 
+stop_loss_max=150, spread_max=50, actual_capital_in_risk_rate=0.70, actual_potential_profit_rate=1, max_lot_limit=100, min_lot_limit=0.01, average_trades_per_day=3, enable_hit_n_run=0, enable_let_trade_run=1,
+ideal_trade_count_for_generating_rand=100000, limit_consecutive_win_to=8, limit_consecutive_loss_to=6, bankruptcy_threshold=20, commision_per_lot=7): 
     """
     actual_mode -> sl is 60% of theo sl, tp is 75% of theo tp.  hit_n_run -> cut loss quick, take profit quick
     average_trades_per_day, if timeframe is m5, then around (16+21+15+21+20+20)/6 = 18.83 trades per day
     commision_per_lot is the total fee for opening and closing trade with one lot. so actually the commission is 2 for one single buy or sell action.
+
+    now use cut_loss_min_rate, cut_loss_max_rate instead of actual_capital_in_risk_rate to make the actual risk dynamic from x% to y%
+    now use cut_profit_max_rate, cut_profit_max_rate isntead of actual_potential_profit_rate to try to simulate "let the trade run"
     """
     
     # initial = 650
@@ -823,6 +925,8 @@ ideal_trade_count_for_generating_rand=100000, limit_consecutive_win_to=8, limit_
     if enable_hit_n_run:
         # generate rand with 0, 1, and 2 (2 is hit and run)
         rand = generate_rand_trading_results_with_hit_and_run_strategy(ideal_trade_count=ideal_trade_count_for_generating_rand, win_rate=win_rate, hit_and_run_rate=hit_and_run_rate)
+    elif enable_let_trade_run:
+        rand = generate_rand_trading_results_with_let_trades_run(ideal_trade_count=ideal_trade_count_for_generating_rand, win_rate=win_rate, break_even_rate=break_even_rate, let_trade_run_rate=let_trade_run_rate)
     else:
         # only generate rand with 0 and 1
         rand = generate_rand_trading_results(ideal_trade_count=ideal_trade_count_for_generating_rand, win_rate=win_rate, break_even_rate=break_even_rate)
@@ -830,14 +934,19 @@ ideal_trade_count_for_generating_rand=100000, limit_consecutive_win_to=8, limit_
 
 
     trades_info = do_the_trades(initial, symbol, commision_per_lot, risk_per_trade_ratio, rand, target_capital, is_limit_consecutive_wins, is_limit_consecutive_losses, cut_loss_min_rate, cut_loss_max_rate, cut_profit_min_rate, cut_profit_max_rate, enable_actual_mode, 
-    stop_loss_min, stop_loss_max, spread_max, actual_capital_in_risk_rate, actual_potential_profit_rate, max_lot_limit, min_lot_limit, enable_hit_n_run, limit_consecutive_win_to, limit_consecutive_loss_to, bankruptcy_threshold)
+    stop_loss_min, stop_loss_max, spread_max, actual_capital_in_risk_rate, actual_potential_profit_rate, max_lot_limit, min_lot_limit, enable_hit_n_run, enable_let_trade_run, limit_consecutive_win_to, limit_consecutive_loss_to, bankruptcy_threshold)
 
     trades = trades_info["trades"]
     trade_count = trades_info["trade_count"]
     win_trade_count = trades_info["win_trade_count"]
     loss_trade_count = trades_info["loss_trade_count"]
     break_even_trade_count = trades_info["break_even_trade_count"]
+    let_trade_run_count = trades_info["let_trade_run_count"]
     initial = trades_info["initial"]
+
+    # add total profits and losses
+    total_profits = trades_info["total_profits"]
+    total_losses = trades_info["total_losses"]
 
 
     # this seems to calc the width for table printing
@@ -896,7 +1005,8 @@ ideal_trade_count_for_generating_rand=100000, limit_consecutive_win_to=8, limit_
     tabulate_print_trades_data_in_table(trades)
 
     # total_info = print_total_info(win_trade_count, loss_trade_count, trade_count, initial)
-    print_total_info(win_trade_count, loss_trade_count, break_even_trade_count, trade_count, initial, average_trades_per_day, is_limit_consecutive_wins, is_limit_consecutive_losses)
+    print_total_info(win_trade_count, loss_trade_count, break_even_trade_count, let_trade_run_count, trade_count, initial, average_trades_per_day, is_limit_consecutive_wins, is_limit_consecutive_losses,
+                     total_profits, total_losses)
 
     
     draw_plotly_chart(trades)
