@@ -1,0 +1,9 @@
+# Credentials
+credential_info.py
+
+# Python
+trading_venv/
+__pycache__/
+
+# OS files
+.DS_Store
