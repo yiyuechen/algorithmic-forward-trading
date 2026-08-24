@@ -10,10 +10,13 @@ pd.set_option('display.max_columns', 500) # number of columns to be displayed
 pd.set_option('display.width', 1500)      # max table width to display
 
 
-from mt5_origin import initialize, login, get_last_n_ticks, find_dows_low, find_dows_high, calculate_lot_size, compare_two_and_get_lower, compare_two_and_get_higher
+from mt5_trading.trading_engine import initialize, login, get_last_n_ticks, find_dows_low, find_dows_high, compare_two_and_get_lower, compare_two_and_get_higher
+# from mt5_origin import calculate_lot_size
 
-
+# # main mt5 path
 path = r"C:\Program Files\MetaTrader 5\terminal64.exe"
+# practicing mt5 path
+# path = r"E:\Program Files\MetaTrader 5\terminal64.exe"
 
 # fxtm live
 account_live = 10557130
