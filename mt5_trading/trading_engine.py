@@ -144,8 +144,7 @@ everytime we count down 10s and close an order, after we close it, we count down
 it's like we are taking a break from the market
 
 """
-MAX_DAILY_LOSS_LIMIT = 100      # (23414 * 0.002) * 2 -> 93.656 -> ~ 100
-ADD_POSITION_ENABLED = False    # WARNING! This is only for risk management calculation for the above line, not for actually adding positions
+
 
 from getpass import getpass
 import time
@@ -2114,7 +2113,7 @@ def confirm_symbol_n_timeframe(symbol, timeframe):
         if confirm_info == "":
             break
         elif confirm_info.upper() == "N":
-            input_symbol = input("change symbol to: ").upper()
+            input_symbol = input("change symbol to: ")
             if input_symbol == "":
                 pass
             else:
@@ -2146,7 +2145,8 @@ def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body
                          pattern_list, pattern_index, added_points_to_sl, added_points_to_tp, fixed_tp, fixed_tp_in_points, hedge, 
                          adx_threshold, is_check_adx_threshold_enabled, is_check_adx_ascending_enabled,
                          broker_time_offset_hours_from_utc, time_of_calculating_time_offset, news_df, time_of_retrieval_news_df, 
-                         trade_state, consecutive_losing_trade_limit, special_pending_order_check_log, is_dynamic_points_from_tp_limit):
+                         trade_state, consecutive_losing_trade_limit, special_pending_order_check_log, is_dynamic_points_from_tp_limit,
+                         MAX_DAILY_LOSS_LIMIT, ADD_POSITION_ENABLED):
     """
     USDJPY
     [(1658511000, 136.061, 136.191, 135.883, 136.007, 3592, 0, 0)
@@ -4886,12 +4886,12 @@ def check_if_its_trading_time():
     # hour_to_start_trading = 9
     # hour_to_end_trading = 23
 
-    # normal utc time
-    hour_to_start_trading = 1 # 1 (utc+0) = 9 (utc+8)
-    hour_to_end_trading = 15 # 15(utc+0) = 23 (utc+8)
-    # # summer time, daylight-saving time
-    # hour_to_start_trading = 2 # 2am (utc+1) equal to 2+7=9am (utc+8)
-    # hour_to_end_trading = 16 # utc+1 => 16+7 = 23 (utc+8)
+    # # normal utc time
+    # hour_to_start_trading = 1 # 1 (utc+0) = 9 (utc+8)
+    # hour_to_end_trading = 15 # 15(utc+0) = 23 (utc+8)
+    # summer time, daylight-saving time
+    hour_to_start_trading = 2 # 2am (utc+1) equal to 2+7=9am (utc+8)
+    hour_to_end_trading = 16 # utc+1 => 16+7 = 23 (utc+8)
 
     # hour_to_start_trading = 7
     # hour_to_end_trading = 1
@@ -5128,7 +5128,7 @@ def main():
     # # main mt5 path
     main_path = r"C:\Program Files\MetaTrader 5\terminal64.exe"
     # # practicing mt5 path
-    practice_path = r"C:\Program Files\MetaTrader 5-2\terminal64.exe"
+    practice_path = r"C:\Program Files\MetaTrader_5_2\terminal64.exe"
 
     # fxtm live
     account_live = credential_info.live_account_id # must be int, not string
@@ -5179,7 +5179,7 @@ def main():
     # broker_time_offset_hours_from_utc = 3 # 3 means that mt5 is utc+3
     # symbol="BTCUSD"
     # symbol = "XAUUSD"
-    symbol = "USDJPY"
+    symbol = "USDJPY.p"
     symbol_selected = input(f"Enter the symbol to trade (current selected symbol: {symbol}): ")
     if symbol_selected == "":
         print(f"proceeding with the current selected symbol: {symbol}")
@@ -5257,7 +5257,7 @@ def main():
     commission_per_lot = 5 # set to 5 for fnext #7 #4
 
     # risk_ratio = 0.015 # 0.05 # 0.01 # 2% 5%
-    risk_ratio = 0.002 # 0.05 # 0.01 # 2% 5%
+    risk_ratio = 0.005 # 0.05 # 0.01 # 2% 5%
 
     risk_reward_ratio = 1 #1:3 risk:reward 2:1
     # risk_reward_ratio = 0.33 #1:3 risk:reward 2:1
@@ -5333,6 +5333,13 @@ def main():
         (news_df["importance"].isin(["High"])) &
         (news_df["country"].isin(["USD", "JPY"]))
     ])
+
+    # calculate maximum daily loss limit based on risk ratio and account balance
+    MAX_DAILY_LOSS_LIMIT = mt5.account_info().balance * risk_ratio * consecutive_losing_trade_limit
+    print(f"MAX_DAILY_LOSS_LIMIT: {MAX_DAILY_LOSS_LIMIT} (risk_ratio * account_balance * consecutive_losing_trade_limit)")
+    # MAX_DAILY_LOSS_LIMIT = 100      # (23414 * 0.002) * 2 -> 93.656 -> ~ 100
+    ADD_POSITION_ENABLED = False    # WARNING! This is only for risk management calculation for the above line, not for actually adding positions
+
     
     # print overall info
     print("------------------------")
@@ -5365,7 +5372,8 @@ def main():
                          pattern_list, pattern_index, added_points_to_sl, added_points_to_tp, fixed_tp, fixed_tp_in_points, hedge, 
                          adx_threshold, is_check_adx_threshold_enabled, is_check_adx_ascending_enabled,
                          broker_time_offset_hours_from_utc, time_of_calculating_time_offset, news_df, time_of_retrieval_news_df, 
-                         trade_state, consecutive_losing_trade_limit, special_pending_order_check_log, is_dynamic_points_from_tp_limit)
+                         trade_state, consecutive_losing_trade_limit, special_pending_order_check_log, is_dynamic_points_from_tp_limit,
+                         MAX_DAILY_LOSS_LIMIT, ADD_POSITION_ENABLED)
     # symbol="XAUUSD"
     # point = mt5.symbol_info(symbol).point
     # print(point)
