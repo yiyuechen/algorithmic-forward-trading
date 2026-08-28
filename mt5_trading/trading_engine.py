@@ -55,9 +55,9 @@ def prepare_request_structure(symbol = "USDJPY"):
             quit()
 
 
-# get the latest n ticks. n is 3 by default 
-def get_last_n_ticks(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15, start_position=0, tick_count=3):
-    rates = mt5.copy_rates_from_pos(symbol, timeframe, start_position, tick_count)
+# get the latest n candles. n is 3 by default 
+def get_last_n_candles(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15, start_position=0, candle_count=3):
+    rates = mt5.copy_rates_from_pos(symbol, timeframe, start_position, candle_count)
     # print(rates) # print as is
 
     # # create DataFrame out of the obtained data
@@ -371,7 +371,7 @@ def open_request(sl_price, type="buy", sl=100, symbol="USDJPY", type_filling=mt5
         "type": type,
         "price": price,
         #"sl": price - sl * point, # "sl": price - 100 * point,  EURUSD 100 * 0.00001 => 0.001   1.02380-0.001 => 1.02280 => 10 pips
-        # try to directly use the price of the previous tick low
+        # try to directly use the price of the previous candle low
         "sl": sl_price,
         # "tp": price + sl * point,
         "tp": price + tp * point,
@@ -436,7 +436,7 @@ def open_request_for_add_position(sl_price, tp_price, lot, type=mt5.ORDER_TYPE_B
         "type": type,
         "price": price,
         #"sl": price - sl * point, # "sl": price - 100 * point,  EURUSD 100 * 0.00001 => 0.001   1.02380-0.001 => 1.02280 => 10 pips
-        # try to directly use the price of the previous tick low
+        # try to directly use the price of the previous candle low
         "sl": sl_price,
         # "tp": price + sl * point,
         "tp": tp_price,
@@ -605,7 +605,7 @@ def modify_sl_request(symbol, ticket, sl_price, tp_price, type_filling): # MUST 
         "position": ticket,
         # "price": price,
         #"sl": price - sl * point, # "sl": price - 100 * point,  EURUSD 100 * 0.00001 => 0.001   1.02380-0.001 => 1.02280 => 10 pips
-        # try to directly use the price of the previous tick low
+        # try to directly use the price of the previous candle low
         "sl": sl_price,
         "tp": tp_price,
         # "tp": price + sl * point,
@@ -674,10 +674,10 @@ def historical_deals():
     else:
         print("Deals not found in history")
 
-# return current sma price on the current tick
+# return current sma price on the current candle
 # input sma length
 def calculate_current_sma(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, sma_length=24, start_position=0):
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=sma_length)
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=sma_length)
     total = 0
     for rate in rates:
         total += rate['close']
@@ -686,7 +686,7 @@ def calculate_current_sma(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, sma_lengt
 
 
 """
-# calculate the 24sma value of the latest 5 ticks
+# calculate the 24sma value of the latest 5 candles
 # sma from latest to earlier
 
 # last 5 sma prices start_pos =0, 1, 2, 3, 4
@@ -694,9 +694,9 @@ sma_count = 5
 
 return an sma_list that contains 5 (or n) sma prices 
 """
-def calculate_sma_of_latest_n_ticks(symbol="USDJPY", timeframe= mt5.TIMEFRAME_M5, sma_length=24, sma_count=5):
+def calculate_sma_of_latest_n_candles(symbol="USDJPY", timeframe= mt5.TIMEFRAME_M5, sma_length=24, sma_count=5):
     sma_list = []
-    for start_position in range(0, sma_count): # 0 means latest tick, 1 means the tick previous to the latest tick
+    for start_position in range(0, sma_count): # 0 means latest candle, 1 means the candle previous to the latest candle
         this_sma = calculate_current_sma(symbol=symbol, timeframe= timeframe, sma_length=sma_length, start_position=start_position)
         sma_list.append(this_sma)
 
@@ -709,11 +709,11 @@ def calculate_sma_of_latest_n_ticks(symbol="USDJPY", timeframe= mt5.TIMEFRAME_M5
     return sma_list
     
 
-# sma_list length determines how many ticks we examine to see if we're above or below sma
+# sma_list length determines how many candles we examine to see if we're above or below sma
 def if_above_or_below_sma(sma_list, timeframe=mt5.TIMEFRAME_M5, symbol="BTCUSD", start_position=0):
     sma_list_length = len(sma_list)
     # only get several rates, e.g., 5, not 24
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=sma_list_length)
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=sma_list_length)
     
     above_sma = 0
     below_sma = 0
@@ -731,7 +731,7 @@ def if_above_or_below_sma(sma_list, timeframe=mt5.TIMEFRAME_M5, symbol="BTCUSD",
         i += 1
 
     # if above_sma == sma_list_length:
-    if above_sma >= sma_list_length - 3: # 5-3 -> 2 # this should be good. If the close price goes above it or just on it, when the next tick emerges, immediately we will open an order. # This is the special rule 3
+    if above_sma >= sma_list_length - 3: # 5-3 -> 2 # this should be good. If the close price goes above it or just on it, when the next candle emerges, immediately we will open an order. # This is the special rule 3
         above_sma = "above"
         return above_sma
 
@@ -750,7 +750,7 @@ def if_above_or_below_sma(sma_list, timeframe=mt5.TIMEFRAME_M5, symbol="BTCUSD",
     #     # this means we have two close prices > the corresponding sma
     #     # and two close prices < the corresponding sma
     #     # so we are kinda in the middle
-    #     # the last tick's close price is the current tick's price. It's still changing, not the real close price
+    #     # the last candle's close price is the current candle's price. It's still changing, not the real close price
     #     mixed = "mixed"
     #     return mixed
 
@@ -761,13 +761,13 @@ This is the revised version of func if_above_or_below_sma()
 return a string with a value of one of the below four:
 above, below, across_sma_up, across_sma_down
 
-also we have a list that contains five (or designated length) tick's position relative to the sma
+also we have a list that contains five (or designated length) candle's position relative to the sma
 this is not returned
 """
-def check_each_tick_close_price_above_or_below_sma(sma_list, timeframe=mt5.TIMEFRAME_M5, symbol="BTCUSD", start_position=0):
+def check_each_candle_close_price_above_or_below_sma(sma_list, timeframe=mt5.TIMEFRAME_M5, symbol="BTCUSD", start_position=0):
     sma_list_length = len(sma_list)
     # only get several rates, e.g., 5, not 24
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=sma_list_length)
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=sma_list_length)
 
     # position = 0
     
@@ -789,13 +789,13 @@ def check_each_tick_close_price_above_or_below_sma(sma_list, timeframe=mt5.TIMEF
             sma_position_list.append("above")
         i += 1
 
-    #print(f"The position of each tick's close price: ")
+    #print(f"The position of each candle's close price: ")
     #print(sma_position_list)
 
-    # if 5 sma, then sma_list_length is 5. We have 0, 1, 2, 3, 4, these four items. 4 is the current tick. 3 is the one previous the current one
-    # sma_list_length - 1 is the current tick, sma_list_length - 2 is the one previous the current one
-    # the close price of this tick is formed. the current tick is not yet formed but still changing. 
-    # we cannot take the current tick's changing price as what we use to check if we are above or below
+    # if 5 sma, then sma_list_length is 5. We have 0, 1, 2, 3, 4, these four items. 4 is the current candle. 3 is the one previous the current one
+    # sma_list_length - 1 is the current candle, sma_list_length - 2 is the one previous the current one
+    # the close price of this candle is formed. the current candle is not yet formed but still changing. 
+    # we cannot take the current candle's changing price as what we use to check if we are above or below
 
     # if sma_position_list.count("above") >= sma_list_length-2:
     #     position = "above"
@@ -807,7 +807,7 @@ def check_each_tick_close_price_above_or_below_sma(sma_list, timeframe=mt5.TIMEF
     #     position = "up2down_across_sma"
     
     # ok. let's only do good and clear trades
-    # if it's ambiguous and the ticks are up and down across the sma when we cannot tell if it's above or below, we wait 
+    # if it's ambiguous and the candles are up and down across the sma when we cannot tell if it's above or below, we wait 
 
     if sma_position_list.count("above") == sma_list_length: # absolute above
         position = "above"
@@ -822,12 +822,12 @@ def check_each_tick_close_price_above_or_below_sma(sma_list, timeframe=mt5.TIMEF
     # else:
     #     position = "mixed"
     # in the below two conditions. we want to simulate when the price touch the sma and then bounce back to its previous trend. 
-    # sometimes, one or two ticks may close on the other side of the sma, but if the current one is still on the trend's side, we consider it still tends to continue the trend
+    # sometimes, one or two candles may close on the other side of the sma, but if the current one is still on the trend's side, we consider it still tends to continue the trend
     # so the sma_position_list.count("above [or below]") could not be equal to sma_list_length, 
     # we need to be in the elif condition of the previously absolute above and absolute below conditions, and the across_sma_conditions
     # because they are different conditions
     
-    # as long as there's a retracement, and the current price is above the sma, and there's 5-2=3 close prices above sma (two random ricks, one must be the current)
+    # as long as there's a retracement, and the current price is above the sma, and there's 5-2=3 close prices above sma (two random candles, one must be the current)
     # even if it's crossing from below to above 
     elif sma_position_list[sma_list_length-1] == "above" and sma_position_list.count("above") == sma_list_length - 2: 
         position = "mixed_above"
@@ -844,7 +844,7 @@ def check_each_tick_close_price_above_or_below_sma(sma_list, timeframe=mt5.TIMEF
 def check_price_sma_position(sma_list, timeframe=mt5.TIMEFRAME_M5, symbol="BTCUSD", start_position=0, multiply_digits=1000):
     sma_list_length = len(sma_list)
     # only get several rates, e.g., 5, not 24
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=sma_list_length)
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=sma_list_length)
 
     # position = 0
     
@@ -880,7 +880,7 @@ def check_price_sma_position(sma_list, timeframe=mt5.TIMEFRAME_M5, symbol="BTCUS
     current_bid_price = rate_data_list[sma_list_length-1]['close']
     current_ask_price = mt5.symbol_info_tick(symbol).ask
     current_sma = rate_data_list[sma_list_length-1]['sma']
-    # if current_bid_price > current_sma and # this is not needed, and may even cause issues. we don't care what the current price is at as long as the crossing tick closes >= its sma.
+    # if current_bid_price > current_sma and # this is not needed, and may even cause issues. we don't care what the current price is at as long as the crossing candle closes >= its sma.
     # [added on 2/8/2023] the above line is WRONG! We need to compare the current price and the sma. If across_sma_up, we need the current price to be at least above sma.
     # or else, if it goes down below sma, and then further breaks the two candles' lows, it still detects as "across_sma_up", but at that moment, "across_sma_up"
     # is broken, and instead it's a below sma sell.
@@ -914,12 +914,12 @@ def check_price_sma_position(sma_list, timeframe=mt5.TIMEFRAME_M5, symbol="BTCUS
 
     return position, distance_in_points
 
-def check_retrace_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=5): 
+def check_retrace_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, candle_count=5): 
     retracement = False
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=candle_count)
 
-    for i in range(2, tick_count):
-        # rates[i] #current_tick
+    for i in range(2, candle_count):
+        # rates[i] #current_candle
         if rates[i]['low'] < rates[i-1]['low'] and rates[i]['low'] < rates[i-2]['low']:
             # rates[i] forms retracement
             retracement = True
@@ -928,11 +928,11 @@ def check_retrace_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_p
     # print(f"retracement: {retracement}", end="\r")
     return retracement
 
-def check_pause_when_long(symbol="BTCUSD", timeframe="TIMEFRAME_M5", start_position=0, tick_count=5):
+def check_pause_when_long(symbol="BTCUSD", timeframe="TIMEFRAME_M5", start_position=0, candle_count=5):
     pause = False
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=candle_count)
 
-    for i in range(2, tick_count):
+    for i in range(2, candle_count):
         if rates[i]['high'] < rates[i-2]['high'] and rates[i-1]['high'] < rates[i-2]['high']:
             pause = True
             # print(f"rates[{i}] and rates[{i-1}] forms pause, both of their high are lower than that of rates[{i-2}]. func check_pause_when_long")
@@ -941,11 +941,11 @@ def check_pause_when_long(symbol="BTCUSD", timeframe="TIMEFRAME_M5", start_posit
     # print(f"pause: {pause}", end="\r")
     return pause
 
-def check_retrace_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=5):
+def check_retrace_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, candle_count=5):
     retracement = False
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=candle_count)
 
-    for i in range(2, tick_count):
+    for i in range(2, candle_count):
         if rates[i]['high'] > rates[i-1]['high'] and rates[i]['high'] > rates[i-2]['high']:
             retracement = True
             # print(f"rates[{i}] forms retracement. rates[{i}]['high'] is {rates[i]['high']} func check_retrace_when_short()")
@@ -953,11 +953,11 @@ def check_retrace_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_
     # print(f"retracement: {retracement}", end="\r")
     return retracement
 
-def check_pause_when_short(symbol="BTCUSD", timeframe="TIMEFRAME_M5", start_position=0, tick_count=5):
+def check_pause_when_short(symbol="BTCUSD", timeframe="TIMEFRAME_M5", start_position=0, candle_count=5):
     pause = False
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=candle_count)
 
-    for i in range(2, tick_count):
+    for i in range(2, candle_count):
         if rates[i]['low'] > rates[i-2]['low'] and rates[i-1]['low'] > rates[i-2]['low']:
             pause = True
             # print(f"rates[{i}] and rates[{i-1}] forms pause, both of their lows are higher than that of rates[{i-2}]. func check_pause_when_short")
@@ -967,25 +967,25 @@ def check_pause_when_short(symbol="BTCUSD", timeframe="TIMEFRAME_M5", start_posi
     return pause
 
 # if retracement true
-# !!! tick_count=7 instead of 5 !!!
-# maybe need to set tick_count to higher, such as 7, so that we know the recent ideal entry
-def find_which_tick_breaks_after_retracement_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=7):
+# !!! candle_count=7 instead of 5 !!!
+# maybe need to set candle_count to higher, such as 7, so that we know the recent ideal entry
+def find_which_candle_breaks_after_retracement_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, candle_count=7):
     # retracement = False
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=candle_count)
     # set these two as None. For a long time I didn't set it and it worked fine because we call this function when we are already breaking, meaning we are sure that these two are not None
     # but now we want to use call this function for our special rule check right after our trading time starts
-    index_of_tick_that_breaks = None
+    index_of_candle_that_breaks = None
     ideal_entry_price = None
 
     # a list of rates that forms retracement. so that we know the first and last rates that form retracement
     index_of_retracement_rates = []
 
-    for i in range(2, tick_count):
-        # rates[i] #current_tick
+    for i in range(2, candle_count):
+        # rates[i] #current_candle
         if rates[i]['low'] < rates[i-1]['low'] and rates[i]['low'] < rates[i-2]['low']:
             # rates[i] forms retracement
             # retracement = True
-            # print(f"rates[{i}] forms retracement. rates[{i}]['low'] is {rates[i]['low']} func find_which_tick_breaks_after_retracement_when_long")
+            # print(f"rates[{i}] forms retracement. rates[{i}]['low'] is {rates[i]['low']} func find_which_candle_breaks_after_retracement_when_long")
             index_of_retracement_rates.append(i)
     
     if index_of_retracement_rates:
@@ -993,108 +993,108 @@ def find_which_tick_breaks_after_retracement_when_long(symbol="BTCUSD", timefram
         #     # rates[i] is the one that forms retracement
         #     i = index_of_retracement_rates[0]
 
-        # else: # there are newer ticks form retracement
-        #     # assign i with the last element, which is the newest tick that forms retracement
+        # else: # there are newer candles form retracement
+        #     # assign i with the last element, which is the newest candle that forms retracement
         #     i = index_of_retracement_rates[-1]
         #     # rates[i] is the one that forms retracement
 
         # no need to check length. just get the last element. if len is 1, it's the only one
         i = index_of_retracement_rates[-1]   
 
-        while i < tick_count:
+        while i < candle_count:
             # check if the retracement rate "rates[i]"" breaks previous two high
             if rates[i]['high'] > rates[i-1]['high'] and rates[i]['high'] > rates[i-2]['high']:
-                index_of_tick_that_breaks = i
+                index_of_candle_that_breaks = i
                 ideal_entry_price = compare_two_and_get_higher(rates[i-1]['high'], rates[i-2]['high'])
                 break
             i += 1
 
-        return index_of_tick_that_breaks, ideal_entry_price
+        return index_of_candle_that_breaks, ideal_entry_price
     else:
         # no retracement
         return None, None
         
-def find_which_tick_breaks_after_retracement_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=7):
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+def find_which_candle_breaks_after_retracement_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, candle_count=7):
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=candle_count)
     # set these two as None. For a long time I didn't set it and it worked fine because we call this function when we are already breaking, meaning we are sure that these two are not None
     # but now we want to use call this function for our special rule check right after our trading time starts
-    index_of_tick_that_breaks = None
+    index_of_candle_that_breaks = None
     ideal_entry_price = None
 
     # a list of rates that forms retracement. so that we know the first and last rates that form retracement
     index_of_retracement_rates = []
 
-    for i in range(2, tick_count):
+    for i in range(2, candle_count):
         if rates[i]['high'] > rates[i-1]['high'] and rates[i]['high'] > rates[i-2]['high']:
-            # print(f"rates[{i}] forms retracement. rates[{i}]['high'] is {rates[i]['high']} func find_which_tick_breaks_after_retracement_when_short")      
+            # print(f"rates[{i}] forms retracement. rates[{i}]['high'] is {rates[i]['high']} func find_which_candle_breaks_after_retracement_when_short")      
             index_of_retracement_rates.append(i)
 
     if index_of_retracement_rates:
         i = index_of_retracement_rates[-1]
 
-        while i < tick_count:
+        while i < candle_count:
             if rates[i]['low'] < rates[i-1]['low'] and rates[i]['low'] < rates[i-2]['low']:
-                index_of_tick_that_breaks = i
+                index_of_candle_that_breaks = i
                 ideal_entry_price = compare_two_and_get_lower(rates[i-1]['low'], rates[i-2]['low'])
                 break
             i += 1
 
-        return index_of_tick_that_breaks, ideal_entry_price
+        return index_of_candle_that_breaks, ideal_entry_price
 
     else:
         return None, None
 
-def find_which_tick_breaks_after_pause_when_long(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=7):
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+def find_which_candle_breaks_after_pause_when_long(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M5, start_position=0, candle_count=7):
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=candle_count)
     # set these two as None. For a long time I didn't set it and it worked fine because we call this function when we are already breaking, meaning we are sure that these two are not None
     # but now we want to use call this function for our special rule check right after our trading time starts
-    index_of_tick_that_breaks = None
+    index_of_candle_that_breaks = None
     ideal_entry_price = None
 
     index_of_pause_rates = []
 
-    for i in range(2, tick_count):
+    for i in range(2, candle_count):
         if rates[i]['high'] < rates[i-2]['high'] and rates[i-1]['high'] < rates[i-2]['high']:
             index_of_pause_rates.append(i)
 
     if index_of_pause_rates:
         i = index_of_pause_rates[-1] + 1
-        # i = index + 1 is because the tick cannot PAUSE and break at the same time. (however, it can RETRACE and break at the same time)
-        while i < tick_count:
+        # i = index + 1 is because the candle cannot PAUSE and break at the same time. (however, it can RETRACE and break at the same time)
+        while i < candle_count:
             if rates[i]['high'] > rates[i-2]['high'] and rates[i]['high'] > rates[i-1]['high']:
-                index_of_tick_that_breaks = i
+                index_of_candle_that_breaks = i
                 ideal_entry_price = max(rates[i-2]['high'], rates[i-1]['high'])
                 break
             i += 1
-        return index_of_tick_that_breaks, ideal_entry_price
+        return index_of_candle_that_breaks, ideal_entry_price
     
     else:
         return None, None
 
-def find_which_tick_breaks_after_pause_when_short(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=7):  
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+def find_which_candle_breaks_after_pause_when_short(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M5, start_position=0, candle_count=7):  
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=candle_count)
     # set these two as None. For a long time I didn't set it and it worked fine because we call this function when we are already breaking, meaning we are sure that these two are not None
     # but now we want to use call this function for our special rule check right after our trading time starts
-    index_of_tick_that_breaks = None
+    index_of_candle_that_breaks = None
     ideal_entry_price = None
 
     index_of_pause_rates = []
 
-    for i in range(2, tick_count):
+    for i in range(2, candle_count):
         if rates[i]['low'] > rates[i-2]['low'] and rates[i-1]['low'] > rates[i-2]['low']:
             index_of_pause_rates.append(i)
 
     if index_of_pause_rates:
         i = index_of_pause_rates[-1] + 1
-        # i = index + 1 is because the tick cannot PAUSE and break at the same time. (however, it can RETRACE and break at the same time)
-        while i < tick_count:
+        # i = index + 1 is because the candle cannot PAUSE and break at the same time. (however, it can RETRACE and break at the same time)
+        while i < candle_count:
             if rates[i]['low'] < rates[i-1]['low'] and rates[i]['low'] < rates[i-2]['low']:
-                index_of_tick_that_breaks = i
+                index_of_candle_that_breaks = i
                 ideal_entry_price = min(rates[i-1]['low'], rates[i-2]['low'])
                 break
             i += 1
 
-        return index_of_tick_that_breaks, ideal_entry_price
+        return index_of_candle_that_breaks, ideal_entry_price
     
     else:
         return None, None
@@ -1103,25 +1103,25 @@ def find_which_tick_breaks_after_pause_when_short(symbol="USDJPY", timeframe=mt5
 ##################### for special morning check #####################3
 
 # if retracement true
-# !!! tick_count=7 instead of 5 !!!
-# maybe need to set tick_count to higher, such as 7, so that we know the recent ideal entry
-def find_which_tick_breaks_after_retracement_when_long_x(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=7):
+# !!! candle_count=7 instead of 5 !!!
+# maybe need to set candle_count to higher, such as 7, so that we know the recent ideal entry
+def find_which_candle_breaks_after_retracement_when_long_x(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, candle_count=7):
     # retracement = False
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=candle_count)
     # set these two as None. For a long time I didn't set it and it worked fine because we call this function when we are already breaking, meaning we are sure that these two are not None
     # but now we want to use call this function for our special rule check right after our trading time starts
-    index_of_tick_that_breaks = None
+    index_of_candle_that_breaks = None
     ideal_entry_price = None
 
     # a list of rates that forms retracement. so that we know the first and last rates that form retracement
     index_of_retracement_rates = []
 
-    for i in range(2, tick_count):
-        # rates[i] #current_tick
+    for i in range(2, candle_count):
+        # rates[i] #current_candle
         if rates[i]['low'] < rates[i-1]['low'] and rates[i]['low'] < rates[i-2]['low']:
             # rates[i] forms retracement
             # retracement = True
-            # print(f"rates[{i}] forms retracement. rates[{i}]['low'] is {rates[i]['low']} func find_which_tick_breaks_after_retracement_when_long")
+            # print(f"rates[{i}] forms retracement. rates[{i}]['low'] is {rates[i]['low']} func find_which_candle_breaks_after_retracement_when_long")
             index_of_retracement_rates.append(i)
     
     if index_of_retracement_rates:
@@ -1130,68 +1130,68 @@ def find_which_tick_breaks_after_retracement_when_long_x(symbol="BTCUSD", timefr
             #     # rates[i] is the one that forms retracement
             #     i = index_of_retracement_rates[0]
 
-            # else: # there are newer ticks form retracement
-            #     # assign i with the last element, which is the newest tick that forms retracement
+            # else: # there are newer candles form retracement
+            #     # assign i with the last element, which is the newest candle that forms retracement
             #     i = index_of_retracement_rates[-1]
             #     # rates[i] is the one that forms retracement
 
             # no need to check length. just get the last element. if len is 1, it's the only one
             i = index_of_retracement_rate   
 
-            while i < tick_count:
+            while i < candle_count:
                 # check if the retracement rate "rates[i]"" breaks previous two high
                 if rates[i]['high'] > rates[i-1]['high'] and rates[i]['high'] > rates[i-2]['high']:
-                    index_of_tick_that_breaks = i
+                    index_of_candle_that_breaks = i
                     ideal_entry_price = compare_two_and_get_higher(rates[i-1]['high'], rates[i-2]['high'])
                     break
                 i += 1
 
-        return index_of_tick_that_breaks, ideal_entry_price
+        return index_of_candle_that_breaks, ideal_entry_price
     else:
         # no retracement
         return None, None
-        
-def find_which_tick_breaks_after_retracement_when_short_x(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=7):
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+
+def find_which_candle_breaks_after_retracement_when_short_x(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, candle_count=7):
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=candle_count)
     # set these two as None. For a long time I didn't set it and it worked fine because we call this function when we are already breaking, meaning we are sure that these two are not None
     # but now we want to use call this function for our special rule check right after our trading time starts
-    index_of_tick_that_breaks = None
+    index_of_candle_that_breaks = None
     ideal_entry_price = None
 
     # a list of rates that forms retracement. so that we know the first and last rates that form retracement
     index_of_retracement_rates = []
 
-    for i in range(2, tick_count):
+    for i in range(2, candle_count):
         if rates[i]['high'] > rates[i-1]['high'] and rates[i]['high'] > rates[i-2]['high']:
-            # print(f"rates[{i}] forms retracement. rates[{i}]['high'] is {rates[i]['high']} func find_which_tick_breaks_after_retracement_when_short")      
+            # print(f"rates[{i}] forms retracement. rates[{i}]['high'] is {rates[i]['high']} func find_which_candle_breaks_after_retracement_when_short")      
             index_of_retracement_rates.append(i)
 
     if index_of_retracement_rates:
         for index_of_retracement_rate in index_of_retracement_rates:
             i = index_of_retracement_rate
 
-            while i < tick_count:
+            while i < candle_count:
                 if rates[i]['low'] < rates[i-1]['low'] and rates[i]['low'] < rates[i-2]['low']:
-                    index_of_tick_that_breaks = i
+                    index_of_candle_that_breaks = i
                     ideal_entry_price = compare_two_and_get_lower(rates[i-1]['low'], rates[i-2]['low'])
                     break
                 i += 1
 
-        return index_of_tick_that_breaks, ideal_entry_price
+        return index_of_candle_that_breaks, ideal_entry_price
 
     else:
         return None, None
 
-def find_which_tick_breaks_after_pause_when_long_x(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=7):
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+def find_which_candle_breaks_after_pause_when_long_x(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M5, start_position=0, candle_count=7):
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=candle_count)
     # set these two as None. For a long time I didn't set it and it worked fine because we call this function when we are already breaking, meaning we are sure that these two are not None
     # but now we want to use call this function for our special rule check right after our trading time starts
-    index_of_tick_that_breaks = None
+    index_of_candle_that_breaks = None
     ideal_entry_price = None
 
     index_of_pause_rates = []
 
-    for i in range(2, tick_count):
+    for i in range(2, candle_count):
         if rates[i]['high'] < rates[i-2]['high'] and rates[i-1]['high'] < rates[i-2]['high']:
             index_of_pause_rates.append(i)
 
@@ -1200,45 +1200,45 @@ def find_which_tick_breaks_after_pause_when_long_x(symbol="USDJPY", timeframe=mt
     if index_of_pause_rates:
         for index_of_pause_rate in index_of_pause_rates:
             i = index_of_pause_rate + 1
-            # i = index + 1 is because the tick cannot PAUSE and break at the same time. (however, it can RETRACE and break at the same time)
-            while i < tick_count:
+            # i = index + 1 is because the candle cannot PAUSE and break at the same time. (however, it can RETRACE and break at the same time)
+            while i < candle_count:
                 if rates[i]['high'] > rates[i-2]['high'] and rates[i]['high'] > rates[i-1]['high']:
-                    index_of_tick_that_breaks = i
+                    index_of_candle_that_breaks = i
                     ideal_entry_price = max(rates[i-2]['high'], rates[i-1]['high'])
                     break
                 i += 1
         
         # after this, I assume it will give us the LATEST pause break index
-        return index_of_tick_that_breaks, ideal_entry_price
+        return index_of_candle_that_breaks, ideal_entry_price
     
     else:
         return None, None
 
-def find_which_tick_breaks_after_pause_when_short_x(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=7):  
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+def find_which_candle_breaks_after_pause_when_short_x(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M5, start_position=0, candle_count=7):  
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=candle_count)
     # set these two as None. For a long time I didn't set it and it worked fine because we call this function when we are already breaking, meaning we are sure that these two are not None
     # but now we want to use call this function for our special rule check right after our trading time starts
-    index_of_tick_that_breaks = None
+    index_of_candle_that_breaks = None
     ideal_entry_price = None
 
     index_of_pause_rates = []
 
-    for i in range(2, tick_count):
+    for i in range(2, candle_count):
         if rates[i]['low'] > rates[i-2]['low'] and rates[i-1]['low'] > rates[i-2]['low']:
             index_of_pause_rates.append(i)
 
     if index_of_pause_rates:
         for index_of_pause_rate in index_of_pause_rates:
             i = index_of_pause_rate + 1
-            # i = index + 1 is because the tick cannot PAUSE and break at the same time. (however, it can RETRACE and break at the same time)
-            while i < tick_count:
+            # i = index + 1 is because the candle cannot PAUSE and break at the same time. (however, it can RETRACE and break at the same time)
+            while i < candle_count:
                 if rates[i]['low'] < rates[i-1]['low'] and rates[i]['low'] < rates[i-2]['low']:
-                    index_of_tick_that_breaks = i
+                    index_of_candle_that_breaks = i
                     ideal_entry_price = min(rates[i-1]['low'], rates[i-2]['low'])
                     break
                 i += 1
 
-        return index_of_tick_that_breaks, ideal_entry_price
+        return index_of_candle_that_breaks, ideal_entry_price
     
     else:
         return None, None
@@ -1248,99 +1248,99 @@ def find_which_tick_breaks_after_pause_when_short_x(symbol="USDJPY", timeframe=m
 
 
 
-def check_retrace_when_long_old(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=5): 
+def check_retrace_when_long_old(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, candle_count=5): 
     # 0 1 2 3 4 compare low of 2 and 3 with low of 0 and 1
     # 4 is the latest
     retracement = False
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
-    tick_0_low = rates[0]['low']
-    tick_1_low = rates[1]['low']
-    tick_2_low = rates[2]['low']
-    tick_3_low = rates[3]['low']
-    tick_4_low = rates[4]['low'] # current tick
-    lower_price_tick_0_and_1 = compare_two_and_get_lower(tick_0_low, tick_1_low)
-    lower_price_tick_2_and_3 = compare_two_and_get_lower(tick_2_low, tick_3_low)
-    print(f"lower_price_tick_0_and_1: {lower_price_tick_0_and_1}")
-    print(f"lower_price_tick_2_and_3: {lower_price_tick_2_and_3}")
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=candle_count)
+    candle_0_low = rates[0]['low']
+    candle_1_low = rates[1]['low']
+    candle_2_low = rates[2]['low']
+    candle_3_low = rates[3]['low']
+    candle_4_low = rates[4]['low'] # current candle
+    lower_price_candle_0_and_1 = compare_two_and_get_lower(candle_0_low, candle_1_low)
+    lower_price_candle_2_and_3 = compare_two_and_get_lower(candle_2_low, candle_3_low)
+    print(f"lower_price_candle_0_and_1: {lower_price_candle_0_and_1}")
+    print(f"lower_price_candle_2_and_3: {lower_price_candle_2_and_3}")
     # if the below is positive, then we have a retracement, the low price of the previous two got lower than the price of the previous previous two
-    # below is compare 'the two ticks before the current tick' and 'the two ticks before the aforementioned two ticks'
-    if lower_price_tick_2_and_3 < lower_price_tick_0_and_1:
+    # below is compare 'the two candles before the current candle' and 'the two candles before the aforementioned two candles'
+    if lower_price_candle_2_and_3 < lower_price_candle_0_and_1:
         retracement = True
     
     # but there's another situation
-    # the lower of the current tick and the tick before the current < the lower of the previous two ticks before them
-    lower_price_tick_3_and_4 = compare_two_and_get_lower(tick_3_low, tick_4_low)
-    lower_price_tick_1_and_2 = compare_two_and_get_lower(tick_1_low, tick_2_low)
-    print(f"lower_price_tick_1_and_2: {lower_price_tick_1_and_2}")
-    print(f"lower_price_tick_3_and_current: {lower_price_tick_3_and_4}")
-    if lower_price_tick_3_and_4 < lower_price_tick_1_and_2:
+    # the lower of the current candle and the candle before the current < the lower of the previous two candles before them
+    lower_price_candle_3_and_4 = compare_two_and_get_lower(candle_3_low, candle_4_low)
+    lower_price_candle_1_and_2 = compare_two_and_get_lower(candle_1_low, candle_2_low)
+    print(f"lower_price_candle_1_and_2: {lower_price_candle_1_and_2}")
+    print(f"lower_price_candle_3_and_current: {lower_price_candle_3_and_4}")
+    if lower_price_candle_3_and_4 < lower_price_candle_1_and_2:
         retracement = True
 
-    # if the current price broke previous two ticks' low and then went back up, breaking previous two ticks' high
-    if tick_4_low < lower_price_tick_2_and_3:
+    # if the current price broke previous two candles' low and then went back up, breaking previous two candles' high
+    if candle_4_low < lower_price_candle_2_and_3:
         retracement = True
 
-    # ERROR!!! need to pass *TWO* ticks
+    # ERROR!!! need to pass *TWO* candles
     # but there's a third situation
     # the 1 2'low < 0's low, but 3 fails to pass 1,2, but 4 passes
-    # if lower_price_tick_1_and_2 < tick_0_low:
+    # if lower_price_candle_1_and_2 < candle_0_low:
     #     retracement = True
-    #     print("lower_price_tick_1_and_2 < tick_0_low")
+    #     print("lower_price_candle_1_and_2 < candle_0_low")
 
     print(f"retracement: {retracement}")
     return retracement
 
-def find_which_tick_completed_retracement(symbol, timeframe, start_position=0, tick_count=5):
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
-    tick_0_low = rates[0]['low']
-    tick_1_low = rates[1]['low']
-    tick_2_low = rates[2]['low']
-    tick_3_low = rates[3]['low']
-    tick_4_low = rates[4]['low'] # current tick
+def find_which_candle_completed_retracement(symbol, timeframe, start_position=0, candle_count=5):
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=candle_count)
+    candle_0_low = rates[0]['low']
+    candle_1_low = rates[1]['low']
+    candle_2_low = rates[2]['low']
+    candle_3_low = rates[3]['low']
+    candle_4_low = rates[4]['low'] # current candle
     
-    if tick_4_low < compare_two_and_get_lower(tick_2_low, tick_3_low):
-        # current_tick breaks its previous 2 ticks' low
+    if candle_4_low < compare_two_and_get_lower(candle_2_low, candle_3_low):
+        # current_candle breaks its previous 2 candles' low
         # the current price is the valid price for opening order
         pass
-    elif tick_3_low < compare_two_and_get_lower(tick_2_low, tick_1_low):
-        # the tick before the current tick breaks its previous 2 ticks' low 
+    elif candle_3_low < compare_two_and_get_lower(candle_2_low, candle_1_low):
+        # the candle before the current candle breaks its previous 2 candles' low 
         # the current price is the valid price for opening order
         pass
     
     pass
     
 
-def check_retrace_when_short_old(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=5): 
+def check_retrace_when_short_old(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, candle_count=5): 
     retracement = False
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
-    tick_0_high = rates[0]['high']
-    tick_1_high = rates[1]['high']
-    tick_2_high = rates[2]['high']
-    tick_3_high = rates[3]['high']
-    tick_4_high = rates[4]['high']
-    higher_price_tick_0_and_1 = compare_two_and_get_higher(tick_0_high, tick_1_high)
-    higher_price_tick_2_and_3 = compare_two_and_get_higher(tick_2_high, tick_3_high)
-    print(f"higher_price_tick_0_and_1: {higher_price_tick_0_and_1}")
-    print(f"higher_price_tick_2_and_3: {higher_price_tick_2_and_3}")
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=candle_count)
+    candle_0_high = rates[0]['high']
+    candle_1_high = rates[1]['high']
+    candle_2_high = rates[2]['high']
+    candle_3_high = rates[3]['high']
+    candle_4_high = rates[4]['high']
+    higher_price_candle_0_and_1 = compare_two_and_get_higher(candle_0_high, candle_1_high)
+    higher_price_candle_2_and_3 = compare_two_and_get_higher(candle_2_high, candle_3_high)
+    print(f"higher_price_candle_0_and_1: {higher_price_candle_0_and_1}")
+    print(f"higher_price_candle_2_and_3: {higher_price_candle_2_and_3}")
 
-    if higher_price_tick_2_and_3 > higher_price_tick_0_and_1:
+    if higher_price_candle_2_and_3 > higher_price_candle_0_and_1:
         retracement = True
 
-    higher_price_tick_3_and_4 = compare_two_and_get_higher(tick_3_high, tick_4_high)
-    higher_price_tick_1_and_2 = compare_two_and_get_higher(tick_1_high, tick_2_high)
-    if higher_price_tick_3_and_4 > higher_price_tick_1_and_2:
+    higher_price_candle_3_and_4 = compare_two_and_get_higher(candle_3_high, candle_4_high)
+    higher_price_candle_1_and_2 = compare_two_and_get_higher(candle_1_high, candle_2_high)
+    if higher_price_candle_3_and_4 > higher_price_candle_1_and_2:
         retracement = True
 
-    # if the current price broke previous two ticks' high and then went back down, breaking previous two ticks' low
-    if tick_4_high > higher_price_tick_2_and_3:
+    # if the current price broke previous two candles' high and then went back down, breaking previous two candles' low
+    if candle_4_high > higher_price_candle_2_and_3:
         retracement = True
 
-    # # ERROR!!! need to pass *TWO* ticks
+    # # ERROR!!! need to pass *TWO* candles
     # # but there's a third situation
     # # the 1 2'high > 0's high, but 3 fails to pass 1,2, but 4 passes
-    # if higher_price_tick_1_and_2 > tick_0_high:
+    # if higher_price_candle_1_and_2 > candle_0_high:
     #     retracement = True
-    #     print("higher_price_tick_1_and_2 > tick_0_high")
+    #     print("higher_price_candle_1_and_2 > candle_0_high")
 
     print(f"retracement: {retracement}")
     return retracement
@@ -1348,60 +1348,60 @@ def check_retrace_when_short_old(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, st
 
 
 
-def check_pause_when_long_old(symbol="BTCUSD", timeframe="TIMEFRAME_M5", start_position=0, tick_count=5):
+def check_pause_when_long_old(symbol="BTCUSD", timeframe="TIMEFRAME_M5", start_position=0, candle_count=5):
     pause = False
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
-    tick_0_high = rates[0]['high']
-    tick_1_high = rates[1]['high']
-    tick_2_high = rates[2]['high']
-    tick_3_high = rates[3]['high']
-    higher_of_tick_0_and_1_high = compare_two_and_get_higher(tick_0_high, tick_1_high)
-    higher_of_tick_2_and_3_high = compare_two_and_get_higher(tick_2_high, tick_3_high)
-    # if higher_of_tick_2_and_3_high <= higher_of_tick_0_and_1_high:
-    if higher_of_tick_2_and_3_high <= tick_1_high: # tick 1 high + 5 points give it some space
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=candle_count)
+    candle_0_high = rates[0]['high']
+    candle_1_high = rates[1]['high']
+    candle_2_high = rates[2]['high']
+    candle_3_high = rates[3]['high']
+    higher_of_candle_0_and_1_high = compare_two_and_get_higher(candle_0_high, candle_1_high)
+    higher_of_candle_2_and_3_high = compare_two_and_get_higher(candle_2_high, candle_3_high)
+    # if higher_of_candle_2_and_3_high <= higher_of_candle_0_and_1_high:
+    if higher_of_candle_2_and_3_high <= candle_1_high: # candle 1 high + 5 points give it some space
         pause = True
 
     # another situation, need to realize
     # if 0 highest, 1 < 2 < 0, 3 < 2, 4 > 3&2:
     # namely, if 1,2's higher < 0's high
-    higher_of_tick_1_and_2_high = compare_two_and_get_higher(tick_1_high, tick_2_high)
-    if higher_of_tick_1_and_2_high <= tick_0_high:
+    higher_of_candle_1_and_2_high = compare_two_and_get_higher(candle_1_high, candle_2_high)
+    if higher_of_candle_1_and_2_high <= candle_0_high:
         pause = True
 
-    print(f"higher_of_tick_0_and_1_high: {higher_of_tick_0_and_1_high}")
-    print(f"higher_of_tick_2_and_3_high: {higher_of_tick_2_and_3_high}")
+    print(f"higher_of_candle_0_and_1_high: {higher_of_candle_0_and_1_high}")
+    print(f"higher_of_candle_2_and_3_high: {higher_of_candle_2_and_3_high}")
     print(f"pause: {pause}")
     return pause
 
-def check_pause_when_short_old(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=5):
+def check_pause_when_short_old(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, candle_count=5):
     pause = False
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
-    tick_0_low = rates[0]['low']
-    tick_1_low = rates[1]['low']
-    tick_2_low = rates[2]['low']
-    tick_3_low = rates[3]['low']
-    lower_of_tick_0_and_1_low = compare_two_and_get_lower(tick_0_low, tick_1_low)
-    # higher_of_tick_2_and_3_low = compare_two_and_get_higher(tick_2_low, tick_3_low) # wrong, must be the lower that is above lower_of_tick_0_and_1_low
-    lower_of_tick_2_and_3_low = compare_two_and_get_lower(tick_2_low, tick_3_low) 
-    # if lower_of_tick_2_and_3_low >= lower_of_tick_0_and_1_low:
-    if lower_of_tick_2_and_3_low >= tick_1_low: # seems tick_1_low will do the job
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=candle_count)
+    candle_0_low = rates[0]['low']
+    candle_1_low = rates[1]['low']
+    candle_2_low = rates[2]['low']
+    candle_3_low = rates[3]['low']
+    lower_of_candle_0_and_1_low = compare_two_and_get_lower(candle_0_low, candle_1_low)
+    # higher_of_candle_2_and_3_low = compare_two_and_get_higher(candle_2_low, candle_3_low) # wrong, must be the lower that is above lower_of_candle_0_and_1_low
+    lower_of_candle_2_and_3_low = compare_two_and_get_lower(candle_2_low, candle_3_low) 
+    # if lower_of_candle_2_and_3_low >= lower_of_candle_0_and_1_low:
+    if lower_of_candle_2_and_3_low >= candle_1_low: # seems candle_1_low will do the job
         pause = True
     
     # another situation, need to realize
     # if 0 lowest, 1 > 2 > 0, 3 > 2, 4 < 3&2:
     # namely, if 1,2's low < 0's low
-    lower_of_tick_1_and_2_low = compare_two_and_get_lower(tick_1_low, tick_2_low)
-    if lower_of_tick_1_and_2_low >= tick_0_low:
+    lower_of_candle_1_and_2_low = compare_two_and_get_lower(candle_1_low, candle_2_low)
+    if lower_of_candle_1_and_2_low >= candle_0_low:
         pause =True
 
-    print(f"lower_of_tick_0_and_1_low: {lower_of_tick_0_and_1_low}")
-    print(f"lower_of_tick_2_and_3_low: {lower_of_tick_2_and_3_low}")
+    print(f"lower_of_candle_0_and_1_low: {lower_of_candle_0_and_1_low}")
+    print(f"lower_of_candle_2_and_3_low: {lower_of_candle_2_and_3_low}")
     print(f"pause: {pause}")
     return pause
 
-def check_retrace_or_pause_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=5):
-    retrace_when_long = check_retrace_when_long(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
-    pause_when_long = check_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+def check_retrace_or_pause_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, candle_count=5):
+    retrace_when_long = check_retrace_when_long(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=candle_count)
+    pause_when_long = check_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=candle_count)
     # if retrace_when_long or pause_when_long:
     #     return True
     # else:
@@ -1416,9 +1416,9 @@ def check_retrace_or_pause_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5
         return False
     
 
-def check_retrace_or_pause_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, tick_count=5):
-    retrace_when_short = check_retrace_when_short(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
-    pause_when_short = check_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+def check_retrace_or_pause_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, start_position=0, candle_count=5):
+    retrace_when_short = check_retrace_when_short(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=candle_count)
+    pause_when_short = check_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=candle_count)
     # if retrace_when_short or pause_when_short:
     #     return True
     # else:
@@ -1432,47 +1432,47 @@ def check_retrace_or_pause_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M
     else:
         return False
 
-def compare_two_and_get_higher(tick_one_high, tick_two_high):
-    if tick_one_high > tick_two_high:
-        higher_price = tick_one_high
+def compare_two_and_get_higher(candle_one_high, candle_two_high):
+    if candle_one_high > candle_two_high:
+        higher_price = candle_one_high
     else:
-        higher_price = tick_two_high
+        higher_price = candle_two_high
     return higher_price
 
-def compare_two_and_get_lower(tick_one_low, tick_two_low):
-    if tick_one_low < tick_two_low:
-        lower_price = tick_one_low
+def compare_two_and_get_lower(candle_one_low, candle_two_low):
+    if candle_one_low < candle_two_low:
+        lower_price = candle_one_low
     else:
-        lower_price = tick_two_low
+        lower_price = candle_two_low
     return lower_price
 
-def check_consolidation_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, tick_count=30):
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=tick_count)
+def check_consolidation_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, candle_count=30):
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, candle_count=candle_count)
     rates = np.flipud(rates)    
 
     
 # not as we expected
 # we are looking for newer to older, see the painting for elaboration
-# ONLY when the current tick goes up passing two ticks, this is checked
-def check_steps_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, tick_count=30):
+# ONLY when the current candle goes up passing two candles, this is checked
+def check_steps_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, candle_count=30):
     # we need high_0, low_0, high_1, low_1
     # from now to past
     # for long trades
-    # first, the current tick's price passes previous two ticks's higher, store the lower low of the previous two ticks. This is low_1
-    # * get the previous tick, check its high and low.
-    #    a. check if its low is lower than its previous two, if so, then store the higher high of the previous two ticks as high_1, 
-    #    b. check if its high is higher than its two ticks, if so, then store the lower low of the previous two ticks as low_0
+    # first, the current candle's price passes previous two candles's higher, store the lower low of the previous two candles. This is low_1
+    # * get the previous candle, check its high and low.
+    #    a. check if its low is lower than its previous two, if so, then store the higher high of the previous two candles as high_1, 
+    #    b. check if its high is higher than its two candles, if so, then store the lower low of the previous two candles as low_0
     # if a not true, check b, if b not true, go on, check the previous one. until a not true, b is true.
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=tick_count)
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, candle_count=candle_count)
 
     rates = np.flipud(rates)
     # print(rates)
 
     # after reverse(), rates[0] is the newset/latest one. rates[1] is the one before that, rates[2] is before before that
-    # as we only check_ladders when we found a price passing the previous two ticks, so the rates[0]['close'] is > previous two ticks' high (or < when selling)
+    # as we only check_ladders when we found a price passing the previous two candles, so the rates[0]['close'] is > previous two candles' high (or < when selling)
     # so first, let's store the low_1
     # low_1 = compare_two_and_get_lower(rates[1]['low'], rates[2]['low'])
-    # # find the nearest tick that goes pass its previous two ticks's high
+    # # find the nearest candle that goes pass its previous two candles's high
     # for index, rate in enumerate(rates):
     #     # as rate[0] is the current one and it meets the requirements, but we don't count it.
     #     if index == 0:
@@ -1482,8 +1482,8 @@ def check_steps_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, tick_coun
     #     # rate is the same as rates[index], as we enumerate
     #     # must do index < len(rates) - 2. otherwise, list out of range
     #     if index < len(rates) - 2 and rate['high'] > compare_two_and_get_higher(rates[index+1]['high'], rates[index+2]['high']):
-    #         # ok, this seems to be a valid high, let's check if the tick after it breaks its low
-    #         # actually I'm not sure if this check is needed, because if the price evetually gets to low_1, then there must be valid pass of previous two ticks' low.
+    #         # ok, this seems to be a valid high, let's check if the candle after it breaks its low
+    #         # actually I'm not sure if this check is needed, because if the price evetually gets to low_1, then there must be valid pass of previous two candles' low.
     #         # and what's more, the current high is the earliest one, the highest, so even if there are more than one breaks afterwards, the is the one that is the highest, and the one we count for high_1
     #         high_1 = rate['high']
     #         high_1_index = index
@@ -1506,7 +1506,7 @@ def check_steps_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, tick_coun
                 break # I forgot to break at first, that's why it finds the earliest one that passes the previous two's high. I was confused why it went so far away
         print(f"high_1: {high_1}, index: {high_1_index}")
 
-        # start from high_1_index, check earlier ticks
+        # start from high_1_index, check earlier candles
         for index in range(high_1_index, len(rates)):
             if index < len(rates) - 2 and rates[index]['low'] < compare_two_and_get_lower(rates[index+1]['low'], rates[index+2]['low']):
                 low_0 = rates[index]['low']
@@ -1546,7 +1546,7 @@ def check_steps_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, tick_coun
     except Exception as exception:
         print(traceback.format_exc())
         print(f"error info: {exception}")
-        print(f"maybe did not find all the four points in previous {len(rates)} ticks\n \
+        print(f"maybe did not find all the four points in previous {len(rates)} candles\n \
             guess there isn't descending steps\n \
             please check\n")
         return False
@@ -1554,8 +1554,8 @@ def check_steps_when_long(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, tick_coun
 
 
 # not as we expected
-def check_steps_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, tick_count=30):
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=tick_count)
+def check_steps_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, candle_count=30):
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, candle_count=candle_count)
     rates = np.flipud(rates)
 
     try:
@@ -1573,7 +1573,7 @@ def check_steps_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, tick_cou
                 break 
         print(f"low_1: {low_1}, index: {low_1_index}")
 
-        # start from high_1_index, check earlier ticks
+        # start from high_1_index, check earlier candles
         for index in range(low_1_index, len(rates)):
             if index < len(rates) - 2 and rates[index]['high'] > compare_two_and_get_higher(rates[index+1]['high'], rates[index+2]['high']):
                 high_0 = rates[index]['high']
@@ -1602,136 +1602,136 @@ def check_steps_when_short(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, tick_cou
     except Exception as exception:
         print(traceback.format_exc())
         print(f"error info: {exception}")
-        print(f"maybe did not find all the four points in previous {len(rates)} ticks\n \
+        print(f"maybe did not find all the four points in previous {len(rates)} candles\n \
             guess there isn't descending steps\n \
             please check\n")
         return False
 
 # not used
-def find_dows_low_n_its_nearby_ticks(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, tick_count=12):
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=tick_count)
+def find_dows_low_n_its_nearby_candles(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, candle_count=12):
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, candle_count=candle_count)
     rates = np.flipud(rates) # so now it's from recent to past
 
-    # so the current tick is the dow's low, this doesn't sound right for our "amending order" strategy
-    # if we need to amend order, it means the current tick isn't passing pre ticks. so this condition probably won't happen
+    # so the current candle is the dow's low, this doesn't sound right for our "amending order" strategy
+    # if we need to amend order, it means the current candle isn't passing pre candles. so this condition probably won't happen
     if rates[0]['low'] < rates[1]['low'] and rates[0]['low'] < rates[2]['low']: # so this ensures it's a real retracement, no need to check retracement
         dows_low = rates[0]['low']
 
-        dows_low_tick = {
+        dows_low_candle = {
             'low': rates[0]['low'],
             'high': rates[0]['high'],
         }
 
-        tick_b4_it = {
+        candle_b4_it = {
             'low': rates[1]['low'],
             'high': rates[1]['high'],
         }
 
-        tick_b4_b4_it = {
+        candle_b4_b4_it = {
             'low': rates[2]['low'],
             'high': rates[2]['high'],
         }
 
-        tick_location = 0
+        candle_location = 0
 
-        ticks = {
-            'dows_low_tick': dows_low_tick,
-            'tick_b4_it': tick_b4_it,
-            'tick_b4_b4_it': tick_b4_b4_it,
+        candles = {
+            'dows_low_candle': dows_low_candle,
+            'candle_b4_it': candle_b4_it,
+            'candle_b4_b4_it': candle_b4_b4_it,
         }
 
         # return dows_low
-        return tick_location, ticks
+        return candle_location, candles
     
     else:
-        for i in range(1, len(rates) - 2): # until the one before the last two, so that we have 2 ticks on its left
+        for i in range(1, len(rates) - 2): # until the one before the last two, so that we have 2 candles on its left
             # below line ensures this is dows low, actually this comparision seems not needed
             if rates[i]['low'] <= compare_two_and_get_lower(rates[i+1]['low'], rates[i-1]['low']) \
                 and rates[i]['low'] < rates[i+1]['low'] and rates[i]['low'] < rates[i+2]['low']: # this line ensures there's a retracement
                 dows_low = rates[i]['low']
                 
                 
-                dows_low_tick = {
+                dows_low_candle = {
                     'low': rates[i]['low'],
                     'high': rates[i]['high'],
                 }
 
-                tick_b4_it = {
+                candle_b4_it = {
                     'low': rates[i+1]['low'],
                     'high': rates[i+1]['high'],
                 }
 
-                tick_b4_b4_it = {
+                candle_b4_b4_it = {
                     'low': rates[i+2]['low'],
                     'high': rates[i+2]['high'],
                 }
 
-                tick_after_it = {
+                candle_after_it = {
                     'low': rates[i-1]['low'],
                     'high': rates[i-1]['high'],
                 }
 
-                tick_after_after_it = {
+                candle_after_after_it = {
                     'low': rates[i-2]['low'],
                     'high': rates[i-2]['high'],
                 }
 
-                tick_location = i
+                candle_location = i
 
-                ticks = {
-                    'dows_low_tick': dows_low_tick,
-                    'tick_b4_it': tick_b4_it,
-                    'tick_b4_b4_it': tick_b4_b4_it,
-                    "tick_after_it": tick_after_it,
-                    "tick_after_after_it": tick_after_after_it,
+                candles = {
+                    'dows_low_candle': dows_low_candle,
+                    'candle_b4_it': candle_b4_it,
+                    'candle_b4_b4_it': candle_b4_b4_it,
+                    "candle_after_it": candle_after_it,
+                    "candle_after_after_it": candle_after_after_it,
                 }
 
                 # return dows_low
-                return tick_location, ticks
+                return candle_location, candles
             
     return None, None
 
 # not used
-def find_dows_high_n_its_nearby_ticks(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, tick_count=12):
+def find_dows_high_n_its_nearby_candles(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, candle_count=12):
     pass
 
 # not used
-def find_recent_ideal_entry_price(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M30, tick_count=12):
+def find_recent_ideal_entry_price(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M30, candle_count=12):
     """find the most recent ideal entry price at the current moment"""
     
     # first find if there's mos recent pause, if so, then this is the entry price
-    # a pause is when two ticks' lower low is higher than that of their previous tick
-    # but next tick right after the pause may not break. but pause again, so need to check further
+    # a pause is when two candles' lower low is higher than that of their previous candle
+    # but next candle right after the pause may not break. but pause again, so need to check further
 
     # find most recent dow's low (high) first
-    # need to get info including high, low of dows tick and ticks around it
-    tick_location, ticks = find_dows_low_n_its_nearby_ticks(symbol=symbol, timeframe=timeframe, tick_count=tick_count)
-    if tick_location and ticks:
-        print(f"tick_location: {tick_location}")
-        if tick_location != 0:
-            # check if dows tick's high goes higher than previous 2 tick's high
+    # need to get info including high, low of dows candle and candles around it
+    candle_location, candles = find_dows_low_n_its_nearby_candles(symbol=symbol, timeframe=timeframe, candle_count=candle_count)
+    if candle_location and candles:
+        print(f"candle_location: {candle_location}")
+        if candle_location != 0:
+            # check if dows candle's high goes higher than previous 2 candle's high
             pass
 
-    # check if the dow's low (high) forms a retracement (check if its low is lower than previous two ticks for buy; high higher than previous two ticks for sell)
-    
+    # check if the dow's low (high) forms a retracement (check if its low is lower than previous two candles for buy; high higher than previous two candles for sell)
+
     # if not, then check if there's a pause
     
     # if downtread, the ideal entry price should be:
-    # check if the low in the dow's high tick is passing below previous two ticks,
-    #  if so, it means the price forms dow's high and then goes back down to go below previous 2 ticks
-    #  and the entry price should be the lower of the previous two ticks' lows.
+    # check if the low in the dow's high candle is passing below previous two candles,
+    #  if so, it means the price forms dow's high and then goes back down to go below previous 2 candles
+    #  and the entry price should be the lower of the previous two candles' lows.
 
-    # if not, assume tick before dows high tick as 1, dows high tick as 2, tick after dows high as 3, then:
+    # if not, assume candle before dows high candle as 1, dows high candle as 2, candle after dows high as 3, then:
     # if 3's low is lower than the lower one of 1 and 2's low, then the lower one of 1 and 2's low is the ideal entry price for sell
 
 
     # if uptread, the ideal entry price should be:
-    # check if the high in the dow's low's tick is passing the previous two ticks, 
-    #   if so, it means the price forms dow's low at the current tick and then goes back up to break previous two ticks
-    #   and the entry price should be the higher of the previous two ticks' highs.
+    # check if the high in the dow's low's candle is passing the previous two candles, 
+    #   if so, it means the price forms dow's low at the current candle and then goes back up to break previous two candles
+    #   and the entry price should be the higher of the previous two candles' highs.
 
-    # if not, then check if the high of the tick after dow's low is higher than dow's low tick's high and the high of the tick before dows low tick
-    #  if so, then entry price should be the higher one of dows low tick's high and the high of the tick before dows low tick
+    # if not, then check if the high of the candle after dow's low is higher than dow's low candle's high and the high of the candle before dows low candle
+    #  if so, then entry price should be the higher one of dows low candle's high and the high of the candle before dows low candle
     pass
 
 
@@ -2072,7 +2072,7 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
             look_for_trades = True
             look_for_sell_or_buy = "all"
         elif hedge == True and len(current_symbol_open_positions) == 1 and abs(current_symbol_open_positions[0].time - mt5.symbol_info(symbol).time) > 60:
-                # and abs(current_symbol_open_positions[0].price_open - get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=1)[0][4]) * multiply_digits > points_gap_between_ideal_n_current_limit):
+                # and abs(current_symbol_open_positions[0].price_open - get_last_n_candles(symbol=symbol, timeframe=timeframe, candle_count=1)[0][4]) * multiply_digits > points_gap_between_ideal_n_current_limit):
                 # there are issues on the gap check. 1. on demo we accidentally opened a second sell on H4 after 10 minutes at almost the same price, 1.09024, 1.09043. 2. if price reverses, it can theoretically break at the same price, but in an opposite direction and at a later time. 
                 # Therefore, we abandon this condition. and add another filter: look_for_sell_or_buy
                 # manually calc (don't bother, as we can use the serve time mt5.symbol)info.time): current time local time minus 6 hours (int(time.time())-6 * 60 * 60)). if the order is at the same price, and the the same time, it means maybe we retraced back, we don't want to open it again. even if the time has passed 60 seconds
@@ -2089,14 +2089,14 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
             # print(f"current_symbol_open_positions[0].time: {current_symbol_open_positions[0].time}")
             # print(f"mt5.symbol_info(symbol).time: {mt5.symbol_info(symbol).time}")
             # print(f"time gap: {abs(current_symbol_open_positions[0].time - mt5.symbol_info(symbol).time)}")
-            # print(f"price gap: {abs(current_symbol_open_positions[0].price_open - get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=1)[0][4]) * multiply_digits}")
+            # print(f"price gap: {abs(current_symbol_open_positions[0].price_open - get_last_n_candles(symbol=symbol, timeframe=timeframe, candle_count=1)[0][4]) * multiply_digits}")
             # debug
             look_for_trades = False
             look_for_sell_or_buy = False
 
         if is_trading_time == True and look_for_trades == True:
             # rates <class 'numpy.ndarray'>
-            rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=3)
+            rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, candle_count=3)
             # print(f"rates: {rates}")
             current_price = rates[2][4] 
             # this should be the bid price. need to verify
@@ -2118,29 +2118,29 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
             ask_price: 0.653
             """
 
-            # get the higher price of the previous one and two ticks
-            tick_one_high = rates[0][2]
-            tick_two_high = rates[1][2]
-            higher_price = compare_two_and_get_higher(tick_one_high, tick_two_high)
+            # get the higher price of the previous one and two candles
+            candle_one_high = rates[0][2]
+            candle_two_high = rates[1][2]
+            higher_price = compare_two_and_get_higher(candle_one_high, candle_two_high)
 
-            # get the lower price of the previous one and two ticks
-            tick_one_low = rates[0][3]
-            tick_two_low = rates[1][3]
-            lower_price = compare_two_and_get_lower(tick_one_low, tick_two_low)
+            # get the lower price of the previous one and two candles
+            candle_one_low = rates[0][3]
+            candle_two_low = rates[1][3]
+            lower_price = compare_two_and_get_lower(candle_one_low, candle_two_low)
 
-            tick_two_close = rates[1]['close']
-            tick_two_open = rates[1]['open']
+            candle_two_close = rates[1]['close']
+            candle_two_open = rates[1]['open']
 
             #sma = calculate_current_sma(symbol="BTCUSD", sma_length=24)
             
-            # sma_list = calculate_sma_of_latest_n_ticks(symbol=symbol, timeframe=timeframe, sma_length=24, sma_count=5)
+            # sma_list = calculate_sma_of_latest_n_candles(symbol=symbol, timeframe=timeframe, sma_length=24, sma_count=5)
             
             # # # v1 
             # # above_or_below_sma = if_above_or_below_sma(sma_list, timeframe=timeframe, symbol=symbol, start_position=0)
             # # print(f"above or below sma: {above_or_below_sma}")
 
             # # # v2
-            # # above_or_below_sma = check_each_tick_close_price_above_or_below_sma(sma_list, timeframe=timeframe, symbol=symbol, start_position=0)
+            # # above_or_below_sma = check_each_candle_close_price_above_or_below_sma(sma_list, timeframe=timeframe, symbol=symbol, start_position=0)
             # # # print(f"above or below sma: {above_or_below_sma}")
 
             # # v3
@@ -2151,19 +2151,19 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
             # print(above_or_below_sma)
             # print()
 
-            sma_list_m5 = calculate_sma_of_latest_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_M5, sma_length=24, sma_count=5)
+            sma_list_m5 = calculate_sma_of_latest_n_candles(symbol=symbol, timeframe=mt5.TIMEFRAME_M5, sma_length=24, sma_count=5)
             above_or_below_sma_m5, dip_m5 = check_price_sma_position(sma_list_m5, timeframe=mt5.TIMEFRAME_M5, symbol=symbol, start_position=0, multiply_digits=multiply_digits) # dip is short for distance in points
 
-            sma_list_m15 = calculate_sma_of_latest_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_M15, sma_length=24, sma_count=5)
+            sma_list_m15 = calculate_sma_of_latest_n_candles(symbol=symbol, timeframe=mt5.TIMEFRAME_M15, sma_length=24, sma_count=5)
             above_or_below_sma_m15, dip_m15 = check_price_sma_position(sma_list_m15, timeframe=mt5.TIMEFRAME_M15, symbol=symbol, start_position=0, multiply_digits=multiply_digits)
 
-            sma_list_m30 = calculate_sma_of_latest_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_M30, sma_length=24, sma_count=5)
+            sma_list_m30 = calculate_sma_of_latest_n_candles(symbol=symbol, timeframe=mt5.TIMEFRAME_M30, sma_length=24, sma_count=5)
             above_or_below_sma_m30, dip_m30 = check_price_sma_position(sma_list_m30, timeframe=mt5.TIMEFRAME_M30, symbol=symbol, start_position=0, multiply_digits=multiply_digits)
 
-            sma_list_h1 = calculate_sma_of_latest_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_H1, sma_length=24, sma_count=5)
+            sma_list_h1 = calculate_sma_of_latest_n_candles(symbol=symbol, timeframe=mt5.TIMEFRAME_H1, sma_length=24, sma_count=5)
             above_or_below_sma_h1, dip_h1 = check_price_sma_position(sma_list_h1, timeframe=mt5.TIMEFRAME_H1, symbol=symbol, start_position=0, multiply_digits=multiply_digits)
 
-            sma_list_h4 = calculate_sma_of_latest_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_H4, sma_length=24, sma_count=5)
+            sma_list_h4 = calculate_sma_of_latest_n_candles(symbol=symbol, timeframe=mt5.TIMEFRAME_H4, sma_length=24, sma_count=5)
             above_or_below_sma_h4, dip_h4 = check_price_sma_position(sma_list_h4, timeframe=mt5.TIMEFRAME_H4, symbol=symbol, start_position=0, multiply_digits=multiply_digits)
 
 
@@ -2171,7 +2171,7 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
             # check timeframe
             if timeframe == mt5.TIMEFRAME_M1:
                 # usually we don't use this, so calculate only when it's selected
-                sma_list_m1 = calculate_sma_of_latest_n_ticks(symbol=symbol, timeframe=mt5.TIMEFRAME_M1, sma_length=24, sma_count=5)
+                sma_list_m1 = calculate_sma_of_latest_n_candles(symbol=symbol, timeframe=mt5.TIMEFRAME_M1, sma_length=24, sma_count=5)
                 above_or_below_sma_m1, dip_m1 = check_price_sma_position(sma_list_m1, timeframe=mt5.TIMEFRAME_M1, symbol=symbol, start_position=0, multiply_digits=multiply_digits) # dip is short for distance in points
                 above_or_below_sma = above_or_below_sma_m1
             elif timeframe == mt5.TIMEFRAME_M5:
@@ -2215,7 +2215,7 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
             # price <= sma for sell
             # and other conditions
             # check that candles after the ideal entry price, that is, go left from now, to the entry price candle, check if each candle reaches the tp or the sl. this is really tricky.
-            # what if the below has multiple true values, meaning you have sell and buy opportinuties. maybe try the latest one (JUST make sure the tick count for the below 4 conditions are the same)
+            # what if the below has multiple true values, meaning you have sell and buy opportinuties. maybe try the latest one (JUST make sure the candle count for the below 4 conditions are the same)
 
             # don't forget to add a condition, only check this once right after our trading start time. and once it's check, just skip. maybe add a date with a boole value. so we know if it's checked each day?
             dt_utc_now = datetime.now(timezone.utc)
@@ -2236,31 +2236,31 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                 special_pending_order_check_log[current_date_str] = True
             
 
-                # how many ticks to check # called this magic num, because I reckon 10 should be enough and not too much. 7 seems a bit less.
-                magic_num_ticks = 10
+                # how many candles to check # called this magic num, because I reckon 10 should be enough and not too much. 7 seems a bit less.
+                magic_num_candles = 10
                 # buy
-                index_of_tick_that_breaks_retrace_buy, ideal_entry_price_retrace_buy = find_which_tick_breaks_after_retracement_when_long_x(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=magic_num_ticks)
-                index_of_tick_that_breaks_pause_buy, ideal_entry_price_pause_buy = find_which_tick_breaks_after_pause_when_long_x(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=magic_num_ticks)
+                index_of_candle_that_breaks_retrace_buy, ideal_entry_price_retrace_buy = find_which_candle_breaks_after_retracement_when_long_x(symbol=symbol, timeframe=timeframe, start_position=0, candle_count=magic_num_candles)
+                index_of_candle_that_breaks_pause_buy, ideal_entry_price_pause_buy = find_which_candle_breaks_after_pause_when_long_x(symbol=symbol, timeframe=timeframe, start_position=0, candle_count=magic_num_candles)
                 # sell
-                index_of_tick_that_breaks_retrace_sell, ideal_entry_price_retrace_sell = find_which_tick_breaks_after_retracement_when_short_x(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=magic_num_ticks)
-                index_of_tick_that_breaks_pause_sell, ideal_entry_price_pause_sell = find_which_tick_breaks_after_pause_when_short_x(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=magic_num_ticks)
+                index_of_candle_that_breaks_retrace_sell, ideal_entry_price_retrace_sell = find_which_candle_breaks_after_retracement_when_short_x(symbol=symbol, timeframe=timeframe, start_position=0, candle_count=magic_num_candles)
+                index_of_candle_that_breaks_pause_sell, ideal_entry_price_pause_sell = find_which_candle_breaks_after_pause_when_short_x(symbol=symbol, timeframe=timeframe, start_position=0, candle_count=magic_num_candles)
 
                 # Step 1: Build the structure manually from the individual variables
                 index_info = {
                     "retrace_buy": {
-                        "index": index_of_tick_that_breaks_retrace_buy,
+                        "index": index_of_candle_that_breaks_retrace_buy,
                         "entry_price": ideal_entry_price_retrace_buy
                     },
                     "pause_buy": {
-                        "index": index_of_tick_that_breaks_pause_buy,
+                        "index": index_of_candle_that_breaks_pause_buy,
                         "entry_price": ideal_entry_price_pause_buy
                     },
                     "retrace_sell": {
-                        "index": index_of_tick_that_breaks_retrace_sell,
+                        "index": index_of_candle_that_breaks_retrace_sell,
                         "entry_price": ideal_entry_price_retrace_sell
                     },
                     "pause_sell": {
-                        "index": index_of_tick_that_breaks_pause_sell,
+                        "index": index_of_candle_that_breaks_pause_sell,
                         "entry_price": ideal_entry_price_pause_sell
                     }
                 }
@@ -2288,27 +2288,27 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                     if "buy" in label: # action can be "retrace_buy, pause_buy, retrace_sell, pause_sell" 
                         # just check everything in buy
                         # sma
-                        sma_list_temp = calculate_sma_of_latest_n_ticks(symbol=symbol, timeframe=timeframe, sma_length=24, sma_count=magic_num_ticks)
-                        # I imagine the index that breaks should be the same as that of the sma here, it should correspond, because we both called magic_num_ticks ticks
-                        breaking_tick_index = info['index']
-                        if info["entry_price"] >= sma_list_temp[breaking_tick_index]:
+                        sma_list_temp = calculate_sma_of_latest_n_candles(symbol=symbol, timeframe=timeframe, sma_length=24, sma_count=magic_num_candles)
+                        # I imagine the index that breaks should be the same as that of the sma here, it should correspond, because we both called magic_num_candles candles
+                        breaking_candle_index = info['index']
+                        if info["entry_price"] >= sma_list_temp[breaking_candle_index]:
                             print(f'info["entry_price"]: {info["entry_price"]}')
                             print(">=")
-                            print(f"sma_list_temp[breaking_tick_index]: {sma_list_temp[breaking_tick_index]}")
+                            print(f"sma_list_temp[breaking_candle_index]: {sma_list_temp[breaking_candle_index]}")
                             pass
                         else:
                             print("sma failed")
                             print(f'info["entry_price"]: {info["entry_price"]}')
                             print("<")
-                            print(f"sma_list_temp[breaking_tick_index]: {sma_list_temp[breaking_tick_index]}")
+                            print(f"sma_list_temp[breaking_candle_index]: {sma_list_temp[breaking_candle_index]}")
                             continue
                         
                         # get the recent low
-                        dows_low = find_dows_low_conservative(symbol=symbol, timeframe=timeframe, tick_count=magic_num_ticks, breaking_tick_index=breaking_tick_index)
+                        dows_low = find_dows_low_conservative(symbol=symbol, timeframe=timeframe, candle_count=magic_num_candles, breaking_candle_index=breaking_candle_index)
                         if dows_low:
                             sl = info["entry_price"] * multiply_digits - dows_low * multiply_digits
                         else:
-                            print(f"didn't find dows_low in previous ticks, won't open order")
+                            print(f"didn't find dows_low in previous candles, won't open order")
                             continue
                         # get sl and tp
                         # make sl one pip larger. because we want the sl price to be one pip below or above dows high and low
@@ -2327,26 +2327,26 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
 
                         # check if the sl and tp has been reached after this entry. If it has, then abandon this trade. (if it's 3 pips from tp or 3 pips from sl then maybe it won't work, bc it'll just go there. so maybe we need to check sl-3 and tp-3,
                         # or maybe it doesn't matter for the sl. bc if it goes to neeaby sl and it comes to the entry again, then that indicates it might still go to the disired direction. just maybe)
-                        last_magic_num_ticks = get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=magic_num_ticks) # ticks or rates, they are the same thing. I just seem to forget.
-                        # we want to start from the breaking tick (that one included, because it can finish in just one tick)
-                        relevant_ticks = last_magic_num_ticks[breaking_tick_index:]
+                        last_magic_num_candles = get_last_n_candles(symbol=symbol, timeframe=timeframe, candle_count=magic_num_candles) # candles or rates, they are the same thing. I just seem to forget.
+                        # we want to start from the breaking candle (that one included, because it can finish in just one candle)
+                        relevant_candles = last_magic_num_candles[breaking_candle_index:]
                         # we want to check the highest and lowest, and compare the highest with tp, and lowest with sl
 
                         # # my classic way:
-                        # # assume first tick has the highest
-                        # relevant_tick_highest = relevant_ticks[0]['high']
-                        # for tick in relevant_ticks:
-                        #     if tick['high'] > relevant_tick_highest:
-                        #         relevant_tick_highest = tick['high']
+                        # # assume first candle has the highest
+                        # relevant_candle_highest = relevant_candles[0]['high']
+                        # for candle in relevant_candles:
+                        #     if candle['high'] > relevant_candle_highest:
+                        #         relevant_candle_highest = candle['high']
                         # NumPy’s way (faster, cleaner):
-                        relevant_tick_highest = np.max(relevant_ticks['high'])
-                        relevant_tick_lowest = np.min(relevant_ticks['low'])
+                        relevant_candle_highest = np.max(relevant_candles['high'])
+                        relevant_candle_lowest = np.min(relevant_candles['low'])
 
-                        # print(f"relevant_tick_lowest: {relevant_tick_lowest}")
+                        # print(f"relevant_candle_lowest: {relevant_candle_lowest}")
 
                         sl_price = dows_low # just to make it more clear. 
                         # check if stop loss is reached
-                        if relevant_tick_lowest < sl_price:
+                        if relevant_candle_lowest < sl_price:
                             print("sl is hit already. skip this pending buy entry")
                             continue
 
@@ -2362,12 +2362,12 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                         tp += added_points_to_tp
                         tp_price = info["entry_price"] + tp * symbol_point
                         # check if take profit is reached
-                        if relevant_tick_highest >= tp_price:
+                        if relevant_candle_highest >= tp_price:
                             print("tp is hit already. skip this pending buy entry")
                             continue
 
                         # check if we've been only three pips away from the tp (depending on the stop loss size the pip size varies)
-                        points_from_tp = abs(relevant_tick_highest - tp_price) * multiply_digits
+                        points_from_tp = abs(relevant_candle_highest - tp_price) * multiply_digits
                         points_full_tp = abs(info["entry_price"] - tp_price) * multiply_digits
                         # points_from_tp_limit is static. here it's tried dynamic based on the 0.1 risk to get tp, depending on is_dynamic_points_from_tp_limit
                         if is_dynamic_points_from_tp_limit:
@@ -2376,7 +2376,7 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                             dynamic_points_from_tp_limit = points_from_tp_limit # set dynamic limit as fixed limit
 
                         if points_from_tp <= dynamic_points_from_tp_limit:
-                            print(f"relevant_tick_highest {relevant_tick_highest} is within {dynamic_points_from_tp_limit} points away from tp {tp_price}. skip this pending buy entry")
+                            print(f"relevant_candle_highest {relevant_candle_highest} is within {dynamic_points_from_tp_limit} points away from tp {tp_price}. skip this pending buy entry")
                             continue
 
                         is_risky_pattern = check_if_risky_pattern(symbol, timeframe)
@@ -2418,24 +2418,24 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                     elif "sell" in label:
                         # just check everything in sell
                         # sma
-                        sma_list_temp = calculate_sma_of_latest_n_ticks(symbol=symbol, timeframe=timeframe, sma_length=24, sma_count=magic_num_ticks)
-                        # I imagine the index that breaks should be the same as that of the sma here, it should correspond, because we both called magic_num_ticks ticks
-                        breaking_tick_index = info['index']
-                        if info["entry_price"] <= sma_list_temp[breaking_tick_index]:
+                        sma_list_temp = calculate_sma_of_latest_n_candles(symbol=symbol, timeframe=timeframe, sma_length=24, sma_count=magic_num_candles)
+                        # I imagine the index that breaks should be the same as that of the sma here, it should correspond, because we both called magic_num_candles candles
+                        breaking_candle_index = info['index']
+                        if info["entry_price"] <= sma_list_temp[breaking_candle_index]:
                             print(f'info["entry_price"]: {info["entry_price"]}')
                             print("<=")
-                            print(f"sma_list_temp[breaking_tick_index]: {sma_list_temp[breaking_tick_index]}")
+                            print(f"sma_list_temp[breaking_candle_index]: {sma_list_temp[breaking_candle_index]}")
                             pass
                         else:
                             continue
                         
                         # get the recent high
-                        dows_high = find_dows_high_conservative(symbol=symbol, timeframe=timeframe, tick_count=magic_num_ticks, breaking_tick_index=breaking_tick_index)
+                        dows_high = find_dows_high_conservative(symbol=symbol, timeframe=timeframe, candle_count=magic_num_candles, breaking_candle_index=breaking_candle_index)
                         if dows_high:
                             sl = dows_high * multiply_digits - info["entry_price"] * multiply_digits
                             print(f"dows high {dows_high}, sl: {sl}")
                         else:
-                            print(f"didn't find dows_high in previous ticks, won't open order")
+                            print(f"didn't find dows_high in previous candles, won't open order")
                             continue
                         # get sl and tp
                         # make sl one pip larger. because we want the sl price to be one pip below or above dows high and low
@@ -2454,15 +2454,15 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                         # we do pending order, no need to check offset
 
                         #### check if sl and tp are hit already
-                        last_magic_num_ticks = get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=magic_num_ticks) # ticks or rates, they are the same thing. I just seem to forget.
-                        # we want to start from the breaking tick (that one included, because it can finish in just one tick)
-                        relevant_ticks = last_magic_num_ticks[breaking_tick_index:]
+                        last_magic_num_candles = get_last_n_candles(symbol=symbol, timeframe=timeframe, candle_count=magic_num_candles) # candles or rates, they are the same thing. I just seem to forget.
+                        # we want to start from the breaking candle (that one included, because it can finish in just one candle)
+                        relevant_candles = last_magic_num_candles[breaking_candle_index:]
                         # we want to check the highest and lowest, and compare the highest with tp, and lowest with sl
-                        relevant_tick_highest = np.max(relevant_ticks['high'])
-                        relevant_tick_lowest = np.min(relevant_ticks['low'])
+                        relevant_candle_highest = np.max(relevant_candles['high'])
+                        relevant_candle_lowest = np.min(relevant_candles['low'])
                         sl_price = dows_high # just to make it more clear. 
                         # check if stop loss is reached
-                        if relevant_tick_highest > sl_price:
+                        if relevant_candle_highest > sl_price:
                             print("sl is hit already. skip this pending sell entry")
                             continue
                         # calc tp price
@@ -2476,12 +2476,12 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                         
                         tp += added_points_to_tp
                         tp_price = info["entry_price"] - tp * symbol_point
-                        if relevant_tick_lowest <= tp_price:
+                        if relevant_candle_lowest <= tp_price:
                             print("tp is hit already. skip this pending sell entry")
                             continue
 
                         # check if we've been only three pips away from the tp (depending on the stop loss size the pip size varies)
-                        points_from_tp = abs(relevant_tick_lowest - tp_price) * multiply_digits
+                        points_from_tp = abs(relevant_candle_lowest - tp_price) * multiply_digits
                         points_full_tp = abs(info["entry_price"] - tp_price) * multiply_digits
                         # points_from_tp_limit is static. here it's tried dynamic based on the 0.1 risk to get tp, depending on is_dynamic_points_from_tp_limit
                         if is_dynamic_points_from_tp_limit:
@@ -2490,7 +2490,7 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                             dynamic_points_from_tp_limit = points_from_tp_limit
 
                         if points_from_tp <= dynamic_points_from_tp_limit:
-                            print(f"relevant_tick_lowest {relevant_tick_lowest} is within {dynamic_points_from_tp_limit} points away from tp {tp_price}. skip this pending sell entry")
+                            print(f"relevant_candle_lowest {relevant_candle_lowest} is within {dynamic_points_from_tp_limit} points away from tp {tp_price}. skip this pending sell entry")
                             continue
 
                         is_risky_pattern = check_if_risky_pattern(symbol, timeframe)
@@ -2583,7 +2583,7 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
             # print("we are here, and then exit. otherwise, since we are in the main loop, during debugging we will keep opening the same orders")
             # exit()
 
-            ### THIS IS THE MAIN DOUBLE TICK STRATEGY. FOUR CONDITIONS. ###
+            ### THIS IS THE MAIN DOUBLE CANDLE BREAKOUT STRATEGY. FOUR CONDITIONS. ###
 
             # if current_price > higher_price, and we are above the 24sma, and there's a retracement
             if current_price > higher_price:
@@ -2593,7 +2593,7 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                 # digits = mt5.symbol_info(symbol).digits # BTC digits -> 2         mt5.symbol_info(symbol).xxx, not mt5.symbol_info_tick(symbol).xxx
                 # multiply_digits = 10 ** digits
                 # sl is in points, /10 if needed to convert to pips
-                #### sl previous two ticks' low ###
+                #### sl previous two candles' low ###
                 #### sl = current_price * multiply_digits - lower_price * multiply_digits  # BTC ####
                 ###################################
                 # sl = current_price * 100 - lower_price * 100  # BTC
@@ -2648,16 +2648,16 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                 
 
                 ####### find SL ########
-                # dows_low = find_dows_low(symbol=symbol, timeframe=timeframe, tick_count=12)
-                dows_low = find_dows_low(symbol=symbol, timeframe=timeframe, tick_count=4)
+                # dows_low = find_dows_low(symbol=symbol, timeframe=timeframe, candle_count=12)
+                dows_low = find_dows_low(symbol=symbol, timeframe=timeframe, candle_count=4)
                 if dows_low:
                     sl = ask_price * multiply_digits - dows_low * multiply_digits # should use ask_price to be precise, not current_price, Jul 28 2025
                 else:
-                    # print(f"didn't find dows_low in previous 4 ticks, will get last 3 ticks and use the first tick's low as dow's low")
-                    dows_low = tick_one_low
+                    # print(f"didn't find dows_low in previous 4 candles, will get last 3 candles and use the first candle's low as dow's low")
+                    dows_low = candle_one_low
                     sl = ask_price * multiply_digits - dows_low * multiply_digits
                 # else:
-                #     print(f"didn't find dows_low in previous ticks, won't open order")
+                #     print(f"didn't find dows_low in previous candles, won't open order")
                 #     continue
                 ####### ######## ########
 
@@ -2683,22 +2683,22 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                     # print(f"sl is {sl} points. too small, < sl_min {sl_min}, aborted.")
                     continue
 
-                # if the price passes two ticks, but far from ideal opening position. (This typically happens when the price moves very fast and hits TP, and the entry and the exit is on the same tick)
+                # if the price passes two candles, but far from ideal opening position. (This typically happens when the price moves very fast and hits TP, and the entry and the exit is on the same candle)
                 actual_offset = multiply_digits * abs(current_price - higher_price)
                 if actual_offset > offset_limit:
                     # print(f"actual_offset is {actual_offset}, exceeded offset_limit: {offset_limit} points. not opening tickets")
                     continue
                 
-                retrace_or_pause_when_long = check_retrace_or_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5)
+                retrace_or_pause_when_long = check_retrace_or_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, candle_count=5)
 
                 if retrace_or_pause_when_long is False:
                     continue
 
                 elif retrace_or_pause_when_long in {'retrace_n_pause_when_long', 'ratrace_when_long'}:
                     # find the ideal entry price, which is the recent first breaking price, and compare it with the current price. if it's not the same, it indicates that we are not in the earliest ideal entry
-                    index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_retracement_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
-                    if index_of_tick_that_breaks: # this seems redundant as it should always be true
-                        # print(f"index of tick that breaks after_retracement_when_long: {index_of_tick_that_breaks}")
+                    index_of_candle_that_breaks, ideal_entry_price = find_which_candle_breaks_after_retracement_when_long(symbol=symbol, timeframe=timeframe, start_position=0, candle_count=7)
+                    if index_of_candle_that_breaks: # this seems redundant as it should always be true
+                        # print(f"index of candle that breaks after_retracement_when_long: {index_of_candle_that_breaks}")
                         # print(f"ideal entry price: {ideal_entry_price}")
                         # print(f"current bid price: {current_price}")
                         points_gap_between_ideal_n_current = abs((current_price - ideal_entry_price) * multiply_digits)
@@ -2707,9 +2707,9 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                             # print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
                             continue
                 elif retrace_or_pause_when_long == 'pause_when_long':
-                    index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
-                    if index_of_tick_that_breaks: # this seems redundant as it should always be true
-                        # print(f"index of tick that breaks after_pause_when_long: {index_of_tick_that_breaks}")
+                    index_of_candle_that_breaks, ideal_entry_price = find_which_candle_breaks_after_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, candle_count=7)
+                    if index_of_candle_that_breaks: # this seems redundant as it should always be true
+                        # print(f"index of candle that breaks after_pause_when_long: {index_of_candle_that_breaks}")
                         # print(f"ideal entry price: {ideal_entry_price}")
                         # print(f"current bid price: {current_price}")
                         points_gap_between_ideal_n_current = abs((current_price - ideal_entry_price) * multiply_digits)
@@ -2765,7 +2765,7 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
 
                 # # the calculation seems not right. 
                 # # calculation complex high cpu. put it after calculating actual_offset
-                # high_1 = check_steps_when_long(symbol=symbol, timeframe=timeframe, tick_count=30)
+                # high_1 = check_steps_when_long(symbol=symbol, timeframe=timeframe, candle_count=30)
                 # if high_1:
                 #     if current_price > high_1:
                 #         print(f"price goes above high_1 {high_1}, descending steps fail. OK to place order.")
@@ -2862,18 +2862,18 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
 
 
                 ##### find SL #####
-                # second_tick_high-current_price
+                # second_candle_high-current_price
                 # sl = rates[1][2] * 1000 - current_price * 1000  # USDJPY
                 # digits = mt5.symbol_info(symbol).digits
                 # multiply_digits = 10 ** digits
                 #sl = higher_price * multiply_digits - current_price * multiply_digits  # BTC
-                # dows_high = find_dows_high(symbol=symbol, timeframe=timeframe, tick_count=12)
-                dows_high = find_dows_high(symbol=symbol, timeframe=timeframe, tick_count=4)
+                # dows_high = find_dows_high(symbol=symbol, timeframe=timeframe, candle_count=12)
+                dows_high = find_dows_high(symbol=symbol, timeframe=timeframe, candle_count=4)
                 if dows_high:
                     sl = dows_high * multiply_digits - current_price * multiply_digits # when selling, the sl should be bid_price and sl_price gap, not ask_price
                 else:
-                    # print(f"didn't find dows_high in previous 4 ticks, will get last 3 ticks and use the first tick's high as dow's high")
-                    dows_high = tick_one_high
+                    # print(f"didn't find dows_high in previous 4 candles, will get last 3 candles and use the first candle's high as dow's high")
+                    dows_high = candle_one_high
                     sl = dows_high * multiply_digits - current_price * multiply_digits
                     
                 # sl = higher_price * 100 - current_price * 100  # BTC
@@ -2897,13 +2897,13 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                     # print(f"actual_offset is {actual_offset}, exceeded offset_limit: {offset_limit} points. not opening tickets")
                     continue
                 
-                retrace_or_pause_when_short = check_retrace_or_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5)
+                retrace_or_pause_when_short = check_retrace_or_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, candle_count=5)
                 if retrace_or_pause_when_short is False:
                     continue
                 elif retrace_or_pause_when_short in {'retrace_n_pause_when_short', 'ratrace_when_short'}:
-                    index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_retracement_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
-                    if index_of_tick_that_breaks:
-                        # print(f"tick_breaks_after_retracement_when_short: {index_of_tick_that_breaks}")
+                    index_of_candle_that_breaks, ideal_entry_price = find_which_candle_breaks_after_retracement_when_short(symbol=symbol, timeframe=timeframe, start_position=0, candle_count=7)
+                    if index_of_candle_that_breaks:
+                        # print(f"candle_breaks_after_retracement_when_short: {index_of_candle_that_breaks}")
                         # print(f"ideal entry price: {ideal_entry_price}")
                         # print(f"current ask price: {ask_price}")
                         points_gap_between_ideal_n_current = abs((ask_price - ideal_entry_price) * multiply_digits)
@@ -2912,9 +2912,9 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                             # print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
                             continue
                 elif retrace_or_pause_when_short == 'pause_when_short':
-                    index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
-                    if index_of_tick_that_breaks:
-                        # print(f"tick_breaks_after_pause_when_short: {index_of_tick_that_breaks}")
+                    index_of_candle_that_breaks, ideal_entry_price = find_which_candle_breaks_after_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, candle_count=7)
+                    if index_of_candle_that_breaks:
+                        # print(f"candle_breaks_after_pause_when_short: {index_of_candle_that_breaks}")
                         # print(f"ideal entry price: {ideal_entry_price}")
                         # print(f"current ask price: {ask_price}")
                         points_gap_between_ideal_n_current = abs((ask_price - ideal_entry_price) * multiply_digits)
@@ -2971,7 +2971,7 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
 
 
 
-                # low_1 = check_steps_when_short(symbol=symbol, timeframe=timeframe, tick_count=30)
+                # low_1 = check_steps_when_short(symbol=symbol, timeframe=timeframe, candle_count=30)
                 # if low_1:
                 #     if current_price < low_1:
                 #         print(f"price goes below low_1 {low_1}, ascending steps fail. OK to place order.")
@@ -3017,9 +3017,9 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
             ############### This seems to be not working well on at least M5. So disable it temporarily ###################
 
             # across_sma_up, 
-            #elif current_price > tick_two_close and above_or_below_sma == "across_sma_up" and tick_two_close > tick_two_open: # and check_retrace_or_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5):
-            elif current_price > tick_two_close and above_or_below_sma == "across_sma_up" and tick_two_close > tick_two_open:
-                # tick_two_close > tick_two_open to ensure this key candle crossing sma is closed a bullish candle.
+            #elif current_price > candle_two_close and above_or_below_sma == "across_sma_up" and candle_two_close > candle_two_open: # and check_retrace_or_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, candle_count=5):
+            elif current_price > candle_two_close and above_or_below_sma == "across_sma_up" and candle_two_close > candle_two_open:
+                # candle_two_close > candle_two_open to ensure this key candle crossing sma is closed a bullish candle.
                 # sometimes there might be a jump (window) or maybe the sma is steep, and the candle will close as a bearish candle with a very small body and a long upper wick
                 # if this happens, we do not think this is a valid crossing. i guess this usually happens in lower timeframes. i observed this on m5
                 # in such case this is the so called 
@@ -3082,19 +3082,19 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                 # sl is in points, /10 if needed to convert to pips
                 #sl = current_price * multiply_digits - lower_price * multiply_digits  # BTC
 
-                # dows_low = find_dows_low(symbol=symbol, timeframe=timeframe, tick_count=12)
+                # dows_low = find_dows_low(symbol=symbol, timeframe=timeframe, candle_count=12)
                 # if dows_low:
                 #     sl = current_price * multiply_digits - dows_low * multiply_digits
                 # else:
-                #     print(f"didn't find dows_low in previous ticks, won't open order")
+                #     print(f"didn't find dows_low in previous candles, won't open order")
                 #     continue
 
-                dows_low = find_dows_low(symbol=symbol, timeframe=timeframe, tick_count=5) # as crossing sma we are opening order on a new candle. so it's 5 ticks
+                dows_low = find_dows_low(symbol=symbol, timeframe=timeframe, candle_count=5) # as crossing sma we are opening order on a new candle. so it's 5 candles
                 if dows_low:
                     sl = ask_price * multiply_digits - dows_low * multiply_digits
                 else:
-                    # print(f"didn't find dows_low in previous 5 ticks, will get last 3 ticks and use the first tick's low as dow's low")
-                    dows_low = tick_one_low
+                    # print(f"didn't find dows_low in previous 5 candles, will get last 3 candles and use the first candle's low as dow's low")
+                    dows_low = candle_one_low
                     sl = ask_price * multiply_digits - dows_low * multiply_digits
                 # sl = current_price * 100 - lower_price * 100  # BTC
                 ##################
@@ -3103,10 +3103,10 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                 sl = sl + added_points_to_sl
                 dows_low = (dows_low * multiply_digits - added_points_to_sl) / multiply_digits # 141.350 * 1000 - 10 is 141350 - 10, which is 141340. then 141340 / 1000 is 141.340
 
-                # check if it's a large tick that is crossing sma
-                body_points = abs(tick_two_open * multiply_digits - tick_two_close * multiply_digits)
+                # check if it's a large candle that is crossing sma
+                body_points = abs(candle_two_open * multiply_digits - candle_two_close * multiply_digits)
                 if body_points >= body_points_limit:# and symbol == "USDJPY":
-                    # print(f"the body of the tick crossing sma is {body_points}, exceeding {body_points_limit}, too large. aborted.")
+                    # print(f"the body of the candle crossing sma is {body_points}, exceeding {body_points_limit}, too large. aborted.")
                     continue
 
                 # check if sl too large too small
@@ -3117,25 +3117,25 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                     # print(f"sl is {sl} points. too small, < sl_min {sl_min}, aborted.")
                     continue
 
-                actual_offset = multiply_digits * abs(current_price - tick_two_close)
+                actual_offset = multiply_digits * abs(current_price - candle_two_close)
                 if actual_offset > offset_limit:
                     # print(f"actual_offset is {actual_offset}, exceeded offset_limit: {offset_limit} points. not opening tickets")
                     continue
                 
 
 
-                retrace_or_pause_when_long = check_retrace_or_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5)
+                retrace_or_pause_when_long = check_retrace_or_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, candle_count=5)
 
                 if retrace_or_pause_when_long is False:
                     continue
                 
                 ########### I imagine we do not need to check the current price with the ideal entry (the breaking price) for crossing sma scenarios. because there should normally be a visible gap, making it "not ideal"##############
-                ########### if we compare this, we will rarely open a trade (unless in rare conditions where the next canlde after the breaking candle is still around the ideal price) ##########
+                ########### if we compare this, we will rarely open a trade (unless in rare conditions where the next candle after the breaking candle is still around the ideal price) ##########
                 # elif retrace_or_pause_when_long in {'retrace_n_pause_when_long', 'ratrace_when_long'}:
                 #     # find the ideal entry price, which is the recent first breaking price, and compare it with the current price. if it's not the same, it indicates that we are not in the earliest ideal entry
-                #     index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_retracement_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
-                #     if index_of_tick_that_breaks: # this seems redundant as it should always be true
-                #         # print(f"index of tick that breaks after_retracement_when_long: {index_of_tick_that_breaks}")
+                #     index_of_candle_that_breaks, ideal_entry_price = find_which_candle_breaks_after_retracement_when_long(symbol=symbol, timeframe=timeframe, start_position=0, candle_count=7)
+                #     if index_of_candle_that_breaks: # this seems redundant as it should always be true
+                #         # print(f"index of candle that breaks after_retracement_when_long: {index_of_candle_that_breaks}")
                 #         # print(f"ideal entry price: {ideal_entry_price}")
                 #         # print(f"current bid price: {current_price}")
                 #         points_gap_between_ideal_n_current = abs((current_price - ideal_entry_price) * multiply_digits)
@@ -3144,9 +3144,9 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                 #             # print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
                 #             continue
                 # elif retrace_or_pause_when_long == 'pause_when_long':
-                #     index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
-                #     if index_of_tick_that_breaks: # this seems redundant as it should always be true
-                #         # print(f"index of tick that breaks after_pause_when_long: {index_of_tick_that_breaks}")
+                #     index_of_candle_that_breaks, ideal_entry_price = find_which_candle_breaks_after_pause_when_long(symbol=symbol, timeframe=timeframe, start_position=0, candle_count=7)
+                #     if index_of_candle_that_breaks: # this seems redundant as it should always be true
+                #         # print(f"index of candle that breaks after_pause_when_long: {index_of_candle_that_breaks}")
                 #         # print(f"ideal entry price: {ideal_entry_price}")
                 #         # print(f"current bid price: {current_price}")
                 #         points_gap_between_ideal_n_current = abs((current_price - ideal_entry_price) * multiply_digits)
@@ -3202,7 +3202,7 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                             print(f"m15 sma {sma_list_m15[-1]}")
 
                 # # calculation complex high cpu. put it after calculating actual_offset
-                # high_1 = check_steps_when_long(symbol=symbol, timeframe=timeframe, tick_count=30)
+                # high_1 = check_steps_when_long(symbol=symbol, timeframe=timeframe, candle_count=30)
                 # if high_1:
                 #     if current_price > high_1:
                 #         print(f"price goes above high_1 {high_1}, descending steps fail. OK to place order.")
@@ -3241,8 +3241,8 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                              tp_percent=tp_percent, added_points_to_sl=added_points_to_sl, added_points_to_tp=added_points_to_tp, fixed_tp=fixed_tp, fixed_tp_in_points=fixed_tp_in_points)
                 # continue # if we opened an order, we go back to the beginning of the loop, we don't sleep
             # across_sma_down
-            elif ask_price < tick_two_close and above_or_below_sma == "across_sma_down" and tick_two_close < tick_two_open:
-                # tick_two_close < tick_two_open to ensure this key candle crossing sma is closed a bearish candle.
+            elif ask_price < candle_two_close and above_or_below_sma == "across_sma_down" and candle_two_close < candle_two_open:
+                # candle_two_close < candle_two_open to ensure this key candle crossing sma is closed a bearish candle.
                 
                 # check if we should look for a sell order or a buy order
                 # print(f"look_for_sell_or_buy: {look_for_sell_or_buy}")
@@ -3297,24 +3297,24 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
 
 
                 ##### find SL #####
-                # second_tick_high-current_price
+                # second_candle_high-current_price
                 # sl = rates[1][2] * 1000 - current_price * 1000  # USDJPY
                 # digits = mt5.symbol_info(symbol).digits
                 # multiply_digits = 10 ** digits
                 #sl = higher_price * multiply_digits - current_price * multiply_digits  # BTC
                 
-                # dows_high = find_dows_high(symbol=symbol, timeframe=timeframe, tick_count=12)
+                # dows_high = find_dows_high(symbol=symbol, timeframe=timeframe, candle_count=12)
                 # if dows_high:
                 #     sl = dows_high * multiply_digits - ask_price * multiply_digits
                 # else:
-                #     print(f"didn't find dows_high in previous ticks, won't open order")
+                #     print(f"didn't find dows_high in previous candles, won't open order")
                 #     continue
-                dows_high = find_dows_high(symbol=symbol, timeframe=timeframe, tick_count=5)
+                dows_high = find_dows_high(symbol=symbol, timeframe=timeframe, candle_count=5)
                 if dows_high:
                     sl = dows_high * multiply_digits - current_price * multiply_digits
                 else:
-                    # print(f"didn't find dows_high in previous 5 ticks, will get last 3 ticks and use the first tick's high as dow's high")
-                    dows_high = tick_one_high
+                    # print(f"didn't find dows_high in previous 5 candles, will get last 3 candles and use the first candle's high as dow's high")
+                    dows_high = candle_one_high
                     sl = dows_high * multiply_digits - current_price * multiply_digits
                 ##### ###### ######
                 
@@ -3322,10 +3322,10 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                 sl = sl + added_points_to_sl
                 dows_high = (dows_high * multiply_digits + added_points_to_sl) / multiply_digits # 141.350 * 1000 - 10 is 141350 - 10, which is 141340. then 141340 / 1000 is 141.340
 
-                # check if it's a large tick that is crossing sma
-                body_points = abs(tick_two_open * multiply_digits - tick_two_close * multiply_digits)
+                # check if it's a large candle that is crossing sma
+                body_points = abs(candle_two_open * multiply_digits - candle_two_close * multiply_digits)
                 if body_points >= body_points_limit:# and symbol == "USDJPY":
-                    # print(f"the body of the tick crossing sma is {body_points}, exceeding {body_points_limit}, too large. aborted.")
+                    # print(f"the body of the candle crossing sma is {body_points}, exceeding {body_points_limit}, too large. aborted.")
                     continue
 
                 # check if sl too large too small
@@ -3336,7 +3336,7 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                     # print(f"sl is {sl} points. too small, < sl_min {sl_min}, aborted.")
                     continue
 
-                actual_offset = multiply_digits * abs(ask_price - tick_two_close)
+                actual_offset = multiply_digits * abs(ask_price - candle_two_close)
                 if actual_offset > offset_limit:
                     # print(f"actual_offset is {actual_offset}, exceeded offset_limit: {offset_limit} points. not opening tickets")
                     continue
@@ -3344,14 +3344,14 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
 
 
                 ########### I imagine we do not need to check the current price with the ideal entry (the breaking price) for crossing sma scenarios. because there should normally be a visible gap, making it "not ideal"##############
-                ########### if we compare this, we will rarely open a trade (unless in rare conditions where the next canlde after the breaking candle is still around the ideal price) ##########
-                retrace_or_pause_when_short = check_retrace_or_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=5)
+                ########### if we compare this, we will rarely open a trade (unless in rare conditions where the next candle after the breaking candle is still around the ideal price) ##########
+                retrace_or_pause_when_short = check_retrace_or_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, candle_count=5)
                 if retrace_or_pause_when_short is False:
                     continue
                 # elif retrace_or_pause_when_short in {'retrace_n_pause_when_short', 'ratrace_when_short'}:
-                #     index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_retracement_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
-                #     if index_of_tick_that_breaks:
-                #         # print(f"tick_breaks_after_retracement_when_short: {index_of_tick_that_breaks}")
+                #     index_of_candle_that_breaks, ideal_entry_price = find_which_candle_breaks_after_retracement_when_short(symbol=symbol, timeframe=timeframe, start_position=0, candle_count=7)
+                #     if index_of_candle_that_breaks:
+                #         # print(f"candle_breaks_after_retracement_when_short: {index_of_candle_that_breaks}")
                 #         # print(f"ideal entry price: {ideal_entry_price}")
                 #         # print(f"current ask price: {ask_price}")
                 #         points_gap_between_ideal_n_current = abs((ask_price - ideal_entry_price) * multiply_digits)
@@ -3360,9 +3360,9 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                 #             # print(f"points_gap_between_ideal_n_current {points_gap_between_ideal_n_current} is greater than points_gap_between_ideal_n_current_limit {points_gap_between_ideal_n_current_limit}")
                 #             continue
                 # elif retrace_or_pause_when_short == 'pause_when_short':
-                #     index_of_tick_that_breaks, ideal_entry_price = find_which_tick_breaks_after_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=7)
-                #     if index_of_tick_that_breaks:
-                #         # print(f"tick_breaks_after_pause_when_short: {index_of_tick_that_breaks}")
+                #     index_of_candle_that_breaks, ideal_entry_price = find_which_candle_breaks_after_pause_when_short(symbol=symbol, timeframe=timeframe, start_position=0, candle_count=7)
+                #     if index_of_candle_that_breaks:
+                #         # print(f"candle_breaks_after_pause_when_short: {index_of_candle_that_breaks}")
                 #         # print(f"ideal entry price: {ideal_entry_price}")
                 #         # print(f"current ask price: {ask_price}")
                 #         points_gap_between_ideal_n_current = abs((ask_price - ideal_entry_price) * multiply_digits)
@@ -3416,7 +3416,7 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                             print(f"m30 sma {sma_list_m30[-1]}")
                             print(f"m15 sma {sma_list_m15[-1]}")
 
-                # low_1 = check_steps_when_short(symbol=symbol, timeframe=timeframe, tick_count=30)
+                # low_1 = check_steps_when_short(symbol=symbol, timeframe=timeframe, candle_count=30)
                 # if low_1:
                 #     if current_price < low_1:
                 #         print(f"price goes below low_1 {low_1}, ascending steps fail. OK to place order.")
@@ -3916,7 +3916,7 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                     # #### this section counts down from 10 and then close the order ####
 
 
-                    # #### this section counts down for 2 ticks' time before looking for new trading chances ####
+                    # #### this section counts down for 2 candles' time before looking for new trading chances ####
                     # CAUTION! #
                     # this section also fix an issue where an order is opened on the next candle after the previous tp candle, 
                     # because the price on the next candle is passing the previous 2 candles, and the offset limit is met, 
@@ -3924,7 +3924,7 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                     # the offset limit only prevents opening an order immediately when tp is met on the candle where tp is taken
                     # but it cannot prevent opening another order on the next candle passing its previous 2 candles
                     ############
-                    # after closing, count down for 2 ticks' time, say 5min chart, then it's 10minutes
+                    # after closing, count down for 2 candles' time, say 5min chart, then it's 10minutes
 
                         # position.symbol == symbol means that if we're monitoring usdjpy, and it's a usdjpy position, then we count down
                         # but if we're monitoring eurusd, and it's a usdjpy position, then we do not count down
@@ -3954,7 +3954,7 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
                                 # if points_from_tp <= points_from_tp_limit:
                                 #     pause_time = default_pause_time
                                 # # then we need to recount down
-                            # #### this section counts down for 2 ticks' time before looking for new trading chances ####
+                            # #### this section counts down for 2 candles' time before looking for new trading chances ####
             
             # at the end of position check in this loop
             # move the curser back to the beginning of the line
@@ -3976,7 +3976,7 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
 
 
 
-    # rates = get_last_three_ticks()
+    # rates = get_last_three_candles()
     # current_price = rates[2][4]
 
     # if not check_open_positions():
@@ -4063,22 +4063,22 @@ def convert_utc_to_mt5_time(dt_utc, broker_time_offset_hours_from_utc):
 
 
 
-def find_dows_low(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, tick_count=30):
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=tick_count)
+def find_dows_low(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, candle_count=30):
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, candle_count=candle_count)
     rates = np.flipud(rates)
     if rates[0]['low'] < rates[1]['low']:
         dows_low = rates[0]['low']
         return dows_low
     else:
-        for i in range(1, len(rates)-1): # until the one before the last one, so that we have one tick on its left and one on its right
+        for i in range(1, len(rates)-1): # until the one before the last one, so that we have one candle on its left and one on its right
             if rates[i]['low'] <= compare_two_and_get_lower(rates[i+1]['low'], rates[i-1]['low']):
                 dows_low = rates[i]['low']
                 return dows_low
 
     return None
 
-def find_dows_high(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, tick_count=30):
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=tick_count)
+def find_dows_high(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, candle_count=30):
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, candle_count=candle_count)
     rates = np.flipud(rates)
     if rates[0]['high'] > rates[1]['high']:
         dows_high = rates[0]['high']
@@ -4091,24 +4091,24 @@ def find_dows_high(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, tick_count=30):
     return None
 
 # the conservative is for the special rule. checking pending opportunities when trading time starts. find the low/high when it's lower/higher than *both* sides. So the latest candle scenario is not considered
-def find_dows_low_conservative(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, tick_count=30, breaking_tick_index=0):
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=tick_count)
+def find_dows_low_conservative(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, candle_count=30, breaking_candle_index=0):
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, candle_count=candle_count)
     rates = np.flipud(rates)
 
-    starter = tick_count - 1 - breaking_tick_index # because we flipud the rates, should we do the maths, if it's the 5th candle, from 0 1 2 3 4 5 6, then reversed, it's the 1st one, starting from 0th. to get that, 7 - 1 - 5
+    starter = candle_count - 1 - breaking_candle_index # because we flipud the rates, should we do the maths, if it's the 5th candle, from 0 1 2 3 4 5 6, then reversed, it's the 1st one, starting from 0th. to get that, 7 - 1 - 5
     print(f"starter: {starter}")
-    for i in range(starter, len(rates)-1): # until the one before the last one, so that we have one tick on its left and one on its right
+    for i in range(starter, len(rates)-1): # until the one before the last one, so that we have one candle on its left and one on its right
         if rates[i]['low'] <= compare_two_and_get_lower(rates[i+1]['low'], rates[i-1]['low']):
             dows_low = rates[i]['low']
             return dows_low
 
     return None
 
-def find_dows_high_conservative(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, tick_count=30, breaking_tick_index=0):
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=tick_count)
+def find_dows_high_conservative(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, candle_count=30, breaking_candle_index=0):
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, candle_count=candle_count)
     rates = np.flipud(rates)
 
-    starter = tick_count - 1 - breaking_tick_index # because we flipud the rates, should we do the maths, if it's the 5th candle, from 0 1 2 3 4 5 6, then reversed, it's the 1st one, starting from 0th. to get that, 7 - 1 - 5
+    starter = candle_count - 1 - breaking_candle_index # because we flipud the rates, should we do the maths, if it's the 5th candle, from 0 1 2 3 4 5 6, then reversed, it's the 1st one, starting from 0th. to get that, 7 - 1 - 5
     print(f"starter: {starter}")
     for i in range(starter, len(rates)-1):
         if rates[i]['high'] >= compare_two_and_get_higher(rates[i+1]['high'], rates[i-1]['high']):
@@ -4119,26 +4119,26 @@ def find_dows_high_conservative(symbol="BTCUSD", timeframe=mt5.TIMEFRAME_M5, tic
 
 
 
-def calc_dm_plus_dm_minus(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15, start_position=0, tick_count=150, period=14): 
-    # the result data_list only has 149 items, because the first tick has no previous tick for calculating 
-    # so set tick_count to 151 if we want 150 ticks' data
+def calc_dm_plus_dm_minus(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15, start_position=0, candle_count=150, period=14): 
+    # the result data_list only has 149 items, because the first candle has no previous candle for calculating 
+    # so set candle_count to 151 if we want 150 candles' data
     
-    # 15 ticks. from 0 to 14
+    # 15 candles. from 0 to 14
     
-    # the first tick is not calculated for dm+ dm-, and tr, 
-    # because we need a previous tick for calculating these, and the first tick doesn't have a previous tick
+    # the first candle is not calculated for dm+ dm-, and tr, 
+    # because we need a previous candle for calculating these, and the first candle doesn't have a previous candle
 
     # so the actual data_list we get is from the second one to the latest one, 
     # and we see the second one AS THE FIRST ONE
 
-    rates = get_last_n_ticks(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
-    # we have 150 ticks index: [0-149]
+    rates = get_last_n_candles(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=candle_count)
+    # we have 150 candles index: [0-149]
 
-    data_list = [] # store adx related data for each tick
-    for i in range(0, tick_count-1): # until the one before the current tick        tick_count-1 is 149, so we will have index 148, so i+1 is 149, the current tick
+    data_list = [] # store adx related data for each candle
+    for i in range(0, candle_count-1): # until the one before the current candle        candle_count-1 is 149, so we will have index 148, so i+1 is 149, the current candle
         current_dict = {}
         
-        # but actually we are using i+1 so we have the latest/current tick's info
+        # but actually we are using i+1 so we have the latest/current candle's info
         #+DM = current high - previous high.
         #-DM = previous low - current low.
         current_dict['dm_plus'] = rates[i+1]['high'] - rates[i]['high']
@@ -4258,8 +4258,8 @@ def calc_adx(data_list):
     return data_list
 
 
-def get_current_adx(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15, start_position=0, tick_count=150):
-    data_list = calc_dm_plus_dm_minus(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+def get_current_adx(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15, start_position=0, candle_count=150):
+    data_list = calc_dm_plus_dm_minus(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=candle_count)
     data_list = calc_tr14_dm_plus14_dm_minus14(data_list)
     data_list = calc_di_plus_di_minus(data_list)
     data_list = calc_dx(data_list)
@@ -4268,8 +4268,8 @@ def get_current_adx(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15, start_position
     # current_adx = round(current_adx, 2)
     return current_adx
 
-def get_last_n_adx(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15, start_position=0, tick_count=150, n=3):
-    data_list = calc_dm_plus_dm_minus(symbol=symbol, timeframe=timeframe, start_position=start_position, tick_count=tick_count)
+def get_last_n_adx(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15, start_position=0, candle_count=150, n=3):
+    data_list = calc_dm_plus_dm_minus(symbol=symbol, timeframe=timeframe, start_position=start_position, candle_count=candle_count)
     data_list = calc_tr14_dm_plus14_dm_minus14(data_list)
     data_list = calc_di_plus_di_minus(data_list)
     data_list = calc_dx(data_list)
@@ -4280,7 +4280,7 @@ def get_last_n_adx(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15, start_position=
 
 def check_adx_ascending(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15, n=3):
     is_valid = False
-    last_n_adx_list = get_last_n_adx(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=150, n=n)
+    last_n_adx_list = get_last_n_adx(symbol=symbol, timeframe=timeframe, start_position=0, candle_count=150, n=n)
 
     # hard code # because we only compare 2 ADXs or at most maybe 3 ADXs
     if n == 2:
@@ -4309,7 +4309,7 @@ def check_adx_ascending(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15, n=3):
 
 
 def check_if_adx_meets_requirements(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M15, adx_threshold=25):
-    current_adx = get_current_adx(symbol=symbol, timeframe=timeframe, start_position=0, tick_count=150)
+    current_adx = get_current_adx(symbol=symbol, timeframe=timeframe, start_position=0, candle_count=150)
     if current_adx >= adx_threshold:
         print(f"current_adx: {current_adx}")
         print(f"adx >= {adx_threshold}. OK to place order.")
@@ -4636,7 +4636,7 @@ def check_if_risky_pattern(symbol, timeframe):
     ########## pattern 1 ###########
     
     # filter this one type pattern. 14:00 UTC+3 25 July 2025 H1 USDJPY
-    candles = get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=5)
+    candles = get_last_n_candles(symbol=symbol, timeframe=timeframe, candle_count=5)
     # we have 4 candles. 
     # the 1st candle is a big candle, which moved a lot
     # the 2nd candle is a big candle, which moved a lot
@@ -4705,7 +4705,7 @@ def check_if_risky_pattern(symbol, timeframe):
     # breaks their highs, so the current candle is a volatile candle)
     # 4th candle break
     # this is very "fragile" not a healthy pattern
-    candles = get_last_n_ticks(symbol=symbol, timeframe=timeframe, tick_count=4)
+    candles = get_last_n_candles(symbol=symbol, timeframe=timeframe, candle_count=4)
     # candles 0 1 2 3 
     candle_1_body_size_in_points = (candles[0]['close'] - candles[0]['open']) * multiply_digits
     if candle_1_body_size_in_points > pattern2_big_candle_threshold:
@@ -4917,14 +4917,14 @@ def main():
     
     # enabled
     check_timeframe_consistency = False
-    # enable: buy above sma, sell below sma. disable: buy/sell as long as price goes beyond ticks and other requirements are met.
+    # enable: buy above sma, sell below sma. disable: buy/sell as long as price goes beyond candles and other requirements are met.
     check_above_or_below_sma = True
     # check if SMAs in different timeframes are standing in the way towards our tp
     check_sma_resistance = False
 
     # # disabled
     # check_timeframe_consistency = False
-    # # enable: buy above sma, sell below sma. disable: buy/sell as long as price goes beyond ticks and other requirements are met.
+    # # enable: buy above sma, sell below sma. disable: buy/sell as long as price goes beyond candles and other requirements are met.
     # check_above_or_below_sma = True
     # # check if SMAs in different timeframes are standing in the way towards our tp
     # check_sma_resistance = False
