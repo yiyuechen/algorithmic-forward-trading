@@ -1,151 +1,3 @@
-
-"""
-To-do
-1. calculate lot size
-lot_size = (risk_ratio * capital) / (stop_loss * pip_value + commission_per_lot + spread)    [X]
-!!!
-!!!
-This is wrong. Spread should not be in the (), should be spread/10*pip_value
-
-formula
-lot * stop_loss * pip_value + lot * commission_per_lot + lot * spread/10*pip_value = capital_in_risk
-lot * (stop_loss * pip_value + commission_per_lot + spread/10*pip_value) = capital_in_risk
-lot = capital_in_risk / (stop_loss * pip_value + commission_per_lot + spread/10*pip_value)   [OK]
-
-2. calculate spread in SL and TP
-
-3. We can directly use the tick's lower price as our SL. No need to calc the SL and then convert and add to the current price.      [OK]
-4. Check that the previous two ticks formed the Dow's lower price. Only we meet this requirement, we open orders. So we might need to:
- 1) compare 5-6 ticks, make sure the previous two's low are the lowest
- 2) 
-
-
-5. change the SL to the dow's lowest price, not the price of the previous tick
-6. avoid consolidation (special rule 5)
- to do this, we need to  store at least four prices, should be a high, low, inner high, inner low 
- let's call them 0 1 2 3
- and we need to check 
- 0 > 2
- 1 < 3
-
-7. move SL to break even or slight loss when the price is near TP, for USPJPY it should be 30-40 spreads.
-
-8. log errors in log files
-9. usdjpy lot size incorrect
-10. detect if autotrading enabled and auto enable it. Possbile?
-
-
-11. if successfully tp but still meet the requirements,
-another ticket will be opened. This is usually not what we want.
-(usually happens when the tick moves fast, when makes tp and open price on the same tick. So the requirements are still met.
-So we need to add another limitation for opening orders.
-Could try limit the distance between the current price and the ideal entry point. If the gap is larger than 20 points, 30 points,
-then we don't open orders.
-
-12. an additional new rule for opening an order. if cross sma (check open above, close below or equal), check if current price is higher than the previous two ticks and mean if pause or retrace.
-
-13. the SL should be below the lowest of the previous two ticks and the current tick. Sometimes the current tick could have a lower price. This needs to be modified
-
-14. need to check retrace func, not quite accurate
-
-15. before implementing 11, 12 ,13, 14, create branches or new files. 
-1) set buy and sell reverse. This could be profitable, especially in a consolidation, I guess. (note 8/17/2022 this didn't work after a three day test. Mon-Wed)
-2) stay put buy and sell. Cancel the sma
-
-
-16. avoid consolidation. if sl and tp is too small, consider it's not a good chance? I don't know if this is a good way.
-e.g. sl < 50 points, then we don't trade
-
-17. if sma doesn't change much, say, the price of five SMAs is not far from 20 points. 
-This indicats we don't have a trend. So if we use sma and only buy when above, sell when below. it won't work
-
-
-18. if lot size too large, leverage not enough, shows "comment=No Money" error
-need to calc the maximum lot size to avoid that.
-
-question:
-waht's the Change in MT5, say 0.3%
-
-19. if almost pause, which is to say, the price is just a bit pass the previous higher price by 1-5 points (point, not pip) We may consider it 
-a valid condition.
-
-20. retracement needs to check another situation. 
-0 1 2 3 4
-previously, we check 
-1) 2 3's lower < 1 2's lower
-2) 3 4's lower < 2 3's lower
-
-but we have another situation:
-3) 1 2's low < 0, 3 does't pass two previous ticks, but 4 passes
-
-Actually, there's a better way to do the above. We get 6 ticks, just in case.
-0 1 2 3 4 5
-then we literate, pick from the third one, which is 2, call it current
-if current's low < 0 and < 1:
-    retracement = True
-
-So if previous recent ticks have a retracement, then it's a retracement.
-
-if it's tick 2 that retraced, it's a bit far a way, we need to verify if the current price has gone too high and far away from that tick 
-
-
-
-sma above or below bug
-when cross from above to below, it's still above.
-It's more often above, because above if statement is checked first and returned first
-Only when there's only 1 tick's close price > sma does the condition fail and the 'checking below sma' code have the chance to run
-
-we have fixed this bug buy revising and creating a new func
-
-Currently, the cross sma works fine. if we sell when cross up to down, and got SL'ed, which means the price goes above sma again, then we immediately buy when SL'ed. 
-
-# to do:
-a. need to check high low high low shrinking, in order to avoid consolidaiton
-
-b. utilize sma-price position checker. 
-if mixed & current price > sma, should long.
-if mixed & current price < sma, should short
-best to also check the consecutive ascending/descending ladders
-
-
-# the branch reversed works really well in consolidations. So we may do this:
-1) check sma, if say, 5 to 10 ticks, if the abs (tick0_sma - tick9_sma) < gap_limit, then we consider it's consolidating.
-then we use this stragegy
-( Or maybe we could do the slope, but this this it's the same. because slope = price_change/time_change)
-2) if not consolidating, we use the normal way, to follow the trend. 
-3) Or, we could simply don't do trades during consolidation. just check 1)
-
-add time range 7am-11pm
-
-################
-add modify stop loss when price nears within 3 pips from TP
-
-avoid shrinking steps
-
-add risk reward ratio, if doing 1 min, try risk:reward 2:1 or 3:1
-
-try when 2pips in profit, close the order
-################
-
-
-try:
-when 3 pips from tp, counting down 10 seconds to close the order [Done]
-
-
-
-to do:
-when tp and then the current position still meets requirements for openting an order, we need to check if there's already an chance prior to this one, 
-if so, it means we've missed the best chance to get in.
-
-The idea would be to see the one prior to the current one, or the one prior to prior, or even further, so see if we have one tick that meets the best chance to get in
-
-we can achieve this in another way:
-everytime we count down 10s and close an order, after we close it, we count down for the time of two ticks, so we wait for two ticks before looking for another trade
-it's like we are taking a break from the market
-
-"""
-
-
 from getpass import getpass
 import time
 import traceback
@@ -154,34 +6,21 @@ import numpy as np
 import credential_info
 from datetime import datetime, timedelta, timezone
 from datetime import time as dt_time
-
-# import the 'pandas' module for displaying data obtained in the tabular form
 import pandas as pd
-
 import os
-
 from tqdm import trange
 import math
-
 import get_news_data
-
-pd.set_option('display.max_columns', 500) # number of columns to be displayed
-pd.set_option('display.width', 1500)      # max table width to display
-
 
 def initialize(path):
     if not mt5.initialize(path):
         print("initialize() failed, error code =",mt5.last_error())
         quit()
-    # if not mt5.initialize(login=account, server=server_live, password=password):
-    #     print("initialize() failed, error code =",mt5.last_error())
-    #     quit()
 
     # # display data on connection status, server name and trading account
     # print(mt5.terminal_info())
     # # display data on MetaTrader 5 version
     # print(mt5.version())
-
 
 def login(account, password, server_to_connect):
     authorized = mt5.login(account, password, server_to_connect)
@@ -198,7 +37,7 @@ def login(account, password, server_to_connect):
         print("failed to connect at account #{}, error code: {}".format(account, mt5.last_error()))
 
 
-# this seems optional
+# Prepare the request structure
 def prepare_request_structure(symbol = "USDJPY"):
     # prepare the buy request structure   
     symbol_info = mt5.symbol_info(symbol)
@@ -242,23 +81,6 @@ def check_open_positions():
     #     print("Positions not found")
     return positions_total
 
-
-# def check_current_symbol_open_positions(symbol="USDJPY"):
-#     current_symbol_positions = mt5.positions_get(symbol=symbol)
-#     # print(f"current_symbol_positions: {current_symbol_positions}")
-#     # print(type(current_symbol_positions))
-#     # output
-#     # current_symbol_positions: ()
-#     # <class 'tuple'>
-#     if current_symbol_positions:
-#         print(current_symbol_positions)
-#         # print(current_symbol_positions[0].time)
-#         position_total_of_current_symbol = len(current_symbol_positions)
-#     else:
-#         position_total_of_current_symbol = 0
-
-#     return position_total_of_current_symbol
-
 def check_current_symbol_open_positions(symbol="USDJPY"):
     current_symbol_open_positions = mt5.positions_get(symbol=symbol)
     # print(f"current_symbol_open_positions: {current_symbol_open_positions}")
@@ -268,166 +90,6 @@ def check_current_symbol_open_positions(symbol="USDJPY"):
     # <class 'tuple'>
     
     return current_symbol_open_positions
-
-
-# def calculate_lot_size(sl, symbol, risk_ratio=0.05, commission_per_lot=4): #sl is in points, need to convert     # currently @param commission_per_lot is not included in the passed parameters
-#     # pip_value = 1/10**(digits-1)*contract_size?
-#     # EURUSD 1/(10**(5-1)) * 100000 => 10 USD
-#     # USDJPY 1/(10**(3-1)) * 100000 => 1000 JPY
-#     # BTCUSD 1/(10**(2-1)) * 1 => 0.1 USD
-
-#     spread = mt5.symbol_info(symbol).spread
-
-#     #convert 
-#     stop_loss = sl/10
-#     print(f"sl pip: {stop_loss}")
-
-#     trade_contract_size = mt5.symbol_info(symbol).trade_contract_size
-#     digits = mt5.symbol_info(symbol).digits
-#     pip_value = 1/10**(digits-1)*trade_contract_size
-#     # pip_value = 1/10**(digits-1)*trade_contract_size * 
-    
-#     # hard code not the best way
-#     # tmp method
-#     if symbol == "USDJPY":
-#         pip_value = pip_value / mt5.symbol_info(symbol).ask
-    
-#     print(f"pip_value: {pip_value}")
-
-#     capital = mt5.account_info().balance
-#     capital_in_risk = risk_ratio * capital
-
-#     print(f"capital: {capital}")
-#     print(f"capital in risk: {capital_in_risk}") 
-#     print(f"65% risk capital: {capital_in_risk * 0.65}")
-
-#     # commission is of two operations, open and close. So it's 2 times of what mt5 specification shows (which is only for opening or closing, not opening and closing)
-#     # stop_loss is in pips, not points
-#     # lot_size = (risk_ratio * capital) / (stop_loss * pip_value + commission_per_lot + spread)
-#     # lot_size = capital_in_risk / (stop_loss * pip_value + commission_per_lot)
-#     lot_size = capital_in_risk / (stop_loss * pip_value + commission_per_lot + spread/10*pip_value)
-
-
-#     print(f"lot size = {lot_size} before rounding")
-#     lot_size = round(lot_size, 2)
-#     print(f"lot size = {lot_size}, commision = {lot_size*commission_per_lot}, commission_per_lot = {commission_per_lot}")
-
-#     if lot_size < 0.01:
-#         print(f"lot size = {lot_size}. Change to 0.01")
-#         lot_size = 0.01
-    
-#     # or maybe quit
-#     # if lot_size < 0.01:
-#     #     print("Insufficient funds. Cannot make 0.01 lots.")
-#     #     mt5.shutdown()
-#     #     quit()
-
-#     return lot_size
-
-# def calculate_lot_size(sl, symbol, risk_ratio=0.05, commission_per_lot=4): #sl is in points, need to convert     # currently @param commission_per_lot is not included in the passed parameters
-#     # pip_value = 1/10**(digits-1)*contract_size?
-#     # EURUSD 1/(10**(5-1)) * 100000 => 10 USD
-#     # USDJPY 1/(10**(3-1)) * 100000 => 1000 JPY
-#     # BTCUSD 1/(10**(2-1)) * 1 => 0.1 USD
-
-#     spread = mt5.symbol_info(symbol).spread
-
-#     #convert 
-#     stop_loss = sl/10
-#     print(f"sl pip: {stop_loss}")
-
-#     trade_contract_size = mt5.symbol_info(symbol).trade_contract_size
-#     digits = mt5.symbol_info(symbol).digits
-
-#     # pip_value = 1/10**(digits-1)*trade_contract_size
-#     # # pip_value = 1/10**(digits-1)*trade_contract_size * 
-    
-#     # # hard code not the best way
-#     # # tmp method
-#     # if symbol == "USDJPY":
-#     #     pip_value = pip_value / mt5.symbol_info(symbol).ask
-
-#     """
-#     With a similar contract, the Pip don't have the same value on every currency pairs. the formula is:
-
-#     S: Size of the contract
-#     dPIP: pip definition (0.0001, 0.001...)
-#     XXX: the first currency
-#     YYY: the second currency
-
-#     the value of the Pip for the pair XXX/YYY = S * dPIP * YYY/USD
-#     """
-#     dPIP = 1/10**(digits-1)
-#     YYY = symbol[-3:]
-#     if YYY == "USD":
-#         YYY_USD = "USDUSD"
-#         print(f"YYY_USD: {YYY_USD}")
-#         value_YYY_USD = 1
-#         print(f"value_YYY_USD: {value_YYY_USD}")
-#     else:
-#         YYY_USD = YYY + "USD"
-#         USD_YYY = "USD" + YYY
-#         print(f"YYY_USD: {YYY_USD}")
-#         print(f"USD_YYY: {USD_YYY}")
-#         value_YYY_USD = 1/mt5.symbol_info(USD_YYY).bid
-#         print(f"value_YYY_USD: {value_YYY_USD}")
-
-    
-#     pip_value = trade_contract_size * dPIP * value_YYY_USD
-    
-#     print(f"pip_value: {pip_value}")
-#     print(f"spread: {spread}")
-
-#     capital = mt5.account_info().balance
-#     capital_in_risk = risk_ratio * capital
-
-#     print(f"capital: {capital}")
-#     print(f"capital in risk: {capital_in_risk}") 
-#     # print(f"65% risk capital: {capital_in_risk * 0.65}")
-
-#     # commission is of two operations, open and close. So it's 2 times of what mt5 specification shows (which is only for opening or closing, not opening and closing)
-#     # stop_loss is in pips, not points
-#     # lot_size = (risk_ratio * capital) / (stop_loss * pip_value + commission_per_lot + spread)
-#     # lot_size = capital_in_risk / (stop_loss * pip_value + commission_per_lot)
-#     lot_size = capital_in_risk / (stop_loss * pip_value + commission_per_lot + spread/10*pip_value)
-
-
-#     print(f"lot size = {lot_size} before rounding")
-#     # lot_size = round(lot_size, 2)
-
-
-#     # check if lot size is valid
-#     if lot_size < 0.01:
-#         # # 1. stop the program
-#         # print(f"lot_size_truncated is {lot_size}, less than 0.01, cannot open trade.")
-#         # print(f"Insufficient funds. Cannot open {lot_size} lot.")
-#         # mt5.shutdown()
-#         # quit()
-
-#         # 2. set lot_size to min_lot_limit
-#         print(f"lot_size_truncated {lot_size} is less than min_lot_limit 0.01. \nsetting it to 0.01.")
-#         lot_size = 0.01
-        
-#     elif lot_size > 100:
-#         print(f"lot_size_truncated is {lot_size}. \nsetting it to maximum.")
-#         lot_size = 100
-
-#     # moved it from before to after the above block (lot size 0.01 to 100)
-#     # after we limit lot size to 0.01 to 100, then we are safe to use the str split method.
-#     # conservative lot size
-#     if "." in str(lot_size): # !!!!! FATAL ERROR !!!! if lot_size is displayed in scientific notation, e.g. 1.7977235979606702e-05    this will be converted to 1.79 lot; it should be converted to 0.01
-#         lot_size = float(str(lot_size).split(".")[0] + "." + str(lot_size).split(".")[1][:2])
-#         print("lot size changed to conservative")
-
-#     print(f"lot size = {lot_size}, commision = {lot_size*commission_per_lot}, commission_per_lot = {commission_per_lot}")
-    
-#     # or maybe quit
-#     # if lot_size < 0.01:
-#     #     print("Insufficient funds. Cannot make 0.01 lots.")
-#     #     mt5.shutdown()
-#     #     quit()
-
-#     return lot_size
 
 def calculate_lot_size(sl, symbol, risk_ratio, commission_per_lot): #sl is in points, need to convert     # currently @param commission_per_lot is not included in the passed parameters
     # pip_value = 1/10**(digits-1)*contract_size?
@@ -485,39 +147,16 @@ def calculate_lot_size(sl, symbol, risk_ratio, commission_per_lot): #sl is in po
 
         pip_value = trade_contract_size * dPIP * value_YYY_USD
 
-    elif symbol == "BITCOIN": # just !!!STAY AWAY!!! from it. the commission is HUGE!
+    elif symbol == "BTCUSD.p": # example
         value_YYY_USD = 1
         pip_value = trade_contract_size * dPIP * value_YYY_USD
         commission_per_lot = mt5.symbol_info(symbol).bid * 0.0015 # as describled in specification on mt5, it's ## 0.15% in USD per lot (min 0.01) ##
         commission_per_lot = 2 * commission_per_lot # as the commission_per_lot here is the final total commission. but actually commission per lot is calculated each time when you buy or sell, so when you close a trade, it is calculated twice.
 
-    # # error ! because not every broker has symbols like xauusd, for dominion, they have xauusd.p, which is not a length of 6.
-    # # if len(symbol) == 6 and "USD" in symbol: # if it's USDXXX or XXXUSD, e.g. USDJPY and EURUSD 
-    # if len(symbol) == 6:
+    # elif symbol == "XAUUSD.p": # example
 
-    #     YYY = symbol[-3:]
-    #     if YYY == "USD": # XXXUSD
-    #         YYY_USD = "USDUSD"
-    #         print(f"YYY_USD: {YYY_USD}")
-    #         value_YYY_USD = 1
-    #         print(f"value_YYY_USD: {value_YYY_USD}")
-    #     else: # USDXXX
-    #         YYY_USD = YYY + "USD"
-    #         USD_YYY = "USD" + YYY
-    #         print(f"YYY_USD: {YYY_USD}")
-    #         print(f"USD_YYY: {USD_YYY}")
-    #         value_YYY_USD = 1/mt5.symbol_info(USD_YYY).bid
-    #         print(f"value_YYY_USD: {value_YYY_USD}")
+    # else:
 
-    #     pip_value = trade_contract_size * dPIP * value_YYY_USD
-
-    # elif symbol == "BITCOIN": # just !!!STAY AWAY!!! from it. the commission is HUGE!
-    #     value_YYY_USD = 1
-    #     pip_value = trade_contract_size * dPIP * value_YYY_USD
-    #     commission_per_lot = mt5.symbol_info(symbol).bid * 0.0015 # as describled in specification on mt5, it's ## 0.15% in USD per lot (min 0.01) ##
-    #     commission_per_lot = 2 * commission_per_lot # as the commission_per_lot here is the final total commission. but actually commission per lot is calculated each time when you buy or sell, so when you close a trade, it is calculated twice. 
-    
-    
     
     print(f"pip_value: {pip_value}")
     print(f"spread: {spread}")
@@ -530,7 +169,7 @@ def calculate_lot_size(sl, symbol, risk_ratio, commission_per_lot): #sl is in po
     #     print(f"capital is 0. setting it to {capital} just for testing")
     capital_in_risk = risk_ratio * capital
 
-     # do not print capital, just do the right trades, not focusing on the balance
+    # Print capital and capital in risk for debugging purposes
     print(f"capital: {capital}")
     print(f"capital in risk: {capital_in_risk}") 
     # print(f"65% risk capital: {capital_in_risk * 0.65}")
@@ -540,15 +179,6 @@ def calculate_lot_size(sl, symbol, risk_ratio, commission_per_lot): #sl is in po
     # lot_size = (risk_ratio * capital) / (stop_loss * pip_value + commission_per_lot + spread)
     # lot_size = capital_in_risk / (stop_loss * pip_value + commission_per_lot)
     lot_size = capital_in_risk / (stop_loss * pip_value + commission_per_lot + spread/10*pip_value)
-
-
-    # # need to move it after checking lot_size validity, bc if lot size < 0.01, lot_size is 0.00, and radicalize it will be 0.00, and later calculation will yield errors, like float division by zero
-    # oh, actually the divison by zero error is due to the capital is zero
-    # radical_lot_size = round(lot_size, 2)
-    # print(f"lot size = {lot_size} before rounding")
-    # # lot_size = round(lot_size, 2)
-
-
 
     # check if lot size is valid
     if lot_size < 0.01:
@@ -571,7 +201,7 @@ def calculate_lot_size(sl, symbol, risk_ratio, commission_per_lot): #sl is in po
     print(f"lot size = {lot_size} before rounding")
 
     
-    # !!!!! FATAL ERROR !!!! if lot_size is displayed in scientific notation, e.g. 1.7977235979606702e-05    this will be converted to 1.79 lot; it should be converted to 0.01
+    # Warning. If lot_size is displayed in scientific notation, e.g. 1.7977235979606702e-05    this will be converted to 1.79 lot; it should be converted to 0.01
     # moved it from before to after the above block (lot size 0.01 to 100)
     # after we limit lot size to 0.01 to 100, then we are safe to use the str split method.
     # conservative lot size
@@ -2139,7 +1769,7 @@ def confirm_symbol_n_timeframe(symbol, timeframe):
 
     return symbol, timeframe
 
-def double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body_points_limit, points_gap_between_ideal_n_current_limit,
+def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, body_points_limit, points_gap_between_ideal_n_current_limit,
                          offset_limit, points_from_tp_limit, commission_per_lot, risk_ratio, risk_reward_ratio, tp_percent, 
                          check_timeframe_consistency, count_down_after_modifying_sl, check_above_or_below_sma, check_if_trading_time, check_sma_resistance,
                          pattern_list, pattern_index, added_points_to_sl, added_points_to_tp, fixed_tp, fixed_tp_in_points, hedge, 
@@ -5366,7 +4996,7 @@ def main():
     special_pending_order_check_log = {} # put the date as the key, and put the value as dict(checked)
 
 
-    double_tick_strategy(symbol, type_filling, timeframe, sl_limit, sl_min, body_points_limit, points_gap_between_ideal_n_current_limit,
+    double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, body_points_limit, points_gap_between_ideal_n_current_limit,
                          offset_limit, points_from_tp_limit, commission_per_lot, risk_ratio, risk_reward_ratio, tp_percent, 
                          check_timeframe_consistency, count_down_after_modifying_sl, check_above_or_below_sma, check_if_trading_time, check_sma_resistance,
                          pattern_list, pattern_index, added_points_to_sl, added_points_to_tp, fixed_tp, fixed_tp_in_points, hedge, 
