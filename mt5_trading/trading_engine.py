@@ -1738,7 +1738,23 @@ def find_recent_ideal_entry_price(symbol="USDJPY", timeframe=mt5.TIMEFRAME_M30, 
 def confirm_symbol_n_timeframe(symbol, timeframe):
     while True:
         print(f"symbol: {symbol}")
-        print(f"timeframe: {timeframe}")
+        # print timeframe in readable formats
+        if timeframe == mt5.TIMEFRAME_M1:
+            print(f"timeframe: M1")
+        elif timeframe == mt5.TIMEFRAME_M5:
+            print(f"timeframe: M5")
+        elif timeframe == mt5.TIMEFRAME_M15:
+            print(f"timeframe: M15")
+        elif timeframe == mt5.TIMEFRAME_M30:
+            print(f"timeframe: M30")
+        elif timeframe == mt5.TIMEFRAME_H1:
+            print(f"timeframe: H1")
+        elif timeframe == mt5.TIMEFRAME_H4:
+            print(f"timeframe: H4")
+        elif timeframe == mt5.TIMEFRAME_D1:
+            print(f"timeframe: D1")
+        else:
+            print(f"timeframe: {timeframe}")
         confirm_info = input("confirm symbol and timeframe [Y/n]")
         if confirm_info == "":
             break
@@ -1752,19 +1768,19 @@ def confirm_symbol_n_timeframe(symbol, timeframe):
             input_timeframe = input("change timeframe to: ")
             if input_timeframe == "":
                 pass
-            elif input_timeframe in ['daily']:
+            elif input_timeframe in ['daily', 'Daily','d1', 'D1', '1d', '1D', 'd', 'D']:
                 timeframe = mt5.TIMEFRAME_D1
-            elif input_timeframe in ['h4', '240']:
+            elif input_timeframe in ['h4', 'H4', '240']:
                 timeframe = mt5.TIMEFRAME_H4
-            elif input_timeframe in ['h1', '60']:
+            elif input_timeframe in ['h1', 'H1', '60']:
                 timeframe = mt5.TIMEFRAME_H1
-            elif input_timeframe in ['m30', '30']:
+            elif input_timeframe in ['m30', 'M30', '30']:
                 timeframe = mt5.TIMEFRAME_M30
-            elif input_timeframe in ['m15', '15']:
+            elif input_timeframe in ['m15', 'M15', '15']:
                 timeframe = mt5.TIMEFRAME_M15
-            elif input_timeframe in ['m5', '5']:
+            elif input_timeframe in ['m5', 'M5', '5']:
                 timeframe = mt5.TIMEFRAME_M5
-            elif input_timeframe in ['m1', '1']:
+            elif input_timeframe in ['m1', 'M1', '1']:
                 timeframe = mt5.TIMEFRAME_M1
 
     return symbol, timeframe
@@ -1807,39 +1823,7 @@ def double_candle_breakout(symbol, type_filling, timeframe, sl_limit, sl_min, bo
     # not wokring. what if order 1 is open, and modified, then the flag is set to 1, but then another order 2 is open, but flag is 1, so sl will be be modified
     # sl_modified = 0
 
-    symbol, timeframe = confirm_symbol_n_timeframe(symbol, timeframe)
-    # while True:
-    #     print(f"symbol: {symbol}")
-    #     print(f"timeframe: {timeframe}")
-    #     confirm_info = input("confirm symbol and timeframe [Y/n]")
-    #     if confirm_info == "":
-    #         break
-    #     elif confirm_info.upper() == "N":
-    #         input_symbol = input("change symbol to: ").upper()
-    #         if input_symbol == "":
-    #             pass
-    #         else:
-    #             symbol = input_symbol
 
-    #         input_timeframe = input("change timeframe to: ")
-    #         if input_timeframe == "":
-    #             pass
-    #         elif input_timeframe in ['daily']:
-    #             timeframe = mt5.TIMEFRAME_D1
-    #         elif input_timeframe in ['h4', '240']:
-    #             timeframe = mt5.TIMEFRAME_H4
-    #         elif input_timeframe in ['h1', '60']:
-    #             timeframe = mt5.TIMEFRAME_H1
-    #         elif input_timeframe in ['m30', '30']:
-    #             timeframe = mt5.TIMEFRAME_M30
-    #         elif input_timeframe in ['m15', '15']:
-    #             timeframe = mt5.TIMEFRAME_M15
-    #         elif input_timeframe in ['m5', '5']:
-    #             timeframe = mt5.TIMEFRAME_M5
-    #         elif input_timeframe in ['m1', '1']:
-    #             timeframe = mt5.TIMEFRAME_M1
-    print(f"chosen_symbol: {symbol}")
-    print(f"chosen_timeframe: {timeframe}")
     
     # need to be after confirmation of symbol and timeframe
     # so that the digits and muliply_digits are recalculated with the final settings
@@ -4828,6 +4812,7 @@ def main():
         print(f"switching to {symbol}")
     # symbol = "EURUSD.p"
     # symbol="AUDUSD"
+
     type_filling = mt5.ORDER_FILLING_IOC # dominion markets
     # type_filling = mt5.ORDER_FILLING_IOC # IC
     # type_filling = mt5.ORDER_FILLING_FOK # FXTM
@@ -4836,6 +4821,26 @@ def main():
     # timeframe = mt5.TIMEFRAME_M15
     # timeframe = mt5.TIMEFRAME_M30
     timeframe = mt5.TIMEFRAME_H1
+
+    # Confirm the symbol and timeframe with the user, allowing them to change it if needed
+    symbol, timeframe = confirm_symbol_n_timeframe(symbol, timeframe)
+    print(f"chosen_symbol: {symbol}")
+    if timeframe == mt5.TIMEFRAME_M1:
+        print(f"chosen_timeframe: M1")
+    elif timeframe == mt5.TIMEFRAME_M5:
+        print(f"chosen_timeframe: M5")
+    elif timeframe == mt5.TIMEFRAME_M15:
+        print(f"chosen_timeframe: M15")
+    elif timeframe == mt5.TIMEFRAME_M30:
+        print(f"chosen_timeframe: M30")
+    elif timeframe == mt5.TIMEFRAME_H1:
+        print(f"chosen_timeframe: H1")
+    elif timeframe == mt5.TIMEFRAME_H4:
+        print(f"chosen_timeframe: H4")
+    elif timeframe == mt5.TIMEFRAME_D1:
+        print(f"chosen_timeframe: D1")
+    else:
+        print(f"chosen_timeframe: {timeframe}")
 
     broker_time_offset_hours_from_utc = get_broker_time_n_utc_time_offset(symbol)
     print(f"broker_time_offset_hours_from_utc: {broker_time_offset_hours_from_utc}")
@@ -4849,27 +4854,27 @@ def main():
     # sl_limit = 270
     # body_points_limit = 160
 
-    if timeframe == mt5.TIMEFRAME_M30:
-        sl_limit = 300 #360 # for usdjpy previous setting was 650
-        # sl_limit = 800 #350 # setting to 500 for XAUUSD testing
-        sl_min = 100
-        # body points limit is used for crossing sma setups, where the crossing candle's body should be be too big.
-        body_points_limit = 300 # setting it to 400 points for XAUUSD testing 
-        # for usdjpy I set it to 200
-    elif timeframe == mt5.TIMEFRAME_H1:
+    if "USDJPY" in symbol and timeframe == mt5.TIMEFRAME_M30: # 
         sl_limit = 600 #360 # for usdjpy previous setting was 650
         # sl_limit = 800 #350 # setting to 500 for XAUUSD testing
         sl_min = 100
         # body points limit is used for crossing sma setups, where the crossing candle's body should be be too big.
         body_points_limit = 600 # setting it to 400 points for XAUUSD testing 
         # for usdjpy I set it to 200
+    elif "USDJPY" in symbol and timeframe == mt5.TIMEFRAME_H1: # 
+            sl_limit = 1200 #360 # for usdjpy previous setting was 650
+            # sl_limit = 800 #350 # setting to 500 for XAUUSD testing
+            sl_min = 100
+            # body points limit is used for crossing sma setups, where the crossing candle's body should be be too big.
+            body_points_limit = 1200 # setting it to 400 points for XAUUSD testing 
+            # for usdjpy I set it to 200
     else:
         # default
-        sl_limit = 300 #360 # for usdjpy previous setting was 650
+        sl_limit = 1500 # 150 pips #360 # for usdjpy previous setting was 650
         # sl_limit = 800 #350 # setting to 500 for XAUUSD testing
         sl_min = 100
         # body points limit is used for crossing sma setups, where the crossing candle's body should be be too big.
-        body_points_limit = 300 # setting it to 400 points for XAUUSD testing 
+        body_points_limit = 1500 # setting it to 400 points for XAUUSD testing 
         # for usdjpy I set it to 200
     
     points_gap_between_ideal_n_current_limit = 30 # setting it to 15points is TOO TIGHT. might not open order on gold as the spread is already 15-20 points
@@ -4962,10 +4967,11 @@ def main():
         risk_ratio = float(risk_ratio_confirm)
     print(f"confirmed risk_ratio is {risk_ratio}, namely {risk_ratio * 100}%, ~{mt5.account_info().balance * risk_ratio} per trade")
 
-    # confirm sl_limit, sl_min, body_points_limit
-    print(f"sl_limit: {sl_limit}")
-    print(f"sl_min: {sl_min}")
-    print(f"body_points_limit: {body_points_limit}")
+    ## confirm sl_limit, sl_min, body_points_limit
+    ## printed below in overall info
+    # print(f"sl_limit: {sl_limit}")
+    # print(f"sl_min: {sl_min}")
+    # print(f"body_points_limit: {body_points_limit}")
 
 
     # get news dataframe
