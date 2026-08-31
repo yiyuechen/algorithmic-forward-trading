@@ -4561,8 +4561,7 @@ def check_if_its_trading_time():
         remaining_minutes = check_n_add_zero_b4_1_digit_natural_nums(remaining_minutes)
         remaining_seconds = check_n_add_zero_b4_1_digit_natural_nums(remaining_seconds)
 
-        print(f"                                                            UTC: {current_time_str}. \
-            Time remaining: {remaining_hours}: {remaining_minutes}: {remaining_seconds}          ", end="\r", flush=True)
+        print(f"                                   UTC: {current_time_str}    Time remaining: {remaining_hours}: {remaining_minutes}: {remaining_seconds}", end="\r", flush=True)
         
         # At the beginning of the trading time, it will print "00: 00: 01", which is not pretty. Because when it's trading time, we don't have the chance to go into this condition to print.
         # Trying to resolve this.
