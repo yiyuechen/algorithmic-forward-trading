@@ -1,8 +1,28 @@
 # Algorithmic Forward Trading
 
 A Python-based algorithmic trading and quantitative research project
-integrating MetaTrader 5 for forward-trading automation, risk
+integrating MetaTrader 5 APIs for forward-trading automation, risk
 management, market-data processing, and statistical analysis.
+
+## Disclaimer
+
+This project is provided for educational, research, and software-engineering
+purposes only. It is not financial, investment, or trading advice.
+
+The main trading engine and other MetaTrader 5 components are designed for
+forward-trading automation and execution. The simulation programs generate
+hypothetical trading outcomes based on specified assumptions and
+probabilities. Simulated results are hypothetical and do not represent
+actual investment performance.
+
+Past simulated or live trading performance is not indicative of future
+results. This software is not intended for use with real funds. Trading financial
+instruments involves substantial risk, and the software may contain errors
+or behave unexpectedly.
+
+No guarantee is made regarding the accuracy, reliability, profitability, or
+future performance of the strategies, trading system, or simulations
+included in this repository.
 
 ## Overview
 
@@ -77,6 +97,14 @@ historical data and a demo account for statistics learning and avoid using it wi
 The trading_engine.py program is experimental and under active development. Strategy rules, position sizing, broker compatibility, and market-data handling may require
 further testing.
 
+### Examples
+![Trading engine running](images/trading_engine_running_0.png)
+![Trading engine running](images/trading_engine_running_1.png)
+![Trading engine running](images/trading_engine_running_2.png)
+![Opened a sell position](images/opened_sell_position_0.png)
+![Opened a buy position](images/opened_buy_position_0.png)
+![Opened a sell position](images/opened_sell_position_1.png)
+
 ## Project Structure
 
 ### `mt5_trading/`
@@ -113,22 +141,3 @@ mt5_trading/credential_info.py and fill in your own credentials.
 This project is intended primarily as a software engineering and
 quantitative research project.
 
-## Disclaimer
-
-This project is provided for educational, research, and software-engineering
-purposes only. It is not financial, investment, or trading advice.
-
-The main trading engine and other MetaTrader 5 components are designed for
-forward-trading automation and execution. The simulation programs generate
-hypothetical trading outcomes based on specified assumptions and
-probabilities. Simulated results are hypothetical and do not represent
-actual investment performance.
-
-Past simulated or live trading performance is not indicative of future
-results. This software is not intended for use with real funds. Trading financial
-instruments involves substantial risk, and the software may contain errors
-or behave unexpectedly.
-
-No guarantee is made regarding the accuracy, reliability, profitability, or
-future performance of the strategies, trading system, or simulations
-included in this repository.
